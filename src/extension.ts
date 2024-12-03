@@ -1,73 +1,156 @@
-// The module 'vscode' contains the VS Code extensibility API
-// Import the module and reference it with the alias vscode in your code below
-import * as vscode from 'vscode';
-import axios from 'axios';
-const { GoogleGenerativeAI } = require("@google/generative-ai");
+import * as vscode from "vscode";
+import * as fs from "fs";
+import * as path from "path";
+import PDFDocument from "pdfkit";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
+const apiKey = "AIzaSyC-bBVVstUGkTLEW_PE5pvs-nSJiOtvuho";
+const genAI = new GoogleGenerativeAI(apiKey);
+const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-function getUserCode(): string | null {
-    const editor = vscode.window.activeTextEditor;
-    if (!editor) {
-        vscode.window.showErrorMessage('No active editor found.');
-        return null;
+function getAllJavaFiles(dir: string): string[] {
+  let javaFiles: string[] = [];
+  const files = fs.readdirSync(dir);
+  for (const file of files) {
+    const fullPath = path.join(dir, file);
+    if (fs.statSync(fullPath).isDirectory()) {
+      javaFiles = javaFiles.concat(getAllJavaFiles(fullPath));
+    } else if (file.endsWith(".java")) {
+      javaFiles.push(fullPath);
     }
-    return editor.document.getText();
+  }
+  return javaFiles;
 }
 
-async function sendCodeToModel(code: string): Promise<any> {
-	const genAI = new GoogleGenerativeAI("AIzaSyC-bBVVstUGkTLEW_PE5pvs-nSJiOtvuho");
-	const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-	const prompt = `in only 100 words Detect if there is any SOLID principle violation in this code ${code}`;
+function extractImports(filePath: string): string[] {
+  const content = fs.readFileSync(filePath, "utf-8");
+  const importLines = content.match(/^import\s+([\w.]+);/gm) || [];
+  return importLines.map((line) => line.replace(/^import\s+|;$/g, "").trim());
+}
+
+function buildClusters(files: string[]): Set<Set<string>> {
+  const dependencyGraph = new Map<string, Set<string>>();
+  const filePathMap = new Map<string, string>();
+
+  files.forEach((file) => {
+    const baseName = path.basename(file, ".java");
+    filePathMap.set(baseName, file);
+  });
+
+  for (const file of files) {
+    const imports = extractImports(file);
+    const fileName = path.basename(file, ".java");
+    if (!dependencyGraph.has(fileName)) {
+      dependencyGraph.set(fileName, new Set());
+    }
+    imports.forEach((imported) => {
+      const importedFileName = imported.split(".").pop();
+      if (filePathMap.has(importedFileName!)) {
+        dependencyGraph.get(fileName)?.add(importedFileName!);
+      }
+    });
+  }
+	const clusters: Set<Set<string>> = new Set();
+
+  for (const [file, dependencies] of dependencyGraph.entries()) {
+    const cluster = new Set<string>();
+    cluster.add(filePathMap.get(file)!);
+    dependencies.forEach((dep) => cluster.add(filePathMap.get(dep)!));
+    clusters.add(cluster);
+  }
+  return clusters;
+}
+
+async function sendClustersToModel(clusters: Set<Set<string>>): Promise<void> {
+  let responses = "";
+
+  for (const cluster of clusters) {
+    const combinedCode = Array.from(cluster)
+      .map((file) => fs.readFileSync(file, "utf-8"))
+      .join("\n");
+    const prompt = `Analyze the following Java code and identify violations of the SOLID principles. For each violation, provide:
+1. The principle violated.
+2. The specific part of the code responsible.
+3. A brief explanation of why the violation occurs:\n\n${combinedCode}`;
 
     try {
-		const result = await model.generateContent(prompt);
-		console.log(result.data);
-        return result.response.text();
+      const result = await model.generateContent(prompt);
+      responses += result.response.text() + "\n";
     } catch (error) {
-        vscode.window.showErrorMessage('Failed to connect to the model API.');
-        console.error(error);
+      vscode.window.showErrorMessage(`Failed to analyze.`);
+      console.error("Model API error:", error);
     }
+  }
+
+  const finalPrompt = `Given the following responses, provide a summarized response that contain each principle and in front of it the classes that violated that principle\n${responses}`;
+  try {
+    const finalResult = await model.generateContent(finalPrompt);
+    const summary = finalResult.response.text();
+    const doc = new PDFDocument();
+    const pdfPath = path.join(
+      vscode.workspace.workspaceFolders![0].uri.fsPath,
+      "Final_Analysis.pdf"
+    );
+    const pdfStream = fs.createWriteStream(pdfPath);
+
+    doc.pipe(pdfStream);
+    doc.fontSize(16).text("Final Analysis Summary", { underline: true });
+    doc.fontSize(12).text(summary);
+    doc.end();
+    pdfStream.on("finish", () => {
+      vscode.window.showInformationMessage(`Analysis saved to PDF: ${pdfPath}`);
+    });
+  } catch (error) {
+    vscode.window.showErrorMessage("Failed to generate final analysis.");
+    console.error("Model API error:", error);
+  }
 }
 
-function displayViolations(violations: String): void {
-	if(violations){
-		vscode.window.showWarningMessage(
-			`Violations detected: ${violations}`
-		);
-	}
+async function analyzeProject(): Promise<void> {
+  const workspaceFolders = vscode.workspace.workspaceFolders;
+  if (!workspaceFolders || workspaceFolders.length === 0) {
+    vscode.window.showErrorMessage("No workspace folder found.");
+    return;
+  }
+  const projectDir = workspaceFolders[0].uri.fsPath;
+  const javaFiles = getAllJavaFiles(projectDir);
+  if (javaFiles.length === 0) {
+    vscode.window.showErrorMessage("No Java files found in the project.");
+    return;
+  }
+  const clusters = buildClusters(javaFiles);
+  await sendClustersToModel(clusters);
 }
 
-async function analyzeCode(): Promise<void> {
-    const code = getUserCode();
-    if (!code) return;
-
-    const analysis = await sendCodeToModel(code);
-	displayViolations(analysis);
+async function analyzeFile(): Promise<void> {
+	const editor = vscode.window.activeTextEditor;
+  if (!editor) {
+    vscode.window.showErrorMessage("No active editor found.");
+    return;
+  }
+  const code = editor.document.getText();
+  const prompt = `in only 100 words Detect if there is any SOLID principle violation in this code ${code}`;
+  try {
+    const result = await model.generateContent(prompt);
+    const violations = result.response.text();
+		vscode.window.showWarningMessage(`Violations detected: ${violations}`);
+  } catch (error) {
+    vscode.window.showErrorMessage("Failed to connect to the model API.");
+    console.error(error);
+  }
 }
 
-
-// This method is called when your extension is activated
-// Your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
-
-	// // Use the console to output diagnostic information (console.log) and errors (console.error)
-	// // This line of code will only be executed once when your extension is activated
-	// console.log('Congratulations, your extension "codeaid" is now active!');
-
-	// // The command has been defined in the package.json file
-	// // Now provide the implementation of the command with registerCommand
-	// // The commandId parameter must match the command field in package.json
-	// const disposable = vscode.commands.registerCommand('codeaid.helloWorld', () => {
-	// 	// The code you place here will be executed every time your command is executed
-	// 	// Display a message box to the user
-	// 	vscode.window.showInformationMessage('Hello World VSC!');
-	// });
-
-	// context.subscriptions.push(disposable);
-
-	const analyzeCommand = vscode.commands.registerCommand('extension.analyzeCode', analyzeCode);
-    context.subscriptions.push(analyzeCommand);
+  const analyzeProjectCommand = vscode.commands.registerCommand(
+    "extension.analyzeProject",
+    analyzeProject
+  );
+  const analyzeFileCommand = vscode.commands.registerCommand(
+    "extension.analyzeFile",
+    analyzeFile
+  );
+  context.subscriptions.push(analyzeProjectCommand);
+	context.subscriptions.push(analyzeFileCommand);
 }
 
-// This method is called when your extension is deactivated
 export function deactivate() {}
