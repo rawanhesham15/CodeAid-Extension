@@ -8,6 +8,35 @@ const apiKey = "AIzaSyC-bBVVstUGkTLEW_PE5pvs-nSJiOtvuho";
 const genAI = new GoogleGenerativeAI(apiKey);
 const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
+
+
+export function activate(context: vscode.ExtensionContext) {
+  const analyzeProjectCommand = vscode.commands.registerCommand(
+    "extension.analyzeProject",
+    analyzeProject
+  );
+  const analyzeFileCommand = vscode.commands.registerCommand(
+    "extension.analyzeFile",
+    analyzeFile
+  );
+  // Register the view provider
+  // const viewProvider = new MyCustomViewProvider(context.extensionUri);
+
+  // context.subscriptions.push(
+  //     vscode.window.registerWebviewViewProvider("myView",viewProvider)
+  // );
+  const myTreeDataProvider = new MyTreeDataProvider();
+  vscode.window.registerTreeDataProvider('myView', myTreeDataProvider);
+  context.subscriptions.push(analyzeProjectCommand);
+	context.subscriptions.push(analyzeFileCommand);
+}
+
+
+export function deactivate() {}
+
+
+
+
 function getAllJavaFiles(dir: string): string[] {
   let javaFiles: string[] = [];
   const files = fs.readdirSync(dir);
@@ -140,17 +169,71 @@ async function analyzeFile(): Promise<void> {
   }
 }
 
-export function activate(context: vscode.ExtensionContext) {
-  const analyzeProjectCommand = vscode.commands.registerCommand(
-    "extension.analyzeProject",
-    analyzeProject
-  );
-  const analyzeFileCommand = vscode.commands.registerCommand(
-    "extension.analyzeFile",
-    analyzeFile
-  );
-  context.subscriptions.push(analyzeProjectCommand);
-	context.subscriptions.push(analyzeFileCommand);
+// class MyCustomViewProvider implements vscode.WebviewViewProvider {
+  
+
+//   constructor(private readonly _extensionUri: vscode.Uri) {}
+
+//   resolveWebviewView(
+//       webviewView: vscode.WebviewView,
+//       _context: vscode.WebviewViewResolveContext,
+//       _token: vscode.CancellationToken
+//   ) {
+
+//       webviewView.webview.options = {
+//           enableScripts: true,
+//           localResourceRoots: [this._extensionUri]
+//       };
+
+//       webviewView.webview.html = this.getHtmlContent();
+//   }
+
+//   private getHtmlContent(): string {
+//       return `
+//           <!DOCTYPE html>
+//           <html lang="en">
+//           <head>
+//               <meta charset="UTF-8">
+//               <meta name="viewport" content="width=device-width, initial-scale=1.0">
+//               <title>Custom View</title>
+//           </head>
+//           <body>
+//               <h1>Welcome to My Custom View</h1>
+//               <button onclick="alert('Hello from Webview!')">Click Me</button>
+//           </body>
+//           </html>
+//       `;
+//   }
+// }
+
+class MyTreeDataProvider implements vscode.TreeDataProvider<vscode.TreeItem> {
+  private _onDidChangeTreeData: vscode.EventEmitter<vscode.TreeItem | undefined | null | void> = new vscode.EventEmitter<vscode.TreeItem | undefined | null | void>();
+  readonly onDidChangeTreeData: vscode.Event<vscode.TreeItem | undefined | null | void> = this._onDidChangeTreeData.event;
+
+  getTreeItem(element: vscode.TreeItem): vscode.TreeItem {
+      return element;
+  }
+
+  getChildren(element?: vscode.TreeItem): vscode.TreeItem[] | Thenable<vscode.TreeItem[]> {
+    if (!element) {
+        return [
+            this.createButton("Analyze the project", "extension.analyzeProject"),
+            this.createButton("Analyze current file", "extension.analyzeFile"),
+        ];
+    }
+    return [];
 }
 
-export function deactivate() {}
+private createButton(label: string, command: string): vscode.TreeItem {
+    const treeItem = new vscode.TreeItem(label);
+    treeItem.command = {
+        command: command,
+        title: label,
+    };
+    treeItem.tooltip = `Click to execute ${label}`;
+    treeItem.iconPath = new vscode.ThemeIcon("debug-start"); // Use a built-in icon
+    return treeItem;
+}
+}
+
+

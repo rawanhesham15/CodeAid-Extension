@@ -23,8 +23,29 @@
       {
         "command": "extension.analyzeFile",
         "title": "Analyze current file for SOLID Violations"
+      },
+      {
+        "command": "extension.viewProvider",
+        "title": "Open Service UI"
       }
     ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "myCustomViewContainer",
+          "title": "CodeAid",
+          "icon": "media/logo.svg"
+        }
+      ]
+    },
+    "views": {
+      "myCustomViewContainer": [
+        {
+          "id": "myView",
+          "name": "Service choose"
+        }
+      ]
+    },
     "languages": [
       {
         "id": "java",
@@ -46,9 +67,11 @@
     "test": "vscode-test"
   },
   "devDependencies": {
+    "@types/caseless": "^0.12.5",
     "@types/mocha": "^10.0.9",
     "@types/node": "20.x",
-    "@types/pdfkit": "^0.13.6",
+    "@types/pdfkit": "^0.13.7",
+    "@types/tough-cookie": "^4.0.5",
     "@types/vscode": "^1.95.0",
     "@typescript-eslint/eslint-plugin": "^8.10.0",
     "@typescript-eslint/parser": "^8.7.0",
