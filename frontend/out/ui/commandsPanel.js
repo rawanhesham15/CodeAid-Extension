@@ -44,9 +44,9 @@ class MyTreeDataProvider {
     constructor() {
         // Initialize root items once so they can be accessed synchronously
         this.rootItems = [
-            new actionItem_1.MyTreeItem('Detection ', vscode.TreeItemCollapsibleState.Collapsed, false, 'detection'),
-            new actionItem_1.MyTreeItem('Plot Diagram ', vscode.TreeItemCollapsibleState.Collapsed, false, 'plotDiagram'),
-            new actionItem_1.MyTreeItem('Display Rate ', vscode.TreeItemCollapsibleState.Collapsed, false, 'displayRate'),
+            new actionItem_1.MyTreeItem("Detection ", vscode.TreeItemCollapsibleState.Collapsed, false, "detection"),
+            new actionItem_1.MyTreeItem("Plot Diagram ", vscode.TreeItemCollapsibleState.Collapsed, false, "plotDiagram"),
+            new actionItem_1.MyTreeItem("Display Rate ", vscode.TreeItemCollapsibleState.Collapsed, false, "displayRate"),
         ];
     }
     refresh() {
@@ -64,42 +64,42 @@ class MyTreeDataProvider {
         }
         const subItems = {
             detection: [
-                new actionItem_1.MyTreeItem('SOLID', vscode.TreeItemCollapsibleState.Collapsed, false, 'solid'),
-                new actionItem_1.MyTreeItem('Coupling', vscode.TreeItemCollapsibleState.Collapsed, false, 'coupling'),
+                new actionItem_1.MyTreeItem("SOLID", vscode.TreeItemCollapsibleState.Collapsed, false, "solid"),
+                new actionItem_1.MyTreeItem("Coupling", vscode.TreeItemCollapsibleState.Collapsed, false, "coupling"),
             ],
             solid: [
-                new actionItem_1.MyTreeItem('Current File', vscode.TreeItemCollapsibleState.Collapsed, false, 'currentFile'),
-                new actionItem_1.MyTreeItem('Whole Project', vscode.TreeItemCollapsibleState.Collapsed, false, 'wholeProject'),
+                new actionItem_1.MyTreeItem("Current File", vscode.TreeItemCollapsibleState.Collapsed, false, "currentFile"),
+                new actionItem_1.MyTreeItem("Whole Project", vscode.TreeItemCollapsibleState.Collapsed, false, "wholeProject"),
             ],
             coupling: [
-                new actionItem_1.MyTreeItem('Current File', vscode.TreeItemCollapsibleState.Collapsed, false, 'currentFile'),
-                new actionItem_1.MyTreeItem('Whole Project', vscode.TreeItemCollapsibleState.Collapsed, false, 'wholeProject'),
+                new actionItem_1.MyTreeItem("Current File", vscode.TreeItemCollapsibleState.Collapsed, false, "currentFile"),
+                new actionItem_1.MyTreeItem("Whole Project", vscode.TreeItemCollapsibleState.Collapsed, false, "wholeProject"),
             ],
             plotDiagram: [
-                new actionItem_1.MyTreeItem('Dependency diagram', vscode.TreeItemCollapsibleState.Collapsed, false, "dDiagram"),
-                new actionItem_1.MyTreeItem('Class Diagram', vscode.TreeItemCollapsibleState.Collapsed, false, 'cDiagram'),
-                new actionItem_1.MyTreeItem('Architecture Diagram', vscode.TreeItemCollapsibleState.Collapsed, false, 'aDiagram'),
+                new actionItem_1.MyTreeItem("Dependency diagram", vscode.TreeItemCollapsibleState.Collapsed, false, "dDiagram"),
+                new actionItem_1.MyTreeItem("Class Diagram", vscode.TreeItemCollapsibleState.Collapsed, false, "cDiagram"),
+                new actionItem_1.MyTreeItem("Architecture Diagram", vscode.TreeItemCollapsibleState.Collapsed, false, "aDiagram"),
             ],
             displayRate: [
-                new actionItem_1.MyTreeItem('Complexity Rate', vscode.TreeItemCollapsibleState.Collapsed, false, 'complexityRate'),
+                new actionItem_1.MyTreeItem("Complexity Rate", vscode.TreeItemCollapsibleState.Collapsed, false, "complexityRate"),
             ],
             currentFile: [
-                this.createButton('Start Detection', 'extension.analyzeFile'),
+                this.createButton("Start Detection", "extension.analyzeFile"),
             ],
             wholeProject: [
-                this.createButton('Start Detection', 'extension.analyzeProject'),
+                this.createButton("Start Detection", "extension.analyzeProject"),
             ],
             dDiagram: [
-                this.createButton('Generate Diagram', 'extension.generateDependencyDiagram'),
+                this.createButton("Generate Diagram", "extension.plotDependencyDiagram"),
             ],
             cDiagram: [
-                this.createButton('Generate Diagram', 'extension.generateClassDiagram'),
+                this.createButton("Generate Diagram", "extension.plotClassDiagram"),
             ],
             aDiagram: [
-                this.createButton('Generate Diagram', 'extension.generateArchitectureDiagram'),
+                this.createButton("Generate Diagram", "extension.plotArchitectureDiagram"),
             ],
             complexityRate: [
-                this.createButton('Display Rate', 'extension.displayRate'),
+                this.createButton("Display Rate", "extension.displayRate"),
             ],
         };
         return Promise.resolve(subItems[element.contextValue] || []);
@@ -107,7 +107,7 @@ class MyTreeDataProvider {
     // Select a root item (ensuring only one is selected)
     selectRootItem(item) {
         this.selectedRootItem = item; // Store selected root item
-        this.rootItems.forEach(root => root.selected = root === item); // Ensure only one is selected
+        this.rootItems.forEach((root) => (root.selected = root === item)); // Ensure only one is selected
         this._onDidChangeTreeData.fire(); // Refresh UI
     }
     // Get root items synchronously

@@ -13,7 +13,7 @@
     "onLanguage:java",
     "onCommand:extension.analyzeCode"
   ],
-  "main": "./frontend/out/extension.js",
+  "main": "./out/extension.js",
   "contributes": {
     "commands": [
       {
@@ -64,7 +64,7 @@
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
-    "compile": "tsc -p frontend/",
+    "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src",
