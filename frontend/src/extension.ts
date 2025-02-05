@@ -1,9 +1,9 @@
 import * as vscode from "vscode";
-
-import { MyTreeDataProvider } from "./UI/commandsPanel";
-const axios = require("axios");
+import axios from "axios";
 
 export function activate(context: vscode.ExtensionContext) {
+  console.log("CodeAid Extension is now active!");
+
   const analyzeProjectCommand = vscode.commands.registerCommand(
     "extension.analyzeProject",
     analyzeProject
@@ -29,21 +29,19 @@ export function activate(context: vscode.ExtensionContext) {
     displayRate
   );
 
-  const myTreeDataProvider = new MyTreeDataProvider();
-
-  vscode.window.registerTreeDataProvider("myView", myTreeDataProvider);
-
   context.subscriptions.push(
-    vscode.commands.registerCommand("extension.refreshTree", () => {
-      myTreeDataProvider.refresh();
-    })
+    analyzeProjectCommand,
+    analyzeFileCommand,
+    plotClassDiagramCommand,
+    plotArchitectureDiagramCommand,
+    plotDepDiagramCommand,
+    displayRateCommand
   );
-  context.subscriptions.push(analyzeProjectCommand);
-  context.subscriptions.push(analyzeFileCommand);
-  context.subscriptions.push(plotClassDiagramCommand);
-  context.subscriptions.push(plotArchitectureDiagramCommand);
-  context.subscriptions.push(plotDepDiagramCommand);
-  context.subscriptions.push(displayRateCommand);
+
+  const provider = new CodeAidSidebarProvider(context.extensionUri);
+  context.subscriptions.push(
+    vscode.window.registerWebviewViewProvider(CodeAidSidebarProvider.viewType, provider)
+  );
 }
 
 export function deactivate() {}
@@ -261,3 +259,228 @@ async function displayRate(): Promise<void> {
     vscode.window.showErrorMessage(errorMessage);
   }
 }
+class CodeAidSidebarProvider implements vscode.WebviewViewProvider {
+    public static readonly viewType = "codeAidView";
+  
+    constructor(private readonly _extensionUri: vscode.Uri) {}
+  
+    resolveWebviewView(webviewView: vscode.WebviewView) {
+      webviewView.webview.options = {
+          enableScripts: true,
+      };
+  
+      webviewView.webview.html = this._getHtmlForWebview(webviewView);
+  
+      webviewView.webview.onDidReceiveMessage((message) => {
+          switch (message.command) {
+              case "detectSolid":
+                  if (message.context === "detectSolidFile") {
+                      vscode.commands.executeCommand("extension.analyzeFile");
+                  } else if (message.context === "detectSolidProject") {
+                      vscode.commands.executeCommand("extension.analyzeProject");
+                  }
+                  break;
+              case "detectCoupling":
+                  if (message.context === "detectCouplingFile") {
+                      vscode.commands.executeCommand("extension.analyzeFile");
+                  } else if (message.context === "detectCouplingProject") {
+                      vscode.commands.executeCommand("extension.analyzeProject");
+                  }
+                  break;
+              case "plotDiagrams":
+                  message.selectedDiagrams.forEach((diagram: string) => {
+                      switch (diagram) {
+                          case "Dependency":
+                              vscode.commands.executeCommand("extension.plotDependencyDiagram");
+                              break;
+                          case "Class":
+                              vscode.commands.executeCommand("extension.plotClassDiagram");
+                              break;
+                          case "Architecture":
+                              vscode.commands.executeCommand("extension.plotArchitectureDiagram");
+                              break;
+                      }
+                  });
+                  break;
+              case "displayRate":
+                  vscode.commands.executeCommand("extension.displayRate");
+                  break;
+          }
+      });
+  }
+  
+  
+    private _getHtmlForWebview(webviewView: vscode.WebviewView): string {
+      return `
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>CodeAid</title>
+            <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src ${webviewView.webview.cspSource};">
+            <style>
+                body {
+                    font-family: Arial, sans-serif;
+                    padding: 10px;
+                    background-color: #282c34;
+                    color: #e1e1e6;
+                }
+                h2 {
+                    color: #e1e1e6;
+                }
+                h3 {
+                    color: #e1e1e6;
+                    margin-top: 20px;
+                }
+                .section {
+                    margin-bottom: 15px;
+                }
+                label {
+                    margin-right: 10px;
+                    color: #e1e1e6;
+                }
+                button {
+                    background-color: #007acc;
+                    color: white;
+                    border: none;
+                    padding: 8px 16px;
+                    cursor: pointer;
+                    border-radius: 4px;
+                    margin-top: 5px;
+                }
+                button:hover {
+                    background-color: #005fa3;
+                }
+                #result {
+                    margin-top: 10px;
+                    font-weight: bold;
+                }
+                .btn-container {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 10px;
+                }
+                .radio-container {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 10px;
+                    margin-top: 10px;
+                }
+                .radio-label {
+                    color: #e1e1e6;
+                }
+                .checkbox-container {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 10px;
+                }
+            </style>
+        </head>
+        <body>
+            <h2>CodeAid Features</h2>
+  
+            <div class="section">
+                <h3> SOLID Detection</h3>
+                <div class="radio-container">
+                    <label class="radio-label">
+                        <input type="radio" name="solidContext" id="detectSolidFile" checked />
+                        Current File
+                    </label>
+                    <label class="radio-label">
+                        <input type="radio" name="solidContext" id="detectSolidProject" />
+                        Whole Project
+                    </label>
+                </div>
+                <button id="detectSolid">
+                    Detect SOLID
+                </button>
+            </div>
+  
+            <div class="section">
+                <h3> Coupling smeels Detection </h3>
+                <div class="radio-container">
+                    <label class="radio-label">
+                        <input type="radio" name="couplingContext" id="detectCouplingFile" checked />
+                        Current File
+                    </label>
+                    <label class="radio-label">
+                        <input type="radio" name="couplingContext" id="detectCouplingProject" />
+                        Whole Project
+                    </label>
+                </div>
+                <button id="detectCoupling">
+                    Detect Coupling
+                </button>
+            </div>
+  
+            <div class="section">
+                <h3>Plot Diagrams</h3>
+                <div class="checkbox-container">
+                    <label>
+                        <input type="checkbox" id="plotDependency" />
+                        Dependency Diagram
+                    </label>
+                    <label>
+                        <input type="checkbox" id="plotClass" />
+                        Class Diagram
+                    </label>
+                    <label>
+                        <input type="checkbox" id="plotArchitecture" />
+                        Architecture Diagram
+                    </label>
+                </div>
+                <button id="plotDiagrams">
+                    Plot Selected Diagrams
+                </button>
+            </div>
+  
+            <div class="section">
+                <h3>Display Complexity Rate</h3>
+                <button id="displayRateBtn">
+                    Display Rate
+                </button>
+            </div>
+  
+            <script>
+                const vscode = acquireVsCodeApi();
+  
+                document.getElementById("detectSolid").addEventListener("click", () => {
+                    const context = document.querySelector('input[name="solidContext"]:checked').id;
+                    vscode.postMessage({ command: "detectSolid", context });
+                });
+  
+                document.getElementById("detectCoupling").addEventListener("click", () => {
+                    const context = document.querySelector('input[name="couplingContext"]:checked').id;
+                    vscode.postMessage({ command: "detectCoupling", context });
+                });
+  
+                document.getElementById("plotDiagrams").addEventListener("click", () => {
+                    const selectedDiagrams = [];
+                    if (document.getElementById("plotDependency").checked) {
+                        selectedDiagrams.push("Dependency");
+                    }
+                    if (document.getElementById("plotClass").checked) {
+                        selectedDiagrams.push("Class");
+                    }
+                    if (document.getElementById("plotArchitecture").checked) {
+                        selectedDiagrams.push("Architecture");
+                    }
+                    vscode.postMessage({ command: "plotDiagrams", selectedDiagrams });
+                });
+  
+                document.getElementById("displayRateBtn").addEventListener("click", () => {
+                    vscode.postMessage({ command: "displayRate" });
+                });
+  
+                window.addEventListener("message", (event) => {
+                    const message = event.data;
+                    document.getElementById("result").innerText = message.text;
+                });
+            </script>
+        </body>
+        </html>
+      `;
+    }
+  }
+  

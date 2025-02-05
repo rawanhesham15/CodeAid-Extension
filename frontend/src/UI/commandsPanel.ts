@@ -3,6 +3,7 @@ import { MyTreeItem } from "../models/actionItem";
 import { updateTreeView } from "./utils";
 
 export class MyTreeDataProvider implements vscode.TreeDataProvider<MyTreeItem> {
+  private context: vscode.ExtensionContext;
   private rootItems: MyTreeItem[];
   private selectedRootItem: MyTreeItem | null = null;
   private _onDidChangeTreeData = new vscode.EventEmitter<
@@ -12,26 +13,32 @@ export class MyTreeDataProvider implements vscode.TreeDataProvider<MyTreeItem> {
     MyTreeItem | undefined | null | void
   > = this._onDidChangeTreeData.event;
 
-  constructor() {
-    // Initialize root items once so they can be accessed synchronously
+  constructor(context: vscode.ExtensionContext) {
+    this.context = context;
     this.rootItems = [
       new MyTreeItem(
-        "Detection ",
+        "🛠️ Detection Solid",
         vscode.TreeItemCollapsibleState.Collapsed,
         false,
-        "detection"
+        "detection_solid"
       ),
       new MyTreeItem(
-        "Plot Diagram ",
+        "🛠️ Detection Coupling",
+        vscode.TreeItemCollapsibleState.Collapsed,
+        false,
+        "detection_coupling"
+      ),
+      new MyTreeItem(
+        "📊 Plot Diagram ",
         vscode.TreeItemCollapsibleState.Collapsed,
         false,
         "plotDiagram"
       ),
       new MyTreeItem(
-        "Display Rate ",
+        "📈 Complexity Rate ",
         vscode.TreeItemCollapsibleState.Collapsed,
         false,
-        "displayRate"
+        "complexityRate"
       ),
     ];
   }
@@ -39,124 +46,54 @@ export class MyTreeDataProvider implements vscode.TreeDataProvider<MyTreeItem> {
   refresh(): void {
     this._onDidChangeTreeData.fire();
   }
-  // Provide tree items
   getTreeItem(element: MyTreeItem): vscode.TreeItem {
     return element;
   }
 
-  // Get children of the given element
   getChildren(element?: MyTreeItem): Thenable<MyTreeItem[]> {
     if (!element) {
-      // Root items (can be accessed synchronously from `this.rootItems`)
       return Promise.resolve(this.rootItems);
     }
 
     const subItems: Record<string, MyTreeItem[]> = {
-      detection: [
-        new MyTreeItem(
-          "SOLID",
-          vscode.TreeItemCollapsibleState.Collapsed,
-          false,
-          "solid"
-        ),
-        new MyTreeItem(
-          "Coupling",
-          vscode.TreeItemCollapsibleState.Collapsed,
-          false,
-          "coupling"
-        ),
-      ],
-      solid: [
-        new MyTreeItem(
-          "Current File",
-          vscode.TreeItemCollapsibleState.Collapsed,
-          false,
-          "currentFile"
-        ),
-        new MyTreeItem(
-          "Whole Project",
-          vscode.TreeItemCollapsibleState.Collapsed,
-          false,
-          "wholeProject"
-        ),
-      ],
-      coupling: [
-        new MyTreeItem(
-          "Current File",
-          vscode.TreeItemCollapsibleState.Collapsed,
-          false,
-          "currentFile"
-        ),
-        new MyTreeItem(
-          "Whole Project",
-          vscode.TreeItemCollapsibleState.Collapsed,
-          false,
-          "wholeProject"
-        ),
-      ],
-      plotDiagram: [
-        new MyTreeItem(
-          "Dependency diagram",
-          vscode.TreeItemCollapsibleState.Collapsed,
-          false,
-          "dDiagram"
-        ),
-        new MyTreeItem(
-          "Class Diagram",
-          vscode.TreeItemCollapsibleState.Collapsed,
-          false,
-          "cDiagram"
-        ),
-        new MyTreeItem(
-          "Architecture Diagram",
-          vscode.TreeItemCollapsibleState.Collapsed,
-          false,
-          "aDiagram"
-        ),
-      ],
-      displayRate: [
-        new MyTreeItem(
-          "Complexity Rate",
-          vscode.TreeItemCollapsibleState.Collapsed,
-          false,
-          "complexityRate"
-        ),
-      ],
-
-      currentFile: [
+      detection_solid: [
         this.createButton(
-          "Start Detection",
+          "📄 Current File",
           "extension.analyzeFile"
         ) as MyTreeItem,
-      ],
-      wholeProject: [
         this.createButton(
-          "Start Detection",
+          "🗂️ Whole Project",
           "extension.analyzeProject"
         ) as MyTreeItem,
       ],
-
-      dDiagram: [
+      detection_coupling: [
         this.createButton(
-          "Generate Diagram",
-          "extension.plotDependencyDiagram"
+          "📄 Current File",
+          "extension.analyzeFile"
+        ) as MyTreeItem,
+        this.createButton(
+          "🗂️ Whole Project",
+          "extension.analyzeProject"
         ) as MyTreeItem,
       ],
-      cDiagram: [
+      plotDiagram: [
         this.createButton(
-          "Generate Diagram",
-          "extension.plotClassDiagram"
+          "🏷️ Dependency diagram",
+          "extension.plotDependencyDiagram",
         ) as MyTreeItem,
-      ],
-      aDiagram: [
         this.createButton(
-          "Generate Diagram",
+          "Class Diagram",
+          "extension.plotClassDiagram",
+          "classDiagram"
+        ) as MyTreeItem,
+        this.createButton(
+          "Architecture Diagram",
           "extension.plotArchitectureDiagram"
         ) as MyTreeItem,
       ],
       complexityRate: [
         this.createButton(
-          "Display Rate",
+          "▶️ Display Rate",
           "extension.displayRate"
         ) as MyTreeItem,
       ],
@@ -165,26 +102,35 @@ export class MyTreeDataProvider implements vscode.TreeDataProvider<MyTreeItem> {
     return Promise.resolve(subItems[element.contextValue] || []);
   }
 
-  // Select a root item (ensuring only one is selected)
   selectRootItem(item: MyTreeItem) {
-    this.selectedRootItem = item; // Store selected root item
-    this.rootItems.forEach((root) => (root.selected = root === item)); // Ensure only one is selected
-    this._onDidChangeTreeData.fire(); // Refresh UI
+    this.selectedRootItem = item;
+    this.rootItems.forEach((root) => (root.selected = root === item)); 
+    this._onDidChangeTreeData.fire();
   }
 
-  // Get root items synchronously
   getRootItems(): MyTreeItem[] {
     return this.rootItems;
   }
 
-  private createButton(label: string, command: string): vscode.TreeItem {
-    const treeItem = new vscode.TreeItem(label);
-    treeItem.command = {
-      command: command,
-      title: label,
+  private createButton(label: string, command: string, iconPath?: string): vscode.TreeItem {
+  const treeItem = new vscode.TreeItem(label);
+  treeItem.command = {
+    command: command,
+    title: label,
+  };
+
+  treeItem.tooltip = `Click to execute ${label}`;
+
+  if (iconPath) {
+    const absolutePath = this.context.asAbsolutePath(`media/${iconPath}.jpg`); 
+    treeItem.iconPath = {
+      dark: vscode.Uri.file(absolutePath),
+      light: vscode.Uri.file(absolutePath),
     };
-    treeItem.tooltip = `Click to execute ${label}`;
-    treeItem.iconPath = new vscode.ThemeIcon("debug-start"); // Use a built-in icon
-    return treeItem;
   }
+
+  return treeItem;
+}
+
+  
 }

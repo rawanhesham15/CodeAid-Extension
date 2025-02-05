@@ -1,7 +1,7 @@
 {
   "name": "codeaid",
   "displayName": "CodeAid",
-  "description": "",
+  "description": "A VSCode extension for analyzing and visualizing code quality.",
   "version": "0.0.1",
   "engines": {
     "vscode": "^1.95.0"
@@ -15,41 +15,50 @@
   ],
   "main": "./out/extension.js",
   "contributes": {
-    "commands": [
-      {
-        "command": "extension.analyzeProject",
-        "title": "Analyze whole project for SOLID Violations"
-      },
-      {
-        "command": "extension.analyzeFile",
-        "title": "Analyze current file for SOLID Violations"
-      },
-      {
-        "command": "extension.plotClassDiagram",
-        "title": "Plot Class Diagram for the Project"
-      },
-      {
-        "command": "extension.viewProvider",
-        "title": "Open Service UI"
-      }
-    ],
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "myCustomViewContainer",
+          "id": "codeAidSidebar",
           "title": "CodeAid",
           "icon": "media/logo.svg"
         }
       ]
     },
     "views": {
-      "myCustomViewContainer": [
+      "codeAidSidebar": [
         {
-          "id": "myView",
-          "name": "Service choose"
+          "id": "codeAidView",
+          "name": "CodeAid Panel",
+          "type": "webview"
         }
       ]
     },
+    "commands": [
+      {
+        "command": "extension.analyzeProject",
+        "title": "Analyze Project"
+      },
+      {
+        "command": "extension.analyzeFile",
+        "title": "Analyze File"
+      },
+      {
+        "command": "extension.plotClassDiagram",
+        "title": "Plot Class Diagram"
+      },
+      {
+        "command": "extension.plotArchitectureDiagram",
+        "title": "Plot Architecture Diagram"
+      },
+      {
+        "command": "extension.plotDependencyDiagram",
+        "title": "Plot Dependency Diagram"
+      },
+      {
+        "command": "extension.displayRate",
+        "title": "Display Rate"
+      }
+    ],
     "languages": [
       {
         "id": "java",
@@ -71,11 +80,8 @@
     "test": "vscode-test"
   },
   "devDependencies": {
-    "@types/caseless": "^0.12.5",
     "@types/mocha": "^10.0.9",
     "@types/node": "20.x",
-    "@types/pdfkit": "^0.13.7",
-    "@types/tough-cookie": "^4.0.5",
     "@types/vscode": "^1.95.0",
     "@typescript-eslint/eslint-plugin": "^8.10.0",
     "@typescript-eslint/parser": "^8.7.0",
@@ -87,11 +93,7 @@
   "dependencies": {
     "@google-cloud/aiplatform": "^3.34.0",
     "@google/generative-ai": "^0.21.0",
-    "@mermaid-js/mermaid-cli": "^11.4.2",
     "axios": "^1.7.8",
-    "mermaid": "^11.4.1",
-    "pako": "^2.1.0",
-    "pdfkit": "^0.15.1",
-    "puppeteer": "^23.0.0"
+    "codeaid": "file:"
   }
 }
