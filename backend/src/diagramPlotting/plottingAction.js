@@ -1,50 +1,48 @@
-class PlottingAction{
-  constructor(diagramGenerator, fileManager){
-    this.diagramGenerator = diagramGenerator;
-    this.fileManager = fileManager;
-    if(new.target === PlottingAction) {
+import DiagramGenerator from "./diagramGenerator.js";
+import FileManager from "./../fileManager/fileManager.js";
+class PlottingAction {
+  constructor() {
+    this.diagramGenerator = new DiagramGenerator();
+    this.fileManager = new FileManager();
+    if (new.target === PlottingAction) {
       throw new Error("Can't instantiate an abstract class directly");
     }
   }
   /**
-   * 
-   * @param {Object} req 
+   *
+   * @param {Object} req
    * @returns {Object}
    */
-  createDiagram(req){
-    projectJSON = this.gatherCode(req.path);
-    parsedProject = this.parseProject(projectJSON);
-    returnedVal = this.generateDiagram(parsedProject, req.path);
-    if(returnedVal == null){
-
-    }else{
-
-    }
+  createDiagram(req) {
+    var projectJSON = this.gatherCode(req.body.path);
+    var parsedProject = this.parseProject(projectJSON);
+    var returnedVal = this.generateDiagram(parsedProject, req.body.path);
+    console.log(returnedVal);
+    return returnedVal;
   }
   /**
-   * 
-   * @param {string} path 
+   *
+   * @param {string} path
    * @returns {Object}
    */
-  gatherCode(path){
-    projectContent = this.fileManager.getProjectContent(path);
+  gatherCode(path) {
+    var projectContent = this.fileManager.getProjectContent(path);
     return projectContent;
   }
   /**
-   * 
-   * @param {Object} projectJSON 
+   *
+   * @param {Object} projectJSON
    * @returns {Object}
    */
-  parseProject(projectJSON){
-    
-  }
+  parseProject(projectJSON) {}
   /**
-   * 
-   * @param {string} parsedCode 
+   *
+   * @param {string} parsedCode
+   * @param {string} projectPath
+   * @param {string} fileName
    * @returns {string}
    */
-  generateDiagram(parsedCode){
-    this.diagramGenerator.generateDiagram(parsedCode);
+  generateDiagram(parsedCode, projectPath, fileName) {
   }
 }
 

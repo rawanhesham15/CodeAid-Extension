@@ -11,9 +11,12 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "antlr4": "^4.13.2",
     "body-parser": "^1.20.3",
     "child_process": "^1.0.2",
     "cors": "^2.8.5",
-    "express": "^4.21.2"
+    "express": "^4.21.2",
+    "tree-sitter": "^0.21.1",
+    "tree-sitter-java": "^0.23.5"
   }
 }

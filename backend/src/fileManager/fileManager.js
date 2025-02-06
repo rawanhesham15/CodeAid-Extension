@@ -21,7 +21,7 @@ class FileManager {
   /**
    *
    * @param {string} dirPath
-   * @returns {Object}
+   * @returns {Object[]}
    */
   getProjectContent(dirPath) {
     try {
@@ -32,7 +32,7 @@ class FileManager {
         const fullPath = path.join(dirPath, item.name);
         if (item.isDirectory()) {
           filesData = filesData.concat(this.getProjectContent(fullPath)); // Recursively process subdirectories
-        } else {
+        } else if (item.name.endsWith(".java")){
           const fileContent = this.getFileContent(fullPath);
           if (fileContent) {
             filesData.push(fileContent);
@@ -90,4 +90,4 @@ class FileManager {
   }
 }
 
-module.exports = FileManager;
+export default FileManager;

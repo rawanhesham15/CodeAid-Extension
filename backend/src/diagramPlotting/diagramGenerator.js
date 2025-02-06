@@ -1,23 +1,30 @@
-const path = require("path");
-const { exec } = require("child_process");
-const fs = require("fs");
-const { PassThrough } = require("stream");
+import path from "path";
+import { exec } from "child_process";
+import { PassThrough } from "stream";
 
 class DiagramGenerator {
   constructor() {}
 
-  generateDiagram(parsedProject, projectPath) {
-    const outputFileName = "Class_diagram.png";
-    const outputPath = path.join(projectPath, outputFileName);
-    const diagramStream = new PassThrough();
-    diagramStream.end(Buffer.from(parsedProject, "utf-8"));
-    const command = `npx mmdc -o "${outputPath}"`;
-    const child = exec(command, (error) => {
-      if (error) {
-        return `Error generating diagram: ${error.message}`;
-      }
-      return null;
+  generateDiagram(parsedProject, projectPath, fileName) {
+    return new Promise((resolve, reject) => {
+      const outputPath = path.join(projectPath, fileName);
+      const diagramStream = new PassThrough();
+      diagramStream.end(Buffer.from(parsedProject, "utf-8"));
+
+      const command = `npx mmdc -o "${outputPath}"`;
+      const child = exec(command, (error, stdout, stderr) => {
+        if (error) {
+          reject(`Error generating diagram: ${error.message}`);
+        } else if (stderr) {
+          reject(`stderr: ${stderr}`);
+        } else {
+          resolve(projectPath); // Success, return project path
+        }
+      });
+
+      diagramStream.pipe(child.stdin);
     });
-    diagramStream.pipe(child.stdin);
   }
 }
+
+export default DiagramGenerator;
