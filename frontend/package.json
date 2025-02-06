@@ -34,30 +34,6 @@
       ]
     },
     "commands": [
-      {
-        "command": "extension.analyzeProject",
-        "title": "Analyze Project"
-      },
-      {
-        "command": "extension.analyzeFile",
-        "title": "Analyze File"
-      },
-      {
-        "command": "extension.plotClassDiagram",
-        "title": "Plot Class Diagram"
-      },
-      {
-        "command": "extension.plotArchitectureDiagram",
-        "title": "Plot Architecture Diagram"
-      },
-      {
-        "command": "extension.plotDependencyDiagram",
-        "title": "Plot Dependency Diagram"
-      },
-      {
-        "command": "extension.displayRate",
-        "title": "Display Rate"
-      }
     ],
     "languages": [
       {

@@ -4,43 +4,30 @@ import axios from "axios";
 export function activate(context: vscode.ExtensionContext) {
   console.log("CodeAid Extension is now active!");
 
-  const analyzeProjectCommand = vscode.commands.registerCommand(
-    "extension.analyzeProject",
-    analyzeProject
-  );
-  const analyzeFileCommand = vscode.commands.registerCommand(
-    "extension.analyzeFile",
-    analyzeFile
-  );
-  const plotClassDiagramCommand = vscode.commands.registerCommand(
-    "extension.plotClassDiagram",
-    plotClassDiagram
-  );
-  const plotArchitectureDiagramCommand = vscode.commands.registerCommand(
-    "extension.plotArchitectureDiagram",
-    plotArchitectureDiagram
-  );
-  const plotDepDiagramCommand = vscode.commands.registerCommand(
-    "extension.plotDependencyDiagram",
-    plotDependencyDiagram
-  );
-  const displayRateCommand = vscode.commands.registerCommand(
-    "extension.displayRate",
-    displayRate
-  );
-
   context.subscriptions.push(
-    analyzeProjectCommand,
-    analyzeFileCommand,
-    plotClassDiagramCommand,
-    plotArchitectureDiagramCommand,
-    plotDepDiagramCommand,
-    displayRateCommand
+    vscode.commands.registerCommand("extension.analyzeFile", analyzeFile),
+    vscode.commands.registerCommand("extension.analyzeProject", analyzeProject),
+    vscode.commands.registerCommand(
+      "extension.plotClassDiagram",
+      plotClassDiagram
+    ),
+    vscode.commands.registerCommand(
+      "extension.plotArchitectureDiagram",
+      plotArchitectureDiagram
+    ),
+    vscode.commands.registerCommand(
+      "extension.plotDependencyDiagram",
+      plotDependencyDiagram
+    ),
+    vscode.commands.registerCommand("extension.displayRate", displayRate)
   );
 
   const provider = new CodeAidSidebarProvider(context.extensionUri);
   context.subscriptions.push(
-    vscode.window.registerWebviewViewProvider(CodeAidSidebarProvider.viewType, provider)
+    vscode.window.registerWebviewViewProvider(
+      CodeAidSidebarProvider.viewType,
+      provider
+    )
   );
 }
 
@@ -260,74 +247,81 @@ async function displayRate(): Promise<void> {
   }
 }
 class CodeAidSidebarProvider implements vscode.WebviewViewProvider {
-    public static readonly viewType = "codeAidView";
-  
-    constructor(private readonly _extensionUri: vscode.Uri) {}
-  
-    resolveWebviewView(webviewView: vscode.WebviewView) {
-      webviewView.webview.options = {
-          enableScripts: true,
-      };
-  
-      webviewView.webview.html = this._getHtmlForWebview(webviewView);
-  
-      webviewView.webview.onDidReceiveMessage((message) => {
-          switch (message.command) {
-              case "detectSolid":
-                  if (message.context === "detectSolidFile") {
-                      vscode.commands.executeCommand("extension.analyzeFile");
-                  } else if (message.context === "detectSolidProject") {
-                      vscode.commands.executeCommand("extension.analyzeProject");
-                  }
-                  break;
-              case "detectCoupling":
-                  if (message.context === "detectCouplingFile") {
-                      vscode.commands.executeCommand("extension.analyzeFile");
-                  } else if (message.context === "detectCouplingProject") {
-                      vscode.commands.executeCommand("extension.analyzeProject");
-                  }
-                  break;
-              case "plotDiagrams":
-                  message.selectedDiagrams.forEach((diagram: string) => {
-                      switch (diagram) {
-                          case "Dependency":
-                              vscode.commands.executeCommand("extension.plotDependencyDiagram");
-                              break;
-                          case "Class":
-                              vscode.commands.executeCommand("extension.plotClassDiagram");
-                              break;
-                          case "Architecture":
-                              vscode.commands.executeCommand("extension.plotArchitectureDiagram");
-                              break;
-                      }
-                  });
-                  break;
-              case "displayRate":
-                  vscode.commands.executeCommand("extension.displayRate");
-                  break;
+  public static readonly viewType = "codeAidView";
+
+  constructor(private readonly _extensionUri: vscode.Uri) {}
+
+  resolveWebviewView(webviewView: vscode.WebviewView) {
+    webviewView.webview.options = {
+      enableScripts: true,
+    };
+
+    webviewView.webview.html = this._getHtmlForWebview(webviewView);
+
+    webviewView.webview.onDidReceiveMessage((message) => {
+      console.log(message);
+      switch (message.command) {
+        case "detectSolid":
+          if (message.context === "detectSolidFile") {
+            vscode.commands.executeCommand("extension.analyzeFile");
+          } else if (message.context === "detectSolidProject") {
+            vscode.commands.executeCommand("extension.analyzeProject");
           }
-      });
+          break;
+        case "detectCoupling":
+          if (message.context === "detectCouplingFile") {
+            vscode.commands.executeCommand("extension.analyzeFile");
+          } else if (message.context === "detectCouplingProject") {
+            vscode.commands.executeCommand("extension.analyzeProject");
+          }
+          break;
+        case "plotDiagrams":
+          message.selectedDiagrams.forEach((diagram: string) => {
+            switch (diagram) {
+              case "Dependency":
+                vscode.commands.executeCommand(
+                  "extension.plotDependencyDiagram"
+                );
+                break;
+              case "Class":
+                vscode.commands.executeCommand("extension.plotClassDiagram");
+                break;
+              case "Architecture":
+                vscode.commands.executeCommand(
+                  "extension.plotArchitectureDiagram"
+                );
+                break;
+            }
+          });
+          break;
+        case "displayRate":
+          vscode.commands.executeCommand("extension.displayRate");
+          break;
+      }
+    });
   }
-  
-  
-    private _getHtmlForWebview(webviewView: vscode.WebviewView): string {
-      return `
+
+  private _getHtmlForWebview(webviewView: vscode.WebviewView): string {
+    return `
         <!DOCTYPE html>
         <html lang="en">
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <title>CodeAid</title>
-            <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src ${webviewView.webview.cspSource};">
+            <link rel="preconnect" href="https://fonts.googleapis.com">
+            <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+            <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&display=swap" rel="stylesheet">
             <style>
                 body {
-                    font-family: Arial, sans-serif;
+                    font-family: 'Outfit', serif;
                     padding: 10px;
-                    background-color: #282c34;
+                    background-color:rgb(25, 25, 25);
                     color: #e1e1e6;
                 }
                 h2 {
                     color: #e1e1e6;
+                    margin-left: 10px;
                 }
                 h3 {
                     color: #e1e1e6;
@@ -335,12 +329,14 @@ class CodeAidSidebarProvider implements vscode.WebviewViewProvider {
                 }
                 .section {
                     margin-bottom: 15px;
+                    margin-left: 35px;
                 }
                 label {
                     margin-right: 10px;
                     color: #e1e1e6;
                 }
                 button {
+                  font-family: 'Outfit', serif;
                     background-color: #007acc;
                     color: white;
                     border: none;
@@ -348,9 +344,13 @@ class CodeAidSidebarProvider implements vscode.WebviewViewProvider {
                     cursor: pointer;
                     border-radius: 4px;
                     margin-top: 5px;
+                    transition: 0.5s;
                 }
                 button:hover {
-                    background-color: #005fa3;
+                    background-color: transparent;
+                    border: 1px solid #005fa3;
+                    color: #005fa3;
+                    transition: 0.5s;
                 }
                 #result {
                     margin-top: 10px;
@@ -360,12 +360,15 @@ class CodeAidSidebarProvider implements vscode.WebviewViewProvider {
                     display: flex;
                     flex-direction: column;
                     gap: 10px;
+                    margin-left: 8px;
                 }
                 .radio-container {
                     display: flex;
                     flex-direction: column;
                     gap: 10px;
                     margin-top: 10px;
+                    margin-bottom: 15px;
+                    margin-left: 8px;
                 }
                 .radio-label {
                     color: #e1e1e6;
@@ -374,6 +377,8 @@ class CodeAidSidebarProvider implements vscode.WebviewViewProvider {
                     display: flex;
                     flex-direction: column;
                     gap: 10px;
+                    margin-bottom: 15px;
+                    margin-left: 8px;
                 }
             </style>
         </head>
@@ -398,17 +403,7 @@ class CodeAidSidebarProvider implements vscode.WebviewViewProvider {
             </div>
   
             <div class="section">
-                <h3> Coupling smeels Detection </h3>
-                <div class="radio-container">
-                    <label class="radio-label">
-                        <input type="radio" name="couplingContext" id="detectCouplingFile" checked />
-                        Current File
-                    </label>
-                    <label class="radio-label">
-                        <input type="radio" name="couplingContext" id="detectCouplingProject" />
-                        Whole Project
-                    </label>
-                </div>
+                <h3> Coupling smells Detection </h3>
                 <button id="detectCoupling">
                     Detect Coupling
                 </button>
@@ -447,12 +442,11 @@ class CodeAidSidebarProvider implements vscode.WebviewViewProvider {
   
                 document.getElementById("detectSolid").addEventListener("click", () => {
                     const context = document.querySelector('input[name="solidContext"]:checked').id;
-                    vscode.postMessage({ command: "detectSolid", context });
+                    vscode.postMessage({ command: "detectSolid", context: context });
                 });
   
                 document.getElementById("detectCoupling").addEventListener("click", () => {
-                    const context = document.querySelector('input[name="couplingContext"]:checked').id;
-                    vscode.postMessage({ command: "detectCoupling", context });
+                    vscode.postMessage({ command: "detectCoupling"});
                 });
   
                 document.getElementById("plotDiagrams").addEventListener("click", () => {
@@ -481,6 +475,5 @@ class CodeAidSidebarProvider implements vscode.WebviewViewProvider {
         </body>
         </html>
       `;
-    }
   }
-  
+}
