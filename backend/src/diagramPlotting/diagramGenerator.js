@@ -11,14 +11,14 @@ class DiagramGenerator {
       const diagramStream = new PassThrough();
       diagramStream.end(Buffer.from(parsedProject, "utf-8"));
 
-      const command = `npx mmdc -o "${outputPath}"`;
+      const command = `npx mmdc -i - -o "${outputPath}"  --scale 3 --backgroundColor white`;
       const child = exec(command, (error, stdout, stderr) => {
         if (error) {
           reject(`Error generating diagram: ${error.message}`);
         } else if (stderr) {
           reject(`stderr: ${stderr}`);
         } else {
-          resolve(projectPath); // Success, return project path
+          resolve(projectPath);
         }
       });
 

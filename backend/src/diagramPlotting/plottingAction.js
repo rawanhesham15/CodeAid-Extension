@@ -13,11 +13,10 @@ class PlottingAction {
    * @param {Object} req
    * @returns {Object}
    */
-  createDiagram(req) {
+  async createDiagram(req){
     var projectJSON = this.gatherCode(req.body.path);
     var parsedProject = this.parseProject(projectJSON);
-    var returnedVal = this.generateDiagram(parsedProject, req.body.path);
-    console.log(returnedVal);
+    var returnedVal = await this.generateDiagram(parsedProject, req.body.path);
     return returnedVal;
   }
   /**
@@ -42,7 +41,7 @@ class PlottingAction {
    * @param {string} fileName
    * @returns {string}
    */
-  generateDiagram(parsedCode, projectPath, fileName) {
+  async generateDiagram(parsedCode, projectPath) {
   }
 }
 

@@ -23,13 +23,20 @@ PlottingRouter.post("/architecture", (req, res) => {
   res.json({ path: filePath, data: req.body });
 });
 
-PlottingRouter.post("/dependency", (req, res) => {
-  var depPlotting = new PlotDependencyDiagram();
-  var returnedVal = depPlotting.createDiagram(req);
-  if (returnedVal == null) {
-    res.json({ path: req.body.path, data: req.body });
+PlottingRouter.post("/dependency", async (req, res) => {
+  try {
+    var depPlotting = new PlotDependencyDiagram();
+    var returnedVal = await depPlotting.createDiagram(req);
+
+    if (returnedVal == null) {
+      return res.json({ path: req.body.path, data: req.body });
+    }
+
+    res.json({ message: returnedVal, data: req.body });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
-  res.json({ message: returnedVal, data: req.body });
 });
+
 
 export default PlottingRouter;
