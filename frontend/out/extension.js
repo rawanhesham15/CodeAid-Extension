@@ -15,29 +15,18 @@ var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (
 }) : function(o, v) {
     o["default"] = v;
 });
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.activate = activate;
-exports.deactivate = deactivate;
+exports.deactivate = exports.activate = void 0;
 const vscode = __importStar(require("vscode"));
 const axios_1 = __importDefault(require("axios"));
 function activate(context) {
@@ -46,7 +35,9 @@ function activate(context) {
     const provider = new CodeAidSidebarProvider(context.extensionUri);
     context.subscriptions.push(vscode.window.registerWebviewViewProvider(CodeAidSidebarProvider.viewType, provider));
 }
+exports.activate = activate;
 function deactivate() { }
+exports.deactivate = deactivate;
 async function analyzeProject() {
     const workspaceFolder = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
     if (!workspaceFolder) {
@@ -201,7 +192,9 @@ async function plotDependencyDiagram() {
     }
 }
 async function displayRate() {
+    let complexityDataMap = new Map();
     const workspaceFolder = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
+    const editor = vscode.window.activeTextEditor;
     if (!workspaceFolder) {
         vscode.window.showErrorMessage("No workspace folder is open.");
         return;
@@ -211,9 +204,46 @@ async function displayRate() {
             path: workspaceFolder,
         });
         const responseData = response.data;
-        if (responseData) {
-            vscode.window.showInformationMessage(`Complexity rates are generated`);
+        const decorations = [];
+        // Store complexity rates in a map
+        complexityDataMap.clear();
+        responseData.data.forEach((fileData) => {
+            complexityDataMap.set(fileData.file, fileData.classes);
+        });
+        // Iterate over files returned by the backend
+        if (editor) {
+            responseData.data.forEach((fileData) => {
+                if (editor.document.uri.fsPath === fileData.file) {
+                    fileData.classes.forEach((cls) => {
+                        const text = editor.document.getText();
+                        const regex = new RegExp(`class\\s+${cls.name}\\b`, "g");
+                        let match;
+                        while ((match = regex.exec(text)) !== null) {
+                            // Get the start position of the class declaration
+                            let startPos = editor.document.positionAt(match.index);
+                            // Move position to the line above the class
+                            let aboveClassPos = new vscode.Position(Math.max(startPos.line - 1, 0), 0);
+                            const decoration = {
+                                range: new vscode.Range(aboveClassPos, aboveClassPos),
+                                renderOptions: {
+                                    before: {
+                                        contentText: `Complexity: ${cls.rate}`,
+                                        color: "gray",
+                                        fontStyle: "italic",
+                                        marginBottom: "5px",
+                                    },
+                                },
+                            };
+                            decorations.push(decoration);
+                        }
+                    });
+                }
+            });
         }
+        // Apply decorations to the editor
+        const decorationType = vscode.window.createTextEditorDecorationType({});
+        editor?.setDecorations(decorationType, decorations);
+        vscode.window.showInformationMessage(`Complexity rates calculated.`);
     }
     catch (error) {
         let errorMessage = "An error occurred while calculating the rates.";

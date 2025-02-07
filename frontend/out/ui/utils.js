@@ -1,10 +1,11 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.updateTreeView = updateTreeView;
+exports.updateTreeView = void 0;
 // This function will notify the tree view to update whenever there is a change in the data
 function updateTreeView(emitter) {
     emitter.fire(undefined); // Notify that tree data has changed, causing a re-render
 }
+exports.updateTreeView = updateTreeView;
 // import * as vscode from "vscode";
 // import { MyTreeDataProvider } from "./UI/commandsPanel";
 // const axios = require("axios");

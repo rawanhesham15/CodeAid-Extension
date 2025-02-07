@@ -212,8 +212,11 @@ async function plotDependencyDiagram(): Promise<void> {
     vscode.window.showErrorMessage(errorMessage);
   }
 }
+
 async function displayRate(): Promise<void> {
+  let complexityDataMap: Map<string, any[]> = new Map();
   const workspaceFolder = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
+  const editor = vscode.window.activeTextEditor;
 
   if (!workspaceFolder) {
     vscode.window.showErrorMessage("No workspace folder is open.");
@@ -221,20 +224,60 @@ async function displayRate(): Promise<void> {
   }
 
   try {
-    const response = await axios.post(
-      "http://localhost:3000/rateCalc/complexity",
-      {
-        path: workspaceFolder,
-      }
-    );
+    const response = await axios.post("http://localhost:3000/rateCalc/complexity", {
+      path: workspaceFolder,
+    });
 
     const responseData = response.data;
-    if (responseData) {
-      vscode.window.showInformationMessage(`Complexity rates are generated`);
+    const decorations: vscode.DecorationOptions[] = [];
+
+    // Store complexity rates in a map
+    complexityDataMap.clear();
+    responseData.data.forEach((fileData: any) => {
+      complexityDataMap.set(fileData.file, fileData.classes);
+    });
+
+    // Iterate over files returned by the backend
+    if (editor) {
+      responseData.data.forEach((fileData: any) => {
+        if (editor.document.uri.fsPath === fileData.file) {
+          fileData.classes.forEach((cls: any) => {
+            const text = editor.document.getText();
+            const regex = new RegExp(`class\\s+${cls.name}\\b`, "g");
+            let match;
+
+            while ((match = regex.exec(text)) !== null) {
+              // Get the start position of the class declaration
+              let startPos = editor.document.positionAt(match.index);
+
+              // Move position to the line above the class
+              let aboveClassPos = new vscode.Position(Math.max(startPos.line - 1, 0), 0);
+
+              const decoration = {
+                range: new vscode.Range(aboveClassPos, aboveClassPos),
+                renderOptions: {
+                  before: {
+                    contentText: `Complexity: ${cls.rate}`,
+                    color: "gray",
+                    fontStyle: "italic",
+                    marginBottom: "5px",
+                  },
+                },
+              };
+              decorations.push(decoration);
+            }
+          });
+        }
+      });
     }
+
+    // Apply decorations to the editor
+    const decorationType = vscode.window.createTextEditorDecorationType({});
+    editor?.setDecorations(decorationType, decorations);
+
+    vscode.window.showInformationMessage(`Complexity rates calculated.`);
   } catch (error: any) {
     let errorMessage = "An error occurred while calculating the rates.";
-
     if (error.response) {
       errorMessage += ` Server responded with: ${error.response.status} - ${error.response.data}`;
     } else if (error.request) {
@@ -242,10 +285,11 @@ async function displayRate(): Promise<void> {
     } else {
       errorMessage += ` ${error.message}`;
     }
-
     vscode.window.showErrorMessage(errorMessage);
   }
 }
+
+
 class CodeAidSidebarProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = "codeAidView";
 
