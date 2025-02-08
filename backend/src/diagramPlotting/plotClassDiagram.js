@@ -1,4 +1,4 @@
-import PlottingAction  from "./plottingAction.js";
+import PlottingAction from "./plottingAction.js";
 import Parser from "tree-sitter";
 import Java from "tree-sitter-java";
 import fs from "fs";
@@ -27,7 +27,6 @@ export class PlotClassDiagram extends PlottingAction {
     let allRelationships = [];
 
     projectFiles.forEach(file => {
-      //console.log(`Parsing file: ${file.filePath}`);
       const javaCode = file.content;
 
       // Parse the Java code using Tree-sitter
@@ -39,8 +38,6 @@ export class PlotClassDiagram extends PlottingAction {
 
       function traverse(node) {
         if (!node) return;
-
-        //console.log(`Visiting node type: ${node.type}`);
 
         // Detect class declarations
         if (node.type === "class_declaration") {
@@ -87,22 +84,46 @@ export class PlotClassDiagram extends PlottingAction {
         node.namedChildren.forEach(child => traverse(child));
       }
 
+      function sanitizeType(type) {
+        return type.replace(/\[\]/g, "Array");
+      }
+
       function handleFieldDeclaration(node, classObj, relationships) {
-       // console.log(`Field declaration node children:`, node.namedChildren.map(c => c.type));
         const typeNode = node.namedChildren.find(c => 
           c.type === "type" || 
           c.type === "integral_type" || 
           c.type === "floating_point_type" || 
-          c.type === "type_identifier"
+          c.type === "type_identifier" || 
+          c.type === "generic_type" || 
+          c.type === "array_type"
         );
+
         const variableDeclarators = node.namedChildren.filter(c => c.type === "variable_declarator");
 
         variableDeclarators.forEach(declarator => {
           const fieldNameNode = declarator.namedChildren.find(c => c.type === "identifier");
-          const fieldType = typeNode ? typeNode.text : "Unknown";
           const fieldName = fieldNameNode ? fieldNameNode.text : "Unknown";
 
-          //console.log(`Field detected in ${classObj.name}: ${fieldName} of type ${fieldType}`);
+          let fieldType = "Unknown";
+
+          if (typeNode) {
+            if (typeNode.type === "generic_type") {
+              const containerType = typeNode.namedChildren.find(c => c.type === "type_identifier")?.text;
+              const genericType = typeNode.namedChildren.find(c => c.type === "type_arguments")
+                                ?.namedChildren.find(c => c.type === "type_identifier")?.text;
+              fieldType = `${containerType}<${genericType}>`;
+
+              if (genericType) {
+                relationships.push({
+                  type: "association",
+                  from: classObj.name,
+                  to: sanitizeType(genericType)
+                });
+              }
+            } else {
+              fieldType = sanitizeType(typeNode.text);
+            }
+          }
 
           const visibilityNode = node.namedChildren.find(c => c.type === "modifiers");
           const visibility = visibilityNode ? (visibilityNode.text.includes("private") ? "-" : "+") : "+";
@@ -114,11 +135,13 @@ export class PlotClassDiagram extends PlottingAction {
           });
 
           const primitiveTypes = ["int", "double", "float", "boolean", "char", "byte", "short", "long", "String"];
-          if (!primitiveTypes.includes(fieldType)) {
+          const excludedTypes = ["List", "Set", "Map"];
+          const containerType = fieldType.split('<')[0];
+          if (!primitiveTypes.includes(fieldType) && !excludedTypes.includes(containerType)) {
             relationships.push({
               type: "association",
               from: classObj.name,
-              to: fieldType
+              to: sanitizeType(fieldType)
             });
           }
         });
@@ -135,11 +158,25 @@ export class PlotClassDiagram extends PlottingAction {
                 c.type === "type" || 
                 c.type === "integral_type" || 
                 c.type === "floating_point_type" || 
-                c.type === "type_identifier"
+                c.type === "type_identifier" ||
+                c.type === "generic_type"
               );
               const paramNameNode = param.namedChildren.find(c => c.type === "identifier");
+
+              let paramType = "Unknown";
+              if (paramTypeNode) {
+                if (paramTypeNode.type === "generic_type") {
+                  const containerType = paramTypeNode.namedChildren.find(c => c.type === "type_identifier")?.text;
+                  const genericType = paramTypeNode.namedChildren.find(c => c.type === "type_arguments")
+                                    ?.namedChildren.find(c => c.type === "type_identifier")?.text;
+                  paramType = `${containerType}<${genericType}>`;
+                } else {
+                  paramType = sanitizeType(paramTypeNode.text);
+                }
+              }
+
               return {
-                type: paramTypeNode ? paramTypeNode.text : "Unknown",
+                type: paramType,
                 name: paramNameNode ? paramNameNode.text : "Unknown"
               };
             })
@@ -152,17 +189,19 @@ export class PlotClassDiagram extends PlottingAction {
           classObj.methods.push({
             visibility,
             name: methodNameNode.text,
-            returnType: returnTypeNode ? returnTypeNode.text : "void",
+            returnType: returnTypeNode ? sanitizeType(returnTypeNode.text) : "void",
             parameters
           });
 
           const primitiveTypes = ["int", "double", "float", "boolean", "char", "byte", "short", "long", "String"];
+          const excludedTypes = ["List", "Set", "Map"];
           parameters.forEach(param => {
-            if (!primitiveTypes.includes(param.type)) {
+            const containerType = param.type.split('<')[0];
+            if (!primitiveTypes.includes(param.type) && !excludedTypes.includes(containerType)) {
               relationships.push({
-                type: "method_dependency",
+                type: "association",
                 from: classObj.name,
-                to: param.type
+                to: sanitizeType(param.type)
               });
             }
           });
@@ -191,13 +230,14 @@ export class PlotClassDiagram extends PlottingAction {
       mermaidCode += "    }\n";
     });
 
-    allRelationships.forEach(rel => {
+    const uniqueRelationships = Array.from(new Set(allRelationships.map(rel => JSON.stringify(rel))))
+                                     .map(rel => JSON.parse(rel));
+
+    uniqueRelationships.forEach(rel => {
       if (rel.type === "inheritance") {
         mermaidCode += `${rel.to} <|-- ${rel.from}\n`;
       } else if (rel.type === "association") {
         mermaidCode += `${rel.from} --> ${rel.to}\n`;
-      } else if (rel.type === "method_dependency") {
-        mermaidCode += `${rel.from} ..> ${rel.to}\n`;
       }
     });
 
@@ -205,13 +245,13 @@ export class PlotClassDiagram extends PlottingAction {
   }
 
   async generateDiagram(parsedProject, projectPath) {
+    console.log("Generated Mermaid code:\n", parsedProject);
     await this.diagramGenerator.generateDiagram(
       parsedProject,
       projectPath,
       "Class_diagram.png"
     );
   }
-  
 }
 
 export default PlotClassDiagram;
