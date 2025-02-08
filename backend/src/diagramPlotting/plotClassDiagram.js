@@ -1,6 +1,9 @@
-import PlottingAction from "./plottingAction.js";
+import PlottingAction  from "./plottingAction.js";
 import Parser from "tree-sitter";
 import Java from "tree-sitter-java";
+import fs from "fs";
+import path from "path";
+import DiagramGenerator from "./diagramGenerator.js"; // Import DiagramGenerator
 
 export class PlotClassDiagram extends PlottingAction {
   constructor(diagramGenerator, fileManager) {
@@ -10,20 +13,26 @@ export class PlotClassDiagram extends PlottingAction {
   }
 
   /**
-   * Parse the Java code and extract classes, interfaces, methods, and relationships.
-   * @param {string} javaCode - The Java code to parse.
-   * @returns {Object} - An object containing classes and relationships.
+   * Parse the Java code from an array of JSON objects containing file paths and content.
+   * @param {Array} projectFiles - An array of objects, each containing file path and content.
+   * @returns {String} - Mermaid code for class diagram.
    */
-  parseProject(javaCode) {
-    try {
-      // Sanitize input by removing non-ASCII characters
-      console.log(javaCode);
+  parseProject(projectFiles) {
+    if (!Array.isArray(projectFiles)) {
+      console.error("Expected an array of project files.");
+      return;
+    }
+
+    let allClasses = [];
+    let allRelationships = [];
+
+    projectFiles.forEach(file => {
+      //console.log(`Parsing file: ${file.filePath}`);
+      const javaCode = file.content;
+
       // Parse the Java code using Tree-sitter
       const tree = this.parser.parse(javaCode);
       const rootNode = tree.rootNode;
-
-      // Log the raw AST to debug
-      console.log("Generated AST:\n", rootNode.toString());
 
       const classes = [];
       const relationships = [];
@@ -31,12 +40,12 @@ export class PlotClassDiagram extends PlottingAction {
       function traverse(node) {
         if (!node) return;
 
-        console.log(`Visiting Node: ${node.type} - Text: ${node.text}`);
+        //console.log(`Visiting node type: ${node.type}`);
 
-        // Handle class_declaration
+        // Detect class declarations
         if (node.type === "class_declaration") {
-          const classNameNode = node.namedChildren.find(
-            (child) => child.type === "identifier"
+          const classNameNode = node.namedChildren.find(child => 
+            child.type === "identifier" || child.type === "type_identifier"
           );
           const className = classNameNode ? classNameNode.text : "Unknown";
 
@@ -44,190 +53,165 @@ export class PlotClassDiagram extends PlottingAction {
             name: className,
             type: "class",
             attributes: [],
-            methods: [],
+            methods: []
           };
 
-          console.log("Class: ", classObj);
+          // Handle inheritance relationships
+          const extendsNode = node.namedChildren.find(child => child.type === "superclass");
+          if (extendsNode) {
+            const parentClassNode = extendsNode.namedChildren.find(c => c.type === "type_identifier");
+            if (parentClassNode) {
+              relationships.push({
+                type: "inheritance",
+                from: className,
+                to: parentClassNode.text
+              });
+            }
+          }
 
           // Traverse class body to extract fields and methods
-          node.namedChildren.forEach((member) => {
-            if (member.type === "field_declaration") {
-              handleFieldDeclaration(member, classObj); // Add field to classObj
-            } else if (member.type === "method_declaration") {
-              handleMethodDeclaration(member, classObj); // Add method to classObj
-            }
-          });
-
-          console.log("Final Class Object: ", classObj);
-          classes.push(classObj); // Add classObj to the global classes array
-        }
-
-        // Continue traversing child nodes
-        node.namedChildren.forEach((child) => traverse(child));
-      }
-
-      function handleFieldDeclaration(node, classObj) {
-        if (!classObj) return; // Guard clause in case classObj is undefined
-
-        const modifiersNode = node.namedChildren.find(
-          (c) => c.type === "modifiers"
-        );
-        const fieldTypeNode = node.namedChildren.find(
-          (c) => c.type === "integral_type" || c.type === "type_identifier"
-        );
-        const fieldNameNode = node.namedChildren.find(
-          (c) => c.type === "variable_declarator"
-        );
-
-        if (fieldTypeNode && fieldNameNode) {
-          const fieldName = fieldNameNode.namedChildren.find(
-            (c) => c.type === "identifier"
-          )?.text;
-          if (fieldName) {
-            const visibility = modifiersNode
-              ? modifiersNode.text.includes("private")
-                ? "-"
-                : "+"
-              : "+";
-            classObj.attributes.push({
-              visibility,
-              type: fieldTypeNode.text,
-              name: fieldName,
+          const classBody = node.namedChildren.find(child => child.type === "class_body");
+          if (classBody) {
+            classBody.namedChildren.forEach(classMember => {
+              if (classMember.type === "field_declaration") {
+                handleFieldDeclaration(classMember, classObj, relationships);
+              } else if (classMember.type === "method_declaration") {
+                handleMethodDeclaration(classMember, classObj, relationships);
+              }
             });
           }
+
+          classes.push(classObj);
         }
+
+        node.namedChildren.forEach(child => traverse(child));
       }
 
-      function handleMethodDeclaration(node, classObj) {
-        if (!classObj) return; // Guard clause in case classObj is undefined
+      function handleFieldDeclaration(node, classObj, relationships) {
+       // console.log(`Field declaration node children:`, node.namedChildren.map(c => c.type));
+        const typeNode = node.namedChildren.find(c => 
+          c.type === "type" || 
+          c.type === "integral_type" || 
+          c.type === "floating_point_type" || 
+          c.type === "type_identifier"
+        );
+        const variableDeclarators = node.namedChildren.filter(c => c.type === "variable_declarator");
 
-        const methodNameNode = node.namedChildren.find(
-          (c) => c.type === "identifier"
-        );
-        const returnTypeNode = node.namedChildren.find(
-          (c) =>
-            c.type === "void_type" ||
-            c.type === "integral_type" ||
-            c.type === "type_identifier"
-        );
-        const parametersNode = node.namedChildren.find(
-          (c) => c.type === "formal_parameters"
-        );
+        variableDeclarators.forEach(declarator => {
+          const fieldNameNode = declarator.namedChildren.find(c => c.type === "identifier");
+          const fieldType = typeNode ? typeNode.text : "Unknown";
+          const fieldName = fieldNameNode ? fieldNameNode.text : "Unknown";
+
+          //console.log(`Field detected in ${classObj.name}: ${fieldName} of type ${fieldType}`);
+
+          const visibilityNode = node.namedChildren.find(c => c.type === "modifiers");
+          const visibility = visibilityNode ? (visibilityNode.text.includes("private") ? "-" : "+") : "+";
+
+          classObj.attributes.push({
+            visibility,
+            type: fieldType,
+            name: fieldName
+          });
+
+          const primitiveTypes = ["int", "double", "float", "boolean", "char", "byte", "short", "long", "String"];
+          if (!primitiveTypes.includes(fieldType)) {
+            relationships.push({
+              type: "association",
+              from: classObj.name,
+              to: fieldType
+            });
+          }
+        });
+      }
+
+      function handleMethodDeclaration(node, classObj, relationships) {
+        const methodNameNode = node.namedChildren.find(c => c.type === "identifier");
+        const returnTypeNode = node.namedChildren.find(c => c.type === "type" || c.type === "void_type");
+        const parametersNode = node.namedChildren.find(c => c.type === "formal_parameters");
 
         const parameters = parametersNode
-          ? parametersNode.namedChildren
-              .filter((param) => param.type === "formal_parameter")
-              .map((param) => {
-                const paramTypeNode = param.namedChildren.find(
-                  (c) =>
-                    c.type === "type_identifier" || c.type === "integral_type"
-                );
-                const paramNameNode = param.namedChildren.find(
-                  (c) => c.type === "identifier"
-                );
-                return {
-                  type: paramTypeNode ? paramTypeNode.text : "Unknown",
-                  name: paramNameNode ? paramNameNode.text : "Unknown",
-                };
-              })
+          ? parametersNode.namedChildren.filter(param => param.type === "formal_parameter").map(param => {
+              const paramTypeNode = param.namedChildren.find(c => 
+                c.type === "type" || 
+                c.type === "integral_type" || 
+                c.type === "floating_point_type" || 
+                c.type === "type_identifier"
+              );
+              const paramNameNode = param.namedChildren.find(c => c.type === "identifier");
+              return {
+                type: paramTypeNode ? paramTypeNode.text : "Unknown",
+                name: paramNameNode ? paramNameNode.text : "Unknown"
+              };
+            })
           : [];
 
         if (methodNameNode) {
-          const visibilityNode = node.namedChildren.find(
-            (c) => c.type === "modifiers"
-          );
-          const visibility = visibilityNode
-            ? visibilityNode.text.includes("private")
-              ? "-"
-              : "+"
-            : "+";
+          const visibilityNode = node.namedChildren.find(c => c.type === "modifiers");
+          const visibility = visibilityNode ? (visibilityNode.text.includes("private") ? "-" : "+") : "+";
 
           classObj.methods.push({
             visibility,
             name: methodNameNode.text,
             returnType: returnTypeNode ? returnTypeNode.text : "void",
-            parameters,
+            parameters
+          });
+
+          const primitiveTypes = ["int", "double", "float", "boolean", "char", "byte", "short", "long", "String"];
+          parameters.forEach(param => {
+            if (!primitiveTypes.includes(param.type)) {
+              relationships.push({
+                type: "method_dependency",
+                from: classObj.name,
+                to: param.type
+              });
+            }
           });
         }
       }
 
-      // Start traversal from the rootNode
       traverse(rootNode);
 
-      console.log("Parsed Classes: ", JSON.stringify(classes, null, 2));
-      console.log(
-        "Parsed Relationships: ",
-        JSON.stringify(relationships, null, 2)
-      );
+      allClasses = allClasses.concat(classes);
+      allRelationships = allRelationships.concat(relationships);
+    });
 
-      return { classes, relationships };
-    } catch (error) {
-      console.error("Error parsing Java code:", error);
-      return { classes: [], relationships: [] };
-    }
-  }
-
-  /**
-   * Generate a Mermaid class diagram from the parsed code.
-   * @param {Object} parsedCode - The parsed project structure.
-   * @returns {string} - The Mermaid class diagram code.
-   */
-  generateMermaidDiagram(parsedCode) {
-    const { classes, relationships } = parsedCode;
     let mermaidCode = "classDiagram\n";
-
-    // Add classes
-    classes.forEach((cls) => {
+    allClasses.forEach(cls => {
       mermaidCode += `    class ${cls.name} {\n`;
-      cls.attributes.forEach((attr) => {
+
+      cls.attributes.forEach(attr => {
         mermaidCode += `        ${attr.visibility}${attr.name}: ${attr.type}\n`;
       });
-      cls.methods.forEach((method) => {
-        const params = method.parameters
-          .map((param) => `${param.name}: ${param.type}`)
-          .join(", ");
+
+      cls.methods.forEach(method => {
+        const params = method.parameters.map(param => `${param.name}: ${param.type}`).join(", ");
         mermaidCode += `        ${method.visibility}${method.name}(${params}): ${method.returnType}\n`;
       });
+
       mermaidCode += "    }\n";
     });
 
-    // Add relationships
-    relationships.forEach((rel) => {
+    allRelationships.forEach(rel => {
       if (rel.type === "inheritance") {
-        mermaidCode += `    ${rel.from} --|> ${rel.to}\n`;
-      } else if (rel.type === "implements") {
-        mermaidCode += `    ${rel.from} ..|> ${rel.to}\n`;
+        mermaidCode += `${rel.to} <|-- ${rel.from}\n`;
+      } else if (rel.type === "association") {
+        mermaidCode += `${rel.from} --> ${rel.to}\n`;
+      } else if (rel.type === "method_dependency") {
+        mermaidCode += `${rel.from} ..> ${rel.to}\n`;
       }
     });
 
     return mermaidCode;
   }
 
-  /**
-   * Implement the abstract method generateDiagram from the parent class
-   * @param {Object} parsedCode The parsed project structure
-   * @param {string} path The path to the source code
-   */
-  generateDiagram(parsedCode, path) {
-    try {
-      console.log("Generating diagram for: ", parsedCode);
-
-      // Generate Mermaid diagram
-      const mermaidDiagram = this.generateMermaidDiagram(parsedCode);
-      console.log("Mermaid Diagram:\n", mermaidDiagram);
-
-      if (
-        this.diagramGenerator &&
-        typeof this.diagramGenerator.generateClassDiagram === "function"
-      ) {
-        this.diagramGenerator.generateClassDiagram(parsedCode);
-      } else {
-        console.error("Diagram generator method not found.");
-      }
-    } catch (error) {
-      console.error("Error generating diagram: ", error);
-    }
+  async generateDiagram(parsedProject, projectPath) {
+    await this.diagramGenerator.generateDiagram(
+      parsedProject,
+      projectPath,
+      "Class_diagram.png"
+    );
   }
+  
 }
 
 export default PlotClassDiagram;
