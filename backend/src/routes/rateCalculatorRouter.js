@@ -54,11 +54,18 @@ RateCalculatorRouter.post("/complexity", (req, res) => {
 
   try {
     const complexityData = scanDirectory(dirPath);
-    complexityData.map(data=>{console.log(data);})
+    complexityData.map((data) => {
+      console.log(data);
+    });
     res.json({ message: "Complexity rate calculated", data: complexityData });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: "Error calculating complexity rates", error: error.message });
+    res
+      .status(500)
+      .json({
+        message: "Error calculating complexity rates",
+        error: error.message,
+      });
   }
 });
 

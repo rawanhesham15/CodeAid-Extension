@@ -20,7 +20,7 @@
         {
           "id": "codeAidSidebar",
           "title": "CodeAid",
-          "icon": "media/logo.svg"
+          "icon": "media/sc.png"
         }
       ]
     },
@@ -28,13 +28,20 @@
       "codeAidSidebar": [
         {
           "id": "codeAidView",
-          "name": "CodeAid Panel",
+          "name": "",
           "type": "webview"
+        }
+      ],
+      "explorer": [
+        {
+          "id": "ResponseView",
+          "name": "CodeAidff",
+          "type": "webview",
+          "icon": "media/sc.png"
         }
       ]
     },
-    "commands": [
-    ],
+    "commands": [],
     "languages": [
       {
         "id": "java",

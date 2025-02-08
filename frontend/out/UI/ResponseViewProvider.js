@@ -33,16 +33,26 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-const assert = __importStar(require("assert"));
-// You can import and use all API from the 'vscode' module
-// as well as import your extension to test it
+exports.ExtensionPanel = void 0;
 const vscode = __importStar(require("vscode"));
-// import * as myExtension from '../../extension';
-suite('Extension Test Suite', () => {
-    vscode.window.showInformationMessage('Start all tests.');
-    test('Sample test', () => {
-        assert.strictEqual(-1, [1, 2, 3].indexOf(5));
-        assert.strictEqual(-1, [1, 2, 3].indexOf(0));
-    });
-});
-//# sourceMappingURL=extension.test.js.map
+class ExtensionPanel {
+    static panel;
+    static registerPanel(context) {
+        context.subscriptions.push(vscode.window.registerWebviewViewProvider("extensionPanel", new ExtensionPanelProvider(), { webviewOptions: { retainContextWhenHidden: true } }));
+    }
+    static updateContent(content) {
+        if (this.panel) {
+            this.panel.webview.html = `<p>${content}</p>`;
+        }
+    }
+}
+exports.ExtensionPanel = ExtensionPanel;
+class ExtensionPanelProvider {
+    resolveWebviewView(webviewView) {
+        ExtensionPanel.panel = webviewView;
+        webviewView.webview.options = { enableScripts: true };
+        webviewView.webview.html = `<p>Waiting for actions...</p>`;
+    }
+}
+exports.default = { ExtensionPanel, ExtensionPanelProvider };
+//# sourceMappingURL=ResponseViewProvider.js.map

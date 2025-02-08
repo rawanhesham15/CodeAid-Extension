@@ -14,7 +14,6 @@ class PlotDependencyDiagram extends PlottingAction {
         parsedProject += `  ${className} --> ${dep};\n`;
       }
     }
-    console.log(parsedProject);
     return parsedProject;
   }
   async generateDiagram(parsedProject, projectPath) {
