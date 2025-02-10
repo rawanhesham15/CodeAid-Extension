@@ -22,28 +22,24 @@ class ResponseSidebarProvider {
                 box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.5);
                 margin: 10px 0;
                 font-size: 14px;
-                line-height: 1.5;
-                display: flex;
-                justify-content: space-between;
                 align-items: center;">
-                <div>
+                  <div style="display: flex; justify-content: space-between; align-items: center;margin-bottom:0px; padding-bottom:0px">
+                    <p style="font-size: 17px; font-weight: 500;color: #007f89">${res.responseType}</p>
+                    <div>
+                      <i onclick="deleteResponse(${res.id})" style="
+                      cursor: pointer;
+                      display: inline-block;
+                  ">
+                      <svg xmlns="http://www.w3.org/2000/svg" x="0px" y="0px" width="15" height="15" viewBox="0,0,256,256">
+                        <g fill="#9C9B9B" fill-rule="nonzero" stroke="none" stroke-width="1" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="10" stroke-dasharray="" stroke-dashoffset="0" font-family="none" font-weight="none" font-size="none" text-anchor="none" style="mix-blend-mode: normal"><g transform="scale(5.12,5.12)"><path d="M7.71875,6.28125l-1.4375,1.4375l17.28125,17.28125l-17.28125,17.28125l1.4375,1.4375l17.28125,-17.28125l17.28125,17.28125l1.4375,-1.4375l-17.28125,-17.28125l17.28125,-17.28125l-1.4375,-1.4375l-17.28125,17.28125z"></path></g></g>
+                      </svg>
+                      </i>
+                    </div>    
+                  </div>
+                <div style="margin-top:0px; padding-top:0px">
                   <p>${res.content}</p>
                   <small style="color: gray;">${res.timestamp}</small>
-                </div>
-                <i onclick="deleteResponse(${res.id})" style="
-                    cursor: pointer;
-                    width: 20px;
-                    height: 20px;
-                    display: inline-block;
-                ">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="red" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <polyline points="3 6 5 6 21 6"></polyline>
-                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path>
-                        <line x1="10" y1="11" x2="10" y2="17"></line>
-                        <line x1="14" y1="11" x2="14" y2="17"></line>
-                        <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path>
-                    </svg>
-                </i>
+                </div>   
               </div>
             `)
                 .join("");
@@ -89,12 +85,13 @@ class ResponseSidebarProvider {
             }
         });
     }
-    updateContent(newContent) {
+    updateContent(newContent, responseType) {
         const timestamp = new Date().toLocaleTimeString();
         this.responses.unshift({
             id: this.responseCounter++,
             content: newContent,
             timestamp: timestamp,
+            responseType: responseType,
         });
         if (this._view) {
             this._view.webview.html = this.buildContent();

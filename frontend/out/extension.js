@@ -48,16 +48,16 @@ function activate(context) {
     const inputHandler = new inputHandler_1.default();
     context.subscriptions.push(vscode.commands.registerCommand("extension.detectSOLID", async (arg) => {
         let res = await inputHandler.detectSOLID(arg);
-        secProvider.updateContent(res);
+        secProvider.updateContent(res, "Solid Detection");
     }), vscode.commands.registerCommand("extension.detectCoupling", async () => {
         let res = await inputHandler.detectCoupling();
-        secProvider.updateContent(res);
+        secProvider.updateContent(res, "Coupling Smells Detection");
     }), vscode.commands.registerCommand("extension.plotDiagram", async (arg) => {
         let res = await inputHandler.plotDiagram(arg);
-        secProvider.updateContent(res);
+        secProvider.updateContent(res, `Plotting ${arg} Diagram`);
     }), vscode.commands.registerCommand("extension.displayRate", async () => {
         let res = await inputHandler.displayRate();
-        secProvider.updateContent(res);
+        secProvider.updateContent(res, "Dislpaying Complexity Rate");
     }), vscode.window.registerWebviewViewProvider(codeaidSidebarProvider_1.default.viewType, provider), vscode.window.registerWebviewViewProvider(responseSidebarProvider_1.default.viewType, secProvider));
 }
 function deactivate() { }

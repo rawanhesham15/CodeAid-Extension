@@ -5,7 +5,7 @@ import { PassThrough } from "stream";
 class DiagramGenerator {
   constructor() {}
 
-  generateDiagram(parsedProject, projectPath, fileName) {
+  async generateDiagram(parsedProject, projectPath, fileName) {
     return new Promise((resolve, reject) => {
       const outputPath = path.join(projectPath, fileName);
       const diagramStream = new PassThrough();

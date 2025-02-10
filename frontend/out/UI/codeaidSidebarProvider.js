@@ -86,7 +86,7 @@ class CodeAidSidebarProvider {
                 padding: 10px;
                 background-color: rgb(18, 18, 18);
                 color: #e1e1e6;
-                min-width: 400px;
+                width: 295px;
             }
             .header {
                 display: flex;
@@ -98,11 +98,11 @@ class CodeAidSidebarProvider {
             }
             h3 {
                 color: #e1e1e6;
-                margin-right: 20px;
             }
             .section {
                 margin-bottom: 15px;
                 margin-left: 35px;
+            
             }
             label {
                 margin-right: 10px;
@@ -110,7 +110,7 @@ class CodeAidSidebarProvider {
             }
             button {
                 font-family: "Outfit", serif;
-                background-color: #007acc;
+                background-color: #007f89;
                 color: white;
                 border: none;
                 padding: 8px 16px;
@@ -118,11 +118,12 @@ class CodeAidSidebarProvider {
                 border-radius: 4px;
                 margin-top: 5px;
                 transition: 0.5s;
+                width:80px;
             }
             button:hover {
                 background-color: transparent;
-                border: 1px solid #005fa3;
-                color: #005fa3;
+                border: 1px solid #007f89;
+                color: #007f89;
                 transition: 0.5s;
             }
             #result {
@@ -131,13 +132,12 @@ class CodeAidSidebarProvider {
             }
             .btn-container {
                 display: flex;
-                flex-direction: column;
-                gap: 10px;
-                margin-left: 8px;
+                justify-content: end;
             }
             .flex-wrapper {
                 display: flex;
                 align-items: center;
+                justify-content: space-between;
             }
             .custom-select {
                 position: relative;
@@ -197,12 +197,16 @@ class CodeAidSidebarProvider {
                 </select>
                 </div>
             </div>
-            <button id="detectSolid">Detect SOLID</button>
+            <div class="btn-container">
+                <button id="detectSolid">Detect</button>
+            </div>
             </div>
 
             <div class="section">
             <h3>Coupling smells Detection</h3>
-            <button id="detectCoupling">Detect Coupling</button>
+            <div class="btn-container">
+                <button id="detectCoupling">Detect</button>
+            </div>
             </div>
 
             <div class="section">
@@ -216,12 +220,16 @@ class CodeAidSidebarProvider {
                 </select>
                 </div>
             </div>
-            <button id="plotDiagram">Plot Diagram</button>
+            <div class="btn-container">
+                <button id="plotDiagram">Plot</button>
+            </div>
             </div>
 
             <div class="section">
             <h3>Display Complexity Rate</h3>
-            <button id="displayRateBtn">Display Rate</button>
+            <div class="btn-container">
+                <button id="displayRateBtn">Display</button>
+            </div>
             </div>
 
             <script>

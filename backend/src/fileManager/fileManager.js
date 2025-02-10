@@ -1,28 +1,33 @@
-import fs from "fs"
-import path from "path"
+import fs from "fs";
+import path from "path";
 
 class FileManager {
-  /**
-   *
-   * @param {string} dirPath
-   * @param {string} fileName
-   */
   createFile(dirPath, fileName) {
     const filePath = path.join(dirPath, fileName);
-    try{
-      if(!fs.existsSync(dirPath)){
-        fs.mkdirSync(dirPath, {recursive: true});
+    try {
+      if (!fs.existsSync(dirPath)) {
+        fs.mkdirSync(dirPath, { recursive: true });
       }
       fs.writeFileSync(filePath, "", "utf-8");
-    } catch(error) {
-      console.error(`Error creating file: ${error.message}`)
+    } catch (error) {
+      console.error(`Error creating file: ${error.message}`);
     }
   }
-  /**
-   *
-   * @param {string} dirPath
-   * @returns {Object[]}
-   */
+  gatherCode(path) {
+    const stats = fs.statSync(path);
+    try {
+      if (stats.isFile()) {
+        return this.getFileContent(path);
+      } else if (stats.isDirectory()) {
+        return this.getProjectContent(path);
+      } else {
+        return {};
+      }
+    } catch (error) {
+      return {};
+    }
+  }
+
   getProjectContent(dirPath) {
     try {
       const items = fs.readdirSync(dirPath, { withFileTypes: true });
@@ -32,7 +37,7 @@ class FileManager {
         const fullPath = path.join(dirPath, item.name);
         if (item.isDirectory()) {
           filesData = filesData.concat(this.getProjectContent(fullPath)); // Recursively process subdirectories
-        } else if (item.name.endsWith(".java")){
+        } else if (item.name.endsWith(".java")) {
           const fileContent = this.getFileContent(fullPath);
           if (fileContent) {
             filesData.push(fileContent);
@@ -46,11 +51,6 @@ class FileManager {
       return [];
     }
   }
-  /**
-   *
-   * @param {string} filePath
-   * @returns {Object|null}
-   */
   getFileContent(filePath) {
     try {
       const content = fs.readFileSync(filePath, "utf8");
@@ -60,11 +60,6 @@ class FileManager {
       return null;
     }
   }
-  /**
-   *
-   * @param {string} filePath
-   * @param {string} content
-   */
   updateFileContent(filePath, content) {
     try {
       fs.writeFileSync(filePath, content, "utf8");
@@ -72,10 +67,6 @@ class FileManager {
       console.error(`Error updating file: ${error.message}`);
     }
   }
-  /**
-   *
-   * @param {string} filePath
-   */
   deleteFile(filePath) {
     try {
       if (fs.existsSync(filePath)) {
