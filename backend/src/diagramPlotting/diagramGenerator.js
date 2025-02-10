@@ -15,8 +15,6 @@ class DiagramGenerator {
       const child = exec(command, (error, stdout, stderr) => {
         if (error) {
           reject(`Error generating diagram: ${error.message}`);
-        } else if (stderr) {
-          reject(`stderr: ${stderr}`);
         } else {
           resolve(projectPath);
         }
