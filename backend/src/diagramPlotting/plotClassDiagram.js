@@ -18,11 +18,7 @@ export class PlotClassDiagram extends PlottingAction {
     let allClasses = [];
     let allRelationships = [];
 
-<<<<<<< HEAD
     projectFiles.forEach((file) => {
-=======
-    projectFiles.forEach(file => {
->>>>>>> 558c6422c27d3d201a476532d3ee7229115e224e
       const javaCode = file.content;
 
       // Parse Java code
@@ -35,10 +31,6 @@ export class PlotClassDiagram extends PlottingAction {
       function traverse(node) {
         if (!node) return;
 
-<<<<<<< HEAD
-=======
-        // Detect class declarations
->>>>>>> 558c6422c27d3d201a476532d3ee7229115e224e
         if (node.type === "class_declaration") {
           const classNameNode = node.namedChildren.find(
             (child) =>
@@ -92,7 +84,6 @@ export class PlotClassDiagram extends PlottingAction {
         node.namedChildren.forEach((child) => traverse(child));
       }
 
-<<<<<<< HEAD
       function handleFieldDeclaration(node, classObj) {
         const typeNode = node.namedChildren.find((c) =>
           [
@@ -114,48 +105,6 @@ export class PlotClassDiagram extends PlottingAction {
             (c) => c.type === "identifier"
           );
           const fieldName = fieldNameNode?.text || "Unknown";
-=======
-      function sanitizeType(type) {
-        return type.replace(/\[\]/g, "Array");
-      }
-
-      function handleFieldDeclaration(node, classObj, relationships) {
-        const typeNode = node.namedChildren.find(c => 
-          c.type === "type" || 
-          c.type === "integral_type" || 
-          c.type === "floating_point_type" || 
-          c.type === "type_identifier" || 
-          c.type === "generic_type" || 
-          c.type === "array_type"
-        );
-
-        const variableDeclarators = node.namedChildren.filter(c => c.type === "variable_declarator");
-
-        variableDeclarators.forEach(declarator => {
-          const fieldNameNode = declarator.namedChildren.find(c => c.type === "identifier");
-          const fieldName = fieldNameNode ? fieldNameNode.text : "Unknown";
-
-          let fieldType = "Unknown";
-
-          if (typeNode) {
-            if (typeNode.type === "generic_type") {
-              const containerType = typeNode.namedChildren.find(c => c.type === "type_identifier")?.text;
-              const genericType = typeNode.namedChildren.find(c => c.type === "type_arguments")
-                                ?.namedChildren.find(c => c.type === "type_identifier")?.text;
-              fieldType = `${containerType}<${genericType}>`;
-
-              if (genericType) {
-                relationships.push({
-                  type: "association",
-                  from: classObj.name,
-                  to: sanitizeType(genericType)
-                });
-              }
-            } else {
-              fieldType = sanitizeType(typeNode.text);
-            }
-          }
->>>>>>> 558c6422c27d3d201a476532d3ee7229115e224e
 
           let fieldType = "Unknown";
           if (typeNode) {
@@ -187,7 +136,6 @@ export class PlotClassDiagram extends PlottingAction {
             name: fieldName,
           });
 
-<<<<<<< HEAD
           const primitiveTypes = [
             "int",
             "double",
@@ -212,17 +160,6 @@ export class PlotClassDiagram extends PlottingAction {
                 to: fieldType,
               })
             );
-=======
-          const primitiveTypes = ["int", "double", "float", "boolean", "char", "byte", "short", "long", "String"];
-          const excludedTypes = ["List", "Set", "Map"];
-          const containerType = fieldType.split('<')[0];
-          if (!primitiveTypes.includes(fieldType) && !excludedTypes.includes(containerType)) {
-            relationships.push({
-              type: "association",
-              from: classObj.name,
-              to: sanitizeType(fieldType)
-            });
->>>>>>> 558c6422c27d3d201a476532d3ee7229115e224e
           }
         });
       }
@@ -239,7 +176,6 @@ export class PlotClassDiagram extends PlottingAction {
         );
 
         const parameters = parametersNode
-<<<<<<< HEAD
           ? parametersNode.namedChildren
               .filter((param) => param.type === "formal_parameter")
               .map((param) => {
@@ -276,35 +212,6 @@ export class PlotClassDiagram extends PlottingAction {
                   name: paramNameNode?.text || "Unknown",
                 };
               })
-=======
-          ? parametersNode.namedChildren.filter(param => param.type === "formal_parameter").map(param => {
-              const paramTypeNode = param.namedChildren.find(c => 
-                c.type === "type" || 
-                c.type === "integral_type" || 
-                c.type === "floating_point_type" || 
-                c.type === "type_identifier" ||
-                c.type === "generic_type"
-              );
-              const paramNameNode = param.namedChildren.find(c => c.type === "identifier");
-
-              let paramType = "Unknown";
-              if (paramTypeNode) {
-                if (paramTypeNode.type === "generic_type") {
-                  const containerType = paramTypeNode.namedChildren.find(c => c.type === "type_identifier")?.text;
-                  const genericType = paramTypeNode.namedChildren.find(c => c.type === "type_arguments")
-                                    ?.namedChildren.find(c => c.type === "type_identifier")?.text;
-                  paramType = `${containerType}<${genericType}>`;
-                } else {
-                  paramType = sanitizeType(paramTypeNode.text);
-                }
-              }
-
-              return {
-                type: paramType,
-                name: paramNameNode ? paramNameNode.text : "Unknown"
-              };
-            })
->>>>>>> 558c6422c27d3d201a476532d3ee7229115e224e
           : [];
 
         if (methodNameNode) {
@@ -318,7 +225,6 @@ export class PlotClassDiagram extends PlottingAction {
           classObj.methods.push({
             visibility,
             name: methodNameNode.text,
-<<<<<<< HEAD
             returnType: returnTypeNode?.text || "void",
             parameters,
           });
@@ -348,22 +254,6 @@ export class PlotClassDiagram extends PlottingAction {
                   to: param.type,
                 })
               );
-=======
-            returnType: returnTypeNode ? sanitizeType(returnTypeNode.text) : "void",
-            parameters
-          });
-
-          const primitiveTypes = ["int", "double", "float", "boolean", "char", "byte", "short", "long", "String"];
-          const excludedTypes = ["List", "Set", "Map"];
-          parameters.forEach(param => {
-            const containerType = param.type.split('<')[0];
-            if (!primitiveTypes.includes(param.type) && !excludedTypes.includes(containerType)) {
-              relationships.push({
-                type: "association",
-                from: classObj.name,
-                to: sanitizeType(param.type)
-              });
->>>>>>> 558c6422c27d3d201a476532d3ee7229115e224e
             }
           });
         }
@@ -394,23 +284,11 @@ export class PlotClassDiagram extends PlottingAction {
       mermaidCode += "    }\n";
     });
 
-<<<<<<< HEAD
     allRelationships.forEach((rel) => {
       mermaidCode +=
         rel.type === "inheritance"
           ? `${rel.to} <|-- ${rel.from}\n`
           : `${rel.from} --> ${rel.to}\n`;
-=======
-    const uniqueRelationships = Array.from(new Set(allRelationships.map(rel => JSON.stringify(rel))))
-                                     .map(rel => JSON.parse(rel));
-
-    uniqueRelationships.forEach(rel => {
-      if (rel.type === "inheritance") {
-        mermaidCode += `${rel.to} <|-- ${rel.from}\n`;
-      } else if (rel.type === "association") {
-        mermaidCode += `${rel.from} --> ${rel.to}\n`;
-      }
->>>>>>> 558c6422c27d3d201a476532d3ee7229115e224e
     });
 
 
@@ -418,12 +296,8 @@ export class PlotClassDiagram extends PlottingAction {
   }
 
   async generateDiagram(parsedProject, projectPath) {
-<<<<<<< HEAD
     console.log("Generating class diagram..." + parsedProject);
     console.log(projectPath);
-=======
-    console.log("Generated Mermaid code:\n", parsedProject);
->>>>>>> 558c6422c27d3d201a476532d3ee7229115e224e
     await this.diagramGenerator.generateDiagram(
       parsedProject,
       projectPath,

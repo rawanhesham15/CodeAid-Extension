@@ -10,7 +10,6 @@ class PlottingAction {
   }
   async createDiagram(req){
     var projectJSON = this.gatherCode(req.body.path);
-    console.log(projectJSON);
     var parsedProject = this.parseProject(projectJSON);
     var returnedVal = await this.generateDiagram(parsedProject, req.body.path);
     return returnedVal;

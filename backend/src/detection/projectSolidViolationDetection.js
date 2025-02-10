@@ -2,12 +2,13 @@ import ProjectDetectSOLIDViolationsPG from "../promptGenerator/projectDetectSoli
 import DetectionAction from "./detectionAction.js";
 
 class ProjectSOLIDViolationDetection extends DetectionAction {
-  constructor(llmController, fileManager) {
-    super(llmController, fileManager);
-  }
   generatePrompt(codeJSON, summary) {
+    let codeString = "";
+    codeJSON.forEach((file) => {
+      codeString = codeString + file.content;
+    });
     let promptGenerator = new ProjectDetectSOLIDViolationsPG();
-    return promptGenerator.generatePrompt(codeJSON, summary);
+    return promptGenerator.generatePrompt(codeString, summary);
   }
 }
 export default ProjectSOLIDViolationDetection;

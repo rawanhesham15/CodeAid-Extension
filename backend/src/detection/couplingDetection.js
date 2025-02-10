@@ -1,13 +1,14 @@
 import DetectionAction from "./detectionAction.js";
-import DetectCouplingPG from './../promptGenerator/detectCouplingPG.js';
+import DetectCouplingPG from "./../promptGenerator/detectCouplingPG.js";
 
 class CouplingDetection extends DetectionAction {
-  constructor(llmController, fileManager) {
-    super(llmController, fileManager);
-  }
   generatePrompt(codeJSON, summary) {
+    let codeString = "";
+    codeJSON.forEach((file) => {
+      codeString = codeString + file.content;
+    });
     let promptGenerator = new DetectCouplingPG();
-    return promptGenerator.generatePrompt(codeJSON, summary);
+    return promptGenerator.generatePrompt(codeString, summary);
   }
 }
 
