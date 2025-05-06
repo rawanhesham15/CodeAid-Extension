@@ -1,309 +1,375 @@
-import PlottingAction from "./plottingAction.js";
 import Parser from "tree-sitter";
 import Java from "tree-sitter-java";
+import PlottingAction from "./plottingAction.js";
 
-export class PlotClassDiagram extends PlottingAction {
+class PlotClassDiagram extends PlottingAction {
   constructor(diagramGenerator, fileManager) {
     super(diagramGenerator, fileManager);
     this.parser = new Parser();
     this.parser.setLanguage(Java);
+    this.userDefinedClasses = new Set();
+    this.enums = new Set();
   }
 
-  parseProject(projectFiles) {
-    if (!Array.isArray(projectFiles)) {
-      console.error("Expected an array of project files.");
-      return;
+  removeImports(code) {
+    return typeof code === 'string'
+      ? code.replace(/^import.*;/gm, '')
+      : '';
+  }
+
+  parseProject(projectJSON) {
+    const classes = [];
+  
+    if (!Array.isArray(projectJSON)) return [];
+  
+    // ----- PASS 1: Collect all user-defined class and enum names -----
+    for (const file of projectJSON) {
+      if (
+        typeof file !== 'object' ||
+        !file.filePath ||
+        !file.content ||
+        typeof file.content !== 'string'
+      ) {
+        console.warn("[parseProject] Skipping invalid file:", file);
+        continue;
+      }
+  
+      try {
+        const cleanedCode = this.removeImports(file.content);
+        const tree = this.parser.parse(cleanedCode);
+        const root = tree.rootNode;
+
+        console.log("[parseProject] Parsing file:", file.filePath);
+        const classNodes = root.descendantsOfType("class_declaration");
+        const interfaceNodes = root.descendantsOfType("interface_declaration");
+        const enumNodes = root.descendantsOfType("enum_declaration");
+  
+        for (const classNode of classNodes) {
+          const className = classNode.childForFieldName("name")?.text;
+          if (className) this.userDefinedClasses.add(className);
+        }
+  
+        for (const interfaceNode of interfaceNodes) {
+          const interfaceName = interfaceNode.childForFieldName("name")?.text;
+          if (interfaceName) this.userDefinedClasses.add(interfaceName);
+        }
+  
+        for (const enumNode of enumNodes) {
+          const enumName = enumNode.childForFieldName("name")?.text;
+          if (enumName) this.enums.add(enumName);
+        }
+  
+      } catch (err) {
+        console.error(`[parseProject] Pass 1 error in ${file.filePath}:`, err);
+      }
     }
-
-    let allClasses = [];
-    let allRelationships = [];
-
-    projectFiles.forEach((file) => {
-      const javaCode = file.content;
-
-      // Parse Java code
-      const tree = this.parser.parse(javaCode);
-      const rootNode = tree.rootNode;
-
-      const classes = [];
-      const relationships = new Set(); // Use a set to avoid duplicates
-
-      function traverse(node) {
-        if (!node) return;
-
-        if (node.type === "class_declaration") {
-          const classNameNode = node.namedChildren.find(
-            (child) =>
-              child.type === "identifier" || child.type === "type_identifier"
-          );
-          const className = classNameNode?.text || "Unknown";
-
-          const classObj = {
-            name: className,
-            type: "class",
-            attributes: [],
-            methods: [],
-          };
-
-          // Handle inheritance
-          const extendsNode = node.namedChildren.find(
-            (child) => child.type === "superclass"
-          );
-          if (extendsNode) {
-            const parentClassNode = extendsNode.namedChildren.find(
-              (c) => c.type === "type_identifier"
-            );
-            if (parentClassNode) {
-              relationships.add(
-                JSON.stringify({
-                  type: "inheritance",
-                  from: className,
-                  to: parentClassNode.text,
-                })
-              );
+  
+    // ----- PASS 2: Parse full class/interface/enum content -----
+    for (const file of projectJSON) {
+      try {
+        const cleanedCode = this.removeImports(file.content);
+        const tree = this.parser.parse(cleanedCode);
+        const root = tree.rootNode;
+  
+        // -------- ENUMS --------
+        for (const enumNode of root.descendantsOfType("enum_declaration")) {
+          const enumName = enumNode.childForFieldName("name")?.text;
+          if (!enumName) continue;
+  
+          const enumBody = enumNode.childForFieldName("body");
+          const enumValues = [];
+  
+          if (enumBody) {
+            for (const child of enumBody.namedChildren) {
+              if (child.type === "enum_constant") {
+                enumValues.push(child.text);
+              }
             }
           }
-
-          // Traverse class body
-          const classBody = node.namedChildren.find(
-            (child) => child.type === "class_body"
-          );
-          if (classBody) {
-            classBody.namedChildren.forEach((classMember) => {
-              if (classMember.type === "field_declaration") {
-                handleFieldDeclaration(classMember, classObj);
-              } else if (classMember.type === "method_declaration") {
-                handleMethodDeclaration(classMember, classObj);
-              }
-            });
-          }
-
-          classes.push(classObj);
+  
+          classes.push({
+            className: enumName,
+            attributes: enumValues,
+            methods: [],
+            extendsClass: null,
+            implementsInterfaces: [],
+            associations: [],
+            dependencies: [],
+            file: file.filePath,
+            isEnum: true
+          });
         }
+  
+// -------- CLASSES --------
+for (const classNode of root.descendantsOfType("class_declaration")) {
+  const className = classNode.childForFieldName("name")?.text || "UnknownClass";
 
-        node.namedChildren.forEach((child) => traverse(child));
+  const bodyNode = classNode.childForFieldName("body");
+  const attributes = [];
+  const methods = [];
+  let extendsClass = null;
+  const implementsInterfaces = [];
+  const associations = new Set();
+  const dependencies = new Set();
+
+  if (bodyNode) {
+    for (const member of bodyNode.namedChildren) {
+      if (member.type === "field_declaration") {
+        const typeNode = member.childForFieldName("type");
+        const attrType = typeNode?.text;
+        const varDecls = member.descendantsOfType("variable_declarator");
+
+        for (const varDecl of varDecls) {
+          const attrName = varDecl.childForFieldName("name")?.text;
+          if (attrName && attrType) {
+            attributes.push(`${attrName}: ${attrType}`);
+            const innerTypes = this.extractClassTypeFromCollection(attrType);
+            innerTypes.forEach(inner => associations.add(inner));
+            associations.add(attrType);
+          }
+        }
       }
 
-      function handleFieldDeclaration(node, classObj) {
-        const typeNode = node.namedChildren.find((c) =>
-          [
-            "type",
-            "integral_type",
-            "floating_point_type",
-            "type_identifier",
-            "generic_type",
-            "array_type",
-          ].includes(c.type)
-        );
+      if (member.type === "method_declaration") {
+        const methodName = member.childForFieldName("name")?.text || "UnknownMethod";
+        const methodParams = member.descendantsOfType("formal_parameter");
+        let returnType = member.childForFieldName("type")?.text || "void";
 
-        const variableDeclarators = node.namedChildren.filter(
-          (c) => c.type === "variable_declarator"
-        );
+        methods.push(`${methodName}(${methodParams.map(param => {
+          const paramName = param.childForFieldName("name")?.text || "arg";
+          const paramType = param.childForFieldName("type")?.text || "UnknownType";
+          return `${paramName}: ${paramType}`;
+        }).join(', ')}) : ${returnType}`);
 
-        variableDeclarators.forEach((declarator) => {
-          const fieldNameNode = declarator.namedChildren.find(
-            (c) => c.type === "identifier"
-          );
-          const fieldName = fieldNameNode?.text || "Unknown";
-
-          let fieldType = "Unknown";
-          if (typeNode) {
-            if (typeNode.type === "generic_type") {
-              const containerType = typeNode.namedChildren.find(
-                (c) => c.type === "type_identifier"
-              )?.text;
-              const genericType = typeNode.namedChildren
-                .find((c) => c.type === "type_arguments")
-                ?.namedChildren.find((c) => c.type === "type_identifier")?.text;
-              fieldType = genericType
-                ? `${containerType}<${genericType}>`
-                : containerType;
-            } else {
-              fieldType = typeNode.text;
-            }
-          }
-
-          const visibilityNode = node.namedChildren.find(
-            (c) => c.type === "modifiers"
-          );
-          const visibility = visibilityNode?.text.includes("private")
-            ? "-"
-            : "+";
-
-          classObj.attributes.push({
-            visibility,
-            type: fieldType,
-            name: fieldName,
-          });
-
-          const primitiveTypes = [
-            "int",
-            "double",
-            "float",
-            "boolean",
-            "char",
-            "byte",
-            "short",
-            "long",
-          ];
-          const excludedTypes = ["List", "Set", "Map"];
-          const containerType = fieldType.split("<")[0];
-
-          if (
-            !primitiveTypes.includes(fieldType) &&
-            !excludedTypes.includes(containerType)
-          ) {
-            relationships.add(
-              JSON.stringify({
-                type: "association",
-                from: classObj.name,
-                to: fieldType,
-              })
-            );
+        methodParams.forEach(param => {
+          const paramType = param.childForFieldName("type")?.text;
+          if (paramType) {
+            const innerTypes = this.extractClassTypeFromCollection(paramType);
+            innerTypes.forEach(inner => dependencies.add(inner));
+            dependencies.add(paramType);
           }
         });
-      }
 
-      function handleMethodDeclaration(node, classObj) {
-        const methodNameNode = node.namedChildren.find(
-          (c) => c.type === "identifier"
-        );
-        const returnTypeNode = node.namedChildren.find((c) =>
-          ["type", "void_type"].includes(c.type)
-        );
-        const parametersNode = node.namedChildren.find(
-          (c) => c.type === "formal_parameters"
-        );
+        const innerReturnTypes = this.extractClassTypeFromCollection(returnType);
+        innerReturnTypes.forEach(inner => dependencies.add(inner));
+        dependencies.add(returnType);
 
-        const parameters = parametersNode
-          ? parametersNode.namedChildren
-              .filter((param) => param.type === "formal_parameter")
-              .map((param) => {
-                const paramTypeNode = param.namedChildren.find((c) =>
-                  [
-                    "type",
-                    "integral_type",
-                    "floating_point_type",
-                    "type_identifier",
-                    "generic_type",
-                  ].includes(c.type)
-                );
-                const paramNameNode = param.namedChildren.find(
-                  (c) => c.type === "identifier"
-                );
-
-                let paramType = paramTypeNode?.text || "Unknown";
-                if (paramTypeNode?.type === "generic_type") {
-                  const containerType = paramTypeNode.namedChildren.find(
-                    (c) => c.type === "type_identifier"
-                  )?.text;
-                  const genericType = paramTypeNode.namedChildren
-                    .find((c) => c.type === "type_arguments")
-                    ?.namedChildren.find(
-                      (c) => c.type === "type_identifier"
-                    )?.text;
-                  paramType = genericType
-                    ? `${containerType}<${genericType}>`
-                    : containerType;
-                }
-
-                return {
-                  type: paramType,
-                  name: paramNameNode?.text || "Unknown",
-                };
-              })
-          : [];
-
-        if (methodNameNode) {
-          const visibilityNode = node.namedChildren.find(
-            (c) => c.type === "modifiers"
-          );
-          const visibility = visibilityNode?.text.includes("private")
-            ? "-"
-            : "+";
-
-          classObj.methods.push({
-            visibility,
-            name: methodNameNode.text,
-            returnType: returnTypeNode?.text || "void",
-            parameters,
-          });
-
-          const primitiveTypes = [
-            "int",
-            "double",
-            "float",
-            "boolean",
-            "char",
-            "byte",
-            "short",
-            "long",
-            "String",
-          ];
-          const excludedTypes = ["List", "Set", "Map"];
-          parameters.forEach((param) => {
-            const containerType = param.type.split("<")[0];
-            if (
-              !primitiveTypes.includes(param.type) &&
-              !excludedTypes.includes(containerType)
-            ) {
-              relationships.add(
-                JSON.stringify({
-                  type: "association",
-                  from: classObj.name,
-                  to: param.type,
-                })
-              );
+        const methodBody = member.childForFieldName("body");
+        if (methodBody) {
+          const objectCreations = methodBody.descendantsOfType("object_creation_expression");
+          for (const obj of objectCreations) {
+            const typeNode = obj.childForFieldName("type");
+            const typeName = typeNode?.text;
+            if (typeName && this.userDefinedClasses.has(typeName)) {
+              dependencies.add(typeName);
             }
-          });
+          }
+
+          const identifiers = methodBody.descendantsOfType("identifier");
+          for (const id of identifiers) {
+            if (id.text && this.userDefinedClasses.has(id.text)) {
+              dependencies.add(id.text);
+            }
+          }
         }
       }
+    }
 
-      traverse(rootNode);
+    // ----- Extends Class Logic -----
+    const extendsNode = classNode.childForFieldName("superclass");
+    if (extendsNode) {
+      extendsClass = extendsNode.text.split(" ")[1]; // Extracting the extended class
+      console.log(`[parseProject] Found inheritance: ${className} extends ${extendsClass}`);
+    }
 
-      allClasses = [...allClasses, ...classes];
-      allRelationships = [
-        ...allRelationships,
-        ...Array.from(relationships).map((r) => JSON.parse(r)),
-      ];
+// ----- Implements Interfaces Logic -----
+const implementsNode = classNode.childForFieldName("interfaces");
+if (implementsNode) {
+  // This will handle cases where there are multiple interfaces or just one
+  const interfaceTypes = implementsNode.descendantsOfType("type_identifier");
+  
+  interfaceTypes.forEach(interfaceNode => {
+    const interfaceName = interfaceNode.text.trim();  // Ensure there's no extra whitespace
+    if (interfaceName) {
+      implementsInterfaces.push(interfaceName);
+      console.log(`[parseProject] Found implementation: ${className} implements ${interfaceName}`);
+    }
+  });
+
+  // If no interfaces were found by the above, check if implementsNode has a text field directly
+  if (implementsNode.text.trim()) {
+    const directInterfaces = implementsNode.text.trim().split(/\s+/); // Split on any whitespace
+    directInterfaces.forEach(interfaceName => {
+      if (interfaceName) {
+        implementsInterfaces.push(interfaceName);
+        console.log(`[parseProject] Found implementation: ${className} implements ${interfaceName}`);
+      }
     });
+  }
+}
 
-    // Generate Mermaid code
-    let mermaidCode = "classDiagram\n";
-    allClasses.forEach((cls) => {
-      mermaidCode += `    class ${cls.name} {\n`;
-      cls.attributes.forEach((attr) => {
-        mermaidCode += `        ${attr.visibility}${attr.name}: ${attr.type}\n`;
-      });
-      cls.methods.forEach((method) => {
-        const params = method.parameters
-          .map((param) => `${param.name}: ${param.type}`)
-          .join(", ");
-        mermaidCode += `        ${method.visibility}${method.name}(${params}): ${method.returnType}\n`;
-      });
-      mermaidCode += "    }\n";
+    classes.push({
+      className,
+      attributes,
+      methods,
+      extendsClass,
+      implementsInterfaces,
+      associations: Array.from(associations).filter(assoc => 
+        this.userDefinedClasses.has(assoc) || this.enums.has(assoc)
+      ),
+      dependencies: Array.from(dependencies).filter(dep => 
+        this.userDefinedClasses.has(dep) || this.enums.has(dep)
+      ),
+      file: file.filePath,
+      isEnum: false
     });
+  }
+}
 
-    allRelationships.forEach((rel) => {
-      mermaidCode +=
-        rel.type === "inheritance"
-          ? `${rel.to} <|-- ${rel.from}\n`
-          : `${rel.from} --> ${rel.to}\n`;
-    });
+  // -------- INTERFACES --------
+for (const interfaceNode of root.descendantsOfType("interface_declaration")) {
+  const interfaceName = interfaceNode.childForFieldName("name")?.text || "UnknownInterface";
+  const bodyNode = interfaceNode.childForFieldName("body");
+  const methods = [];
 
+  if (bodyNode) {
+    for (const member of bodyNode.namedChildren) {
+      if (member.type === "method_declaration") {
+        const methodName = member.childForFieldName("name")?.text || "UnknownMethod";
+        const methodParams = member.descendantsOfType("formal_parameter");
+        const returnType = member.childForFieldName("type")?.text || "void";
 
-    return mermaidCode;
+        methods.push(`${methodName}(${methodParams.map(param => {
+          const paramName = param.childForFieldName("name")?.text || "arg";
+          const paramType = param.childForFieldName("type")?.text || "UnknownType";
+          return `${paramName}: ${paramType}`;
+        }).join(', ')}) : ${returnType}`);
+      }
+    }
   }
 
-  async generateDiagram(parsedProject, projectPath) {
-    console.log("Generating class diagram..." + parsedProject);
-    console.log(projectPath);
-    await this.diagramGenerator.generateDiagram(
-      parsedProject,
-      projectPath,
-      "Class_diagram.png"
-    );
+  classes.push({
+    className: interfaceName,
+    attributes: [],
+    methods,
+    extendsClass: null,
+    implementsInterfaces: [],
+    associations: [],
+    dependencies: [],
+    file: file.filePath,
+    isEnum: false,
+    isInterface: true 
+  });
+}
+
+      } catch (err) {
+        console.error(`[parseProject] Pass 2 error in ${file.filePath}:`, err);
+      }
+    }
+  
+    return classes;
   }
+  
+
+  isClassType(type) {
+    const primitiveTypes = ["int", "double", "boolean", "char", "float", "long", "short", "byte", "void"];
+    const standardTypes = ["String", "List", "ArrayList", "Map", "Set", "HashMap", "LinkedList"];
+    return type && !primitiveTypes.includes(type) && !standardTypes.includes(type) && !this.enums.has(type);
+  }
+
+  isUserDefinedClass(type) {
+    return this.userDefinedClasses.has(type);
+  }
+
+  extractClassTypeFromCollection(type) {
+    const matches = [...type.matchAll(/<([^>]+)>/g)];
+    const innerTypes = new Set();
+
+    for (const match of matches) {
+      const parts = match[1].split(',').map(t => t.trim());
+      parts.forEach(part => {
+        if (part && this.isClassType(part)) {
+          innerTypes.add(part);
+        }
+      });
+    }
+
+    return Array.from(innerTypes);
+  }
+
+  async generateDiagram(parsedClasses, projectPath) {
+    if (!Array.isArray(parsedClasses) || parsedClasses.length === 0) {
+      console.warn("[generateDiagram] No parsed classes provided.");
+      return;
+    }
+  
+    let mermaidSyntax = "classDiagram\n";
+  
+    // Add all class/interface/enum definitions
+    for (const cls of parsedClasses) {
+      if (cls.isEnum) {
+        mermaidSyntax += `class ${cls.className} {\n  <<enumeration>>\n`;
+        for (const val of cls.attributes) {
+          mermaidSyntax += `  ${val}\n`;
+        }
+        mermaidSyntax += "}\n";
+        continue;
+      }
+  
+      if (cls.isInterface) {
+        mermaidSyntax += `class ${cls.className} {\n  <<interface>>\n`;
+        for (const method of cls.methods) {
+          mermaidSyntax += `  +${method}\n`;
+        }
+        mermaidSyntax += "}\n";
+        continue;
+      }
+  
+      mermaidSyntax += `class ${cls.className} {\n`;
+      for (const attr of cls.attributes) {
+        mermaidSyntax += `  +${attr}\n`;
+      }
+      for (const method of cls.methods) {
+        mermaidSyntax += `  +${method}\n`;
+      }
+      mermaidSyntax += "}\n";
+    }
+  
+    // Add relationships
+    for (const cls of parsedClasses) {
+      if (cls.extendsClass && this.userDefinedClasses.has(cls.extendsClass)) {
+        const extendedClass = cls.extendsClass.split(" ")[1] || cls.extendsClass;
+        mermaidSyntax += `${extendedClass} <|-- ${cls.className}\n`;
+      }
+  
+      cls.implementsInterfaces
+        .filter(impl => this.userDefinedClasses.has(impl))
+        .forEach(impl => {
+          mermaidSyntax += `${impl} <|.. ${cls.className} : implements\n`;
+        });
+  
+      cls.associations.forEach(assoc => {
+        mermaidSyntax += `${cls.className} --> ${assoc}\n`;
+      });
+  
+      cls.dependencies.forEach(dep => {
+        if (!cls.associations.includes(dep)) {
+          mermaidSyntax += `${cls.className} ..> ${dep}\n`;
+        }
+      });
+    }
+  
+    try {
+      const fileName = "classDiagram.png";
+      return await this.diagramGenerator.generateDiagram(
+        mermaidSyntax,
+        projectPath,
+        fileName
+      );
+    } catch (err) {
+      console.error("[generateDiagram] Failed to generate diagram:", err);
+    }
+  }  
 }
 
 export default PlotClassDiagram;
