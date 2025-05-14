@@ -192,7 +192,7 @@ class CodeAidSidebarProvider implements vscode.WebviewViewProvider {
                 <select id="diagramSelect">
                     <option value="class">Class</option>
                     <option value="dependency">Dependency</option>
-                    <option value="architecture">Architecture</option>
+                    <option value="component">Component</option>
                 </select>
                 </div>
             </div>

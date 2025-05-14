@@ -1,5 +1,5 @@
 import { Router } from "express";
-import PlotArchDiagram from "../diagramPlotting/plotArchDiagram.js";
+import PlotComponentDiagram from "../diagramPlotting/plotComponentDiagram.js";
 import PlotDependencyDiagram from "../diagramPlotting/plotDependencyDiagram.js";
 import PlotClassDiagram from "../diagramPlotting/plotClassDiagram.js";
 
@@ -35,13 +35,19 @@ PlottingRouter.post("/dependency", async (req, res) => {
 });
 
 
-PlottingRouter.post("/architecture", (req, res) => {
-  var archPlotting = new PlotArchDiagram();
-  var filePath = archPlotting.createDiagram(req);
-  if (filePath == null) {
-    res.json({ message: "Failed to generate diagram", data: req.body });
+PlottingRouter.post("/component", async (req, res) => {
+  try {
+    var depPlotting = new PlotComponentDiagram();
+    var returnedVal = await depPlotting.createDiagram(req);
+
+    if (returnedVal == null) {
+      return res.json({ path: req.body.path, data: req.body });
+    }
+
+    res.json({ message: returnedVal, data: req.body });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
-  res.json({ path: filePath, data: req.body });
 });
 
 export default PlottingRouter;
