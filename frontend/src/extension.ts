@@ -7,6 +7,16 @@ export function activate(context: vscode.ExtensionContext) {
   const provider = new CodeAidSidebarProvider(context.extensionUri);
   const secProvider = new ResponseSidebarProvider(context.extensionUri);
   const inputHandler = new InputHandler();
+
+  // 🔁 Auto-call initProject if workspace is open
+  const workspacePath = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
+  if (workspacePath) {
+    console.log("workspace exist");
+    inputHandler.initProject(workspacePath).then(console.log);
+  }else{
+    console.log("no workspace");
+  }
+  
   context.subscriptions.push(
     vscode.commands.registerCommand("extension.detectSOLID", async (arg) => {
       let res = await inputHandler.detectSOLID(arg);
