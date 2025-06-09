@@ -42,10 +42,19 @@ const vscode = __importStar(require("vscode"));
 const codeaidSidebarProvider_1 = __importDefault(require("./UI/codeaidSidebarProvider"));
 const inputHandler_1 = __importDefault(require("./inputHandler"));
 const responseSidebarProvider_1 = __importDefault(require("./UI/responseSidebarProvider"));
+// 1 remove //
 function activate(context) {
     const provider = new codeaidSidebarProvider_1.default(context.extensionUri);
     const secProvider = new responseSidebarProvider_1.default(context.extensionUri);
     const inputHandler = new inputHandler_1.default();
+    const workspacePath = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
+    if (workspacePath) {
+        console.log("workspace exist");
+        inputHandler.initProject(workspacePath).then(console.log);
+    }
+    else {
+        console.log("no workspace");
+    }
     context.subscriptions.push(vscode.commands.registerCommand("extension.detectSOLID", async (arg) => {
         let res = await inputHandler.detectSOLID(arg);
         secProvider.updateContent(res, "Solid Detection");
@@ -57,8 +66,18 @@ function activate(context) {
         secProvider.updateContent(res, `Plotting ${arg} Diagram`);
     }), vscode.commands.registerCommand("extension.displayRate", async () => {
         let res = await inputHandler.displayRate();
-        secProvider.updateContent(res, "Dislpaying Complexity Rate");
-    }), vscode.window.registerWebviewViewProvider(codeaidSidebarProvider_1.default.viewType, provider), vscode.window.registerWebviewViewProvider(responseSidebarProvider_1.default.viewType, secProvider));
+        secProvider.updateContent(res, "Displaying Complexity Rate");
+    }), 
+    /////////////remove /////////////////////
+    vscode.commands.registerCommand("extension.refactorCode", async (path, content) => {
+        let res = await inputHandler.refactorCode(path, content);
+        secProvider.updateContent(res, "Refactor Result");
+    }), vscode.commands.registerCommand("extension.undo", async (path) => {
+        let res = await inputHandler.undo(path);
+        secProvider.updateContent(res, "Refactor Result");
+    }), 
+    ///////////////////////////////////
+    vscode.window.registerWebviewViewProvider(codeaidSidebarProvider_1.default.viewType, provider), vscode.window.registerWebviewViewProvider(responseSidebarProvider_1.default.viewType, secProvider));
 }
 function deactivate() { }
 //# sourceMappingURL=extension.js.map

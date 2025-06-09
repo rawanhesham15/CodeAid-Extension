@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import axios, { get } from "axios";
-
+// 1 remove 
 class InputHandler {
   workspacePath: String;
   constructor() {
@@ -215,5 +215,82 @@ class InputHandler {
       return `Error initializing project: ${err.message}`;
     }
   }
+  ///////////////////////////remove////////////////////////
+async refactorCode(path: string, content: string): Promise<string> {
+  if (!path || !content) return "Missing path or content.";
+
+  try {
+    const response = await axios.post("http://localhost:3000/refactor/solid", {
+      path: path,
+      content: content,
+    });
+
+    const responseData = response.data;
+    if (responseData && responseData.refactoredCode) {
+      const edit = new vscode.WorkspaceEdit();
+      const document = await vscode.workspace.openTextDocument(path);
+      const fullRange = new vscode.Range(
+        document.positionAt(0),
+        document.positionAt(document.getText().length)
+      );
+      edit.replace(document.uri, fullRange, responseData.refactoredCode);
+      await vscode.workspace.applyEdit(edit);
+      return "Code has been refactored.";
+    }
+
+    return "No refactored code received.";
+  } catch (error: any) {
+    let errorMessage = "An error occurred during refactoring.";
+
+    if (error.response) {
+      errorMessage += ` Server responded with: ${error.response.status} - ${error.response.data}`;
+    } else if (error.request) {
+      errorMessage += " No response from the server. Is it running?";
+    } else {
+      errorMessage += ` ${error.message}`;
+    }
+
+    return errorMessage;
+  }
+}
+async undo(filePath: string): Promise<string> {
+  try {
+    const response = await axios.post("http://localhost:3000/refactor/undo", {
+      path: filePath,
+    });
+
+    const lastState = response.data.lastState;
+
+    if (!lastState || lastState.length === 0) {
+      vscode.window.showInformationMessage("No undo states found.");
+      return "No undo states found.";
+    }
+
+    for (const file of lastState) {
+      const uri = vscode.Uri.file(file.filePath);
+      const document = await vscode.workspace.openTextDocument(uri);
+      const editor = await vscode.window.showTextDocument(document, { preview: false });
+
+      const fullRange = new vscode.Range(
+        document.positionAt(0),
+        document.positionAt(document.getText().length)
+      );
+
+      await editor.edit(editBuilder => {
+        editBuilder.replace(fullRange, file.content);
+      });
+
+      await document.save();
+    }
+
+    vscode.window.showInformationMessage("Undo completed for all files.");
+    return "Undo completed for all files.";
+  } catch (error) {
+    vscode.window.showErrorMessage(`Undo failed: ${error}`);
+    return `Undo failed: ${error instanceof Error ? error.message : error}`;
+  }
+}
+
+///////////////////////////////////////////////////////
 }
 export default InputHandler;

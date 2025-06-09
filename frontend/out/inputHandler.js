@@ -38,6 +38,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const vscode = __importStar(require("vscode"));
 const axios_1 = __importDefault(require("axios"));
+// 1 remove 
 class InputHandler {
     workspacePath;
     constructor() {
@@ -222,6 +223,82 @@ class InputHandler {
                 errorMessage += ` ${error.message}`;
             }
             return errorMessage;
+        }
+    }
+    async initProject(workspacePath) {
+        try {
+            const response = await fetch('http://localhost:3000/db/init', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ workspacePath, threshold: 80 }),
+            });
+            const data = await response.json();
+            return `Project initialized: ${JSON.stringify(data)}`;
+        }
+        catch (err) {
+            return `Error initializing project: ${err.message}`;
+        }
+    }
+    ///////////////////////////remove////////////////////////
+    async refactorCode(path, content) {
+        if (!path || !content)
+            return "Missing path or content.";
+        try {
+            const response = await axios_1.default.post("http://localhost:3000/refactor/solid", {
+                path: path,
+                content: content,
+            });
+            const responseData = response.data;
+            if (responseData && responseData.refactoredCode) {
+                const edit = new vscode.WorkspaceEdit();
+                const document = await vscode.workspace.openTextDocument(path);
+                const fullRange = new vscode.Range(document.positionAt(0), document.positionAt(document.getText().length));
+                edit.replace(document.uri, fullRange, responseData.refactoredCode);
+                await vscode.workspace.applyEdit(edit);
+                return "Code has been refactored.";
+            }
+            return "No refactored code received.";
+        }
+        catch (error) {
+            let errorMessage = "An error occurred during refactoring.";
+            if (error.response) {
+                errorMessage += ` Server responded with: ${error.response.status} - ${error.response.data}`;
+            }
+            else if (error.request) {
+                errorMessage += " No response from the server. Is it running?";
+            }
+            else {
+                errorMessage += ` ${error.message}`;
+            }
+            return errorMessage;
+        }
+    }
+    async undo(filePath) {
+        try {
+            const response = await axios_1.default.post("http://localhost:3000/refactor/undo", {
+                path: filePath,
+            });
+            const lastState = response.data.lastState;
+            if (!lastState || lastState.length === 0) {
+                vscode.window.showInformationMessage("No undo states found.");
+                return "No undo states found.";
+            }
+            for (const file of lastState) {
+                const uri = vscode.Uri.file(file.filePath);
+                const document = await vscode.workspace.openTextDocument(uri);
+                const editor = await vscode.window.showTextDocument(document, { preview: false });
+                const fullRange = new vscode.Range(document.positionAt(0), document.positionAt(document.getText().length));
+                await editor.edit(editBuilder => {
+                    editBuilder.replace(fullRange, file.content);
+                });
+                await document.save();
+            }
+            vscode.window.showInformationMessage("Undo completed for all files.");
+            return "Undo completed for all files.";
+        }
+        catch (error) {
+            vscode.window.showErrorMessage(`Undo failed: ${error}`);
+            return `Undo failed: ${error instanceof Error ? error.message : error}`;
         }
     }
 }
