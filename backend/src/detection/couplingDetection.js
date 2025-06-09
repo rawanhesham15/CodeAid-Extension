@@ -1,5 +1,7 @@
 import DetectionAction from "./detectionAction.js";
 import DetectCouplingPG from "./../promptGenerator/detectCouplingPG.js";
+import { readFile, stat } from "fs/promises";
+import project from "../Models/ProjectModel.js";
 
 class CouplingDetection extends DetectionAction {
   generatePrompt(codeJSON, summary) {
@@ -27,22 +29,36 @@ class CouplingDetection extends DetectionAction {
     // const violations = parsed.violations;
 
     const dummyResponse = `{
-    "project_id": 25,
-    "chunk_id": 0,
-    "violations": [
-      {
-        "filesPaths": [
-          "Bug Tracking System Project in Java\\\\Source Code\\\\DTS\\\\BTS\\\\WEB-INF\\\\src\\\\AssignProject.java"
-        ],
-        "violation": [
-          {
-            "principle": "Feature Envy",
-            "justification": "The 'service' method in 'AssignProject' directly handles detailed database operations, including connection establishment, statement preparation, parameter binding, and execution. This extensive interaction with 'Connection' and 'PreparedStatement' objects suggests it's more interested in data access mechanics than its core responsibility as a web request handler."
-          }
-        ]
-      }
-    ]
-  }`;
+  "project_id": 22,
+  "chunk_id": 0,
+  "prompt": {},
+  "task": "Coupling Smells Detection",
+"couplingSmells": [
+    {
+      "filesPaths": [
+        "bomberman-master\\\\src\\\\components\\\\entities\\\\statics\\\\items\\\\Item.java",
+        "bomberman-master\\\\src\\\\components\\\\entities\\\\dynamics\\\\characters\\\\player\\\\Player.java"
+      ],
+      "smells": [
+        {
+          "smell": "Inappropriate Intimacy",
+          "justification": "The abstract method 'boost(Player player)' in Item implies that concrete Item implementations are expected to deeply interact with the Player's internals. This creates tight coupling, as Item needs to know specific details about Player's structure to apply boosts."
+        }
+      ]
+    },
+    {
+      "filesPaths": [
+        "bomberman-master\\\\src\\\\components\\\\entities\\\\dynamics\\\\characters\\\\player\\\\Player.java"
+      ],
+      "smells": [
+        {
+          "smell": "Message Chains",
+          "justification": "In Player's 'setEntityParameters' method, the expression 'bomb.getExplosion().setTargets(...)' forms a message chain. This makes Player dependent on the internal structure of Bomb, specifically its Explosion component, potentially violating the Law of Demeter."
+        }
+      ]
+    }
+  ]
+}`;
 
     let parsed;
     try {
@@ -54,12 +70,12 @@ class CouplingDetection extends DetectionAction {
 
     console.log("Parsed response:", parsed);
 
-    const violations = parsed.violations;
-    console.log("Extracted violations:", violations);
+    const smells = parsed.couplingSmells;
+    console.log("Extracted violations:", smells);
 
     // Read projectId from .codeaid-meta.json
     const metaFilePath = await this.findMetadataFile(projectPath);
-
+    console.log(" trypath:");
     let metaData;
     try {
       metaData = JSON.parse(await readFile(metaFilePath, "utf-8"));
@@ -68,7 +84,6 @@ class CouplingDetection extends DetectionAction {
         `Failed to read or parse metadata file at ${metaFilePath}: ${error.message}`
       );
     }
-
     const projectId = metaData.projectId;
     if (!projectId) {
       throw new Error("projectId not found in metadata.");
@@ -76,53 +91,48 @@ class CouplingDetection extends DetectionAction {
 
     console.log("Extracted projectId:", projectId);
 
-    await this.saveViolations(violations, projectId);
-    return this.formatViolationsAsString(violations);
+    await this.saveViolations(smells, projectId);
+    return this.formatViolationsAsString(smells);
     // return this.formatLLMResponse(JSON.stringify(parsed));
   }
 
-  async saveViolations(violations, projectId) {
-    if (!projectId || typeof projectId !== "string") {
-      throw new Error("Invalid project ID");
-    }
+async saveViolations(couplingSmells, projectId) {
+  if (!projectId || typeof projectId !== "string") {
+    throw new Error("Invalid project ID");
+  }
 
-    const formatted = violations.map((v) => ({
-      filePath: v.file_path,
-      violations: v.violatedPrinciples.map((p) => ({
-        principle: p.principle,
-        justification: p.justification,
-      })),
-    }));
+const formatted = couplingSmells.map((item) => ({
+  FilePaths: item.filesPaths, // Capitalized to match schema
+  couplingSmells: item.smells.map((smellObj) => ({
+    smell: smellObj.smell,
+    justification: smellObj.justification,
+  })),
+}));
 
-    console.log(
-      "Formatted violations for saving:",
-      JSON.stringify(formatted, null, 2)
+  console.log("Formatted coupling smells for saving:", JSON.stringify(formatted, null, 2));
+
+  try {
+    const updatedProject = await project.findByIdAndUpdate(
+      projectId,
+      { $set: { couplingViolations: formatted } },
+      { new: true }
     );
 
-    try {
-      const updatedProject = await project.findByIdAndUpdate(
-        projectId,
-        { $set: { solidViolations: formatted } },
-        { new: true }
-      );
-
-      if (!updatedProject) {
-        throw new Error(`Project with ID ${projectId} not found`);
-      }
-
-      console.log("Updated project successfully:", updatedProject._id);
-    } catch (error) {
-      console.error(
-        `Error saving violations for project ${projectId}: ${error.message}`,
-        {
-          projectId,
-          violations,
-          stack: error.stack,
-        }
-      );
-      throw error;
+    if (!updatedProject) {
+      throw new Error(`Project with ID ${projectId} not found`);
     }
+
+    console.log("Updated project successfully:", updatedProject._id);
+  } catch (error) {
+    console.error(`Error saving coupling smells for project ${projectId}: ${error.message}`, {
+      projectId,
+      violations: couplingSmells,
+      stack: error.stack,
+    });
+    throw error;
   }
+}
+
 
   formatViolationsAsString(violations) {
     return violations

@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import axios, { get } from "axios";
+import * as path from "path";
 // 1 remove 
 class InputHandler {
   workspacePath: String;
@@ -253,6 +254,71 @@ async refactorCode(path: string, content: string): Promise<string> {
     return errorMessage;
   }
 }
+async  refactorCouplingSmells(): Promise<string> {
+  const javaFiles = await vscode.workspace.findFiles("**/*.java");
+
+  if (javaFiles.length === 0) {
+    return "No Java files found in the workspace.";
+  }
+
+  const refactoredFiles: { [relativePath: string]: string } = {};
+  const fileContents: { [relativePath: string]: string } = {};
+  const workspaceFolder = vscode.workspace.workspaceFolders?.[0].uri.fsPath || "";
+
+  // Read and prepare files
+  for (const uri of javaFiles) {
+    const document = await vscode.workspace.openTextDocument(uri);
+    const content = document.getText();
+    const relativePath = vscode.workspace.asRelativePath(uri.fsPath);
+    fileContents[relativePath] = content;
+  }
+
+  try {
+    const response = await axios.post("http://localhost:3000/refactor/couplingsmells", {
+      projectRoot: workspaceFolder,
+      files: fileContents,
+    });
+
+    const data = response.data?.refactoredFiles;
+
+    if (!data || Object.keys(data).length === 0) {
+      return "No refactored files received.";
+    }
+
+    // Apply edits
+    const edit = new vscode.WorkspaceEdit();
+    for (const [relativePath, newContent] of Object.entries(data)) {
+  if (typeof newContent !== 'string') {
+    continue; // Skip if not a string
+  }
+
+  const absolutePath = vscode.Uri.file(path.join(workspaceFolder, relativePath));
+  const document = await vscode.workspace.openTextDocument(absolutePath);
+  const fullRange = new vscode.Range(
+    document.positionAt(0),
+    document.positionAt(document.getText().length)
+  );
+  edit.replace(document.uri, fullRange, newContent); // ✅ newContent is now string
+}
+
+    await vscode.workspace.applyEdit(edit);
+    return "All Java files have been refactored for coupling smells.";
+  } catch (error: any) {
+    let errorMessage = "An error occurred during coupling smell refactoring.";
+
+    if (error.response) {
+      errorMessage += ` Server responded with: ${error.response.status} - ${error.response.data}`;
+    } else if (error.request) {
+      errorMessage += " No response from the server. Is it running?";
+    } else {
+      errorMessage += ` ${error.message}`;
+    }
+
+    return errorMessage;
+  }
+}
+
+
 async undo(filePath: string): Promise<string> {
   try {
     const response = await axios.post("http://localhost:3000/refactor/undo", {

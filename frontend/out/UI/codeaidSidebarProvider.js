@@ -85,6 +85,8 @@ class CodeAidSidebarProvider {
                         vscode.commands.executeCommand("extension.undo", currentPath);
                         break;
                     }
+                case "refactorCouplingSmells":
+                    vscode.commands.executeCommand("extension.refactorCouplingSmells");
             }
             ///////////////////////////////////////////////
         });
@@ -262,6 +264,12 @@ class CodeAidSidebarProvider {
             <button id="undo">undo Refactor</button>
           </div>
         </div>
+                <div class="section">
+          <h3>Undo Refactor coupling</h3>
+          <div class="btn-container">
+            <button id="couplingref">coutpling Refactor</button>
+          </div>
+        </div>
         /*//////////////////*/
         <script>
           const vscode = acquireVsCodeApi();
@@ -289,6 +297,9 @@ class CodeAidSidebarProvider {
           });
           document.getElementById("undo").addEventListener("click", () => {
             vscode.postMessage({ command: "undo" });
+          });
+           document.getElementById("couplingref").addEventListener("click", () => {
+            vscode.postMessage({ command: "refactorCouplingSmells" });
           });
           window.addEventListener("message", (event) => {
             const message = event.data;

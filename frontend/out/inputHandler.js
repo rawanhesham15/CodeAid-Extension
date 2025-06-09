@@ -38,6 +38,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const vscode = __importStar(require("vscode"));
 const axios_1 = __importDefault(require("axios"));
+const path = __importStar(require("path"));
 // 1 remove 
 class InputHandler {
     workspacePath;
@@ -261,6 +262,58 @@ class InputHandler {
         }
         catch (error) {
             let errorMessage = "An error occurred during refactoring.";
+            if (error.response) {
+                errorMessage += ` Server responded with: ${error.response.status} - ${error.response.data}`;
+            }
+            else if (error.request) {
+                errorMessage += " No response from the server. Is it running?";
+            }
+            else {
+                errorMessage += ` ${error.message}`;
+            }
+            return errorMessage;
+        }
+    }
+    async refactorCouplingSmells() {
+        const javaFiles = await vscode.workspace.findFiles("**/*.java");
+        if (javaFiles.length === 0) {
+            return "No Java files found in the workspace.";
+        }
+        const refactoredFiles = {};
+        const fileContents = {};
+        const workspaceFolder = vscode.workspace.workspaceFolders?.[0].uri.fsPath || "";
+        // Read and prepare files
+        for (const uri of javaFiles) {
+            const document = await vscode.workspace.openTextDocument(uri);
+            const content = document.getText();
+            const relativePath = vscode.workspace.asRelativePath(uri.fsPath);
+            fileContents[relativePath] = content;
+        }
+        try {
+            const response = await axios_1.default.post("http://localhost:3000/refactor/couplingsmells", {
+                projectRoot: workspaceFolder,
+                files: fileContents,
+            });
+            const data = response.data?.refactoredFiles;
+            if (!data || Object.keys(data).length === 0) {
+                return "No refactored files received.";
+            }
+            // Apply edits
+            const edit = new vscode.WorkspaceEdit();
+            for (const [relativePath, newContent] of Object.entries(data)) {
+                if (typeof newContent !== 'string') {
+                    continue; // Skip if not a string
+                }
+                const absolutePath = vscode.Uri.file(path.join(workspaceFolder, relativePath));
+                const document = await vscode.workspace.openTextDocument(absolutePath);
+                const fullRange = new vscode.Range(document.positionAt(0), document.positionAt(document.getText().length));
+                edit.replace(document.uri, fullRange, newContent); // ✅ newContent is now string
+            }
+            await vscode.workspace.applyEdit(edit);
+            return "All Java files have been refactored for coupling smells.";
+        }
+        catch (error) {
+            let errorMessage = "An error occurred during coupling smell refactoring.";
             if (error.response) {
                 errorMessage += ` Server responded with: ${error.response.status} - ${error.response.data}`;
             }

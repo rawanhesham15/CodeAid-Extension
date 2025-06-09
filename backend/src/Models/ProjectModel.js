@@ -26,12 +26,16 @@ const projectSchema = new mongoose.Schema({
   ],
   couplingViolations: [
     {
-      filePaths: [String],
-      violation: String,
-      justification: String,
-      _id: false
+        FilePaths: [String],
+        couplingSmells: [
+        {
+        smell: String,
+        justification:String
+        }
+]
     }
   ]
+
 }, { timestamps: true });
 
 const project = mongoose.model("projects", projectSchema);

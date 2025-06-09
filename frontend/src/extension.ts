@@ -45,6 +45,10 @@ vscode.commands.registerCommand("extension.undo", async (path : string) => {
   let res = await inputHandler.undo(path);
   secProvider.updateContent(res, "Refactor Result");
 }),
+vscode.commands.registerCommand("extension.refactorCouplingSmells", async () => {
+  let res = await inputHandler.refactorCouplingSmells();
+  secProvider.updateContent(res, "Refactor Result");
+}),
 ///////////////////////////////////
     vscode.window.registerWebviewViewProvider(CodeAidSidebarProvider.viewType, provider),
     vscode.window.registerWebviewViewProvider(ResponseSidebarProvider.viewType, secProvider)

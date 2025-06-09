@@ -59,7 +59,7 @@ import project from "../Models/ProjectModel.js";
           },
         },
       };
-
+      console.log(`Saving file to lastState for projectId: ${projectId}`, { filePath, content });
       const result = await project.findByIdAndUpdate(projectId, update, { new: true });
       if (!result) {
         throw new Error(`Project with ID ${projectId} not found`);
@@ -71,6 +71,12 @@ import project from "../Models/ProjectModel.js";
       throw error;
     }
   }
+    async clearLastState(projectId) {
+      await project.updateOne(
+        { _id: projectId },
+        { $set: { lastState: [] } }
+      );
+    }
    async undo(filePath) {
     try {
       const projectId = await this.extractProjectId(filePath);
@@ -79,10 +85,9 @@ import project from "../Models/ProjectModel.js";
       if (!projectData) {
         throw new Error(`Project with ID ${projectId} not found`);
       }
-
       const lastState = projectData.lastState || [];
       console.log("Last state before undo:", lastState);
-
+      this.clearLastState (projectId);            
       return lastState; // you can return it for further use in the route
     } catch (error) {
       console.error("Error during undo:", error.message);
