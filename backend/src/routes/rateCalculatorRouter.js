@@ -11,7 +11,7 @@ const runPMDOnFile = (filePath) => {
     const fileListPath = path.join(process.cwd(), "temp-file-list.txt");
     fs.writeFileSync(fileListPath, filePath);
 
-    const command = `"E:/GitHub/pmd-bin-7.10.0/bin/pmd.bat" check --file-list "${fileListPath}" -R category/java/design.xml/CyclomaticComplexity -f json -r "${outputPath}"`;
+    const command = `"C:/Documents/CodeAid-Extension/backend/pmd-bin-7.10.0/bin/pmd.bat" check --file-list "${fileListPath}" -R category/java/design.xml/CyclomaticComplexity -f json -r "${outputPath}"`;
 
     try {
       execSync(command, { stdio: "inherit" }); // important to inherit stdout/stderr
@@ -129,24 +129,26 @@ const scanDirectory = (dirPath) => {
 
 
 RateCalculatorRouter.post("/complexity", (req, res) => {
-  const dirPath = req.body.path;
-  if (!fs.existsSync(dirPath)) {
-    return res.status(400).json({ message: "Invalid directory path" });
+  const filePath = req.body.path;
+
+  if (!fs.existsSync(filePath) || !filePath.endsWith(".java")) {
+    return res.status(400).json({ message: "Invalid Java file path" });
   }
 
   try {
-    const complexityData = scanDirectory(dirPath);
-    complexityData.map((data) => {
-      console.log(data); // Log to terminal
-    });
+    const classes = extractClassesAndComplexity(filePath);
+    const complexityData = [{ file: filePath, classes }];
+    console.log(JSON.stringify(complexityData, null, 2));
     res.json({ message: "Complexity rate calculated", data: complexityData });
   } catch (error) {
     console.error(error);
     res.status(500).json({
-      message: "Error calculating complexity rates",
+      message: "Error calculating complexity rate",
       error: error.message,
     });
   }
 });
+
+
 
 export default RateCalculatorRouter;

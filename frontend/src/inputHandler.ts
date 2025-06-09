@@ -141,7 +141,7 @@ class InputHandler {
       const response = await axios.post(
         "http://localhost:3000/rateCalc/complexity",
         {
-          path: workspaceFolder,
+          path: filePath,
         }
       );
 

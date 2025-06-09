@@ -173,7 +173,7 @@ class InputHandler {
         }
         try {
             const response = await axios_1.default.post("http://localhost:3000/rateCalc/complexity", {
-                path: workspaceFolder,
+                path: filePath,
             });
             const responseData = response.data;
             const decorations = [];
