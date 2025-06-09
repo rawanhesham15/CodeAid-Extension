@@ -6,21 +6,30 @@ const projectSchema = new mongoose.Schema({
   lastState: [
     {
       filePath: { type: String, required: true },
-      content: { type: String, required: true }
+      content: { type: String, required: true },
+      _id: false
     }
   ],
   solidViolations: [
     {
-      filePaths: [String],
-      violation: String,
-      justification: String
+      mainFilePath: String,
+      dependenciesFilePaths: [String],
+      violations: [
+        {
+          principle: String, 
+          justification: String,
+          _id: false
+        }
+      ],
+      _id: false
     }
   ],
   couplingViolations: [
     {
       filePaths: [String],
       violation: String,
-      justification: String
+      justification: String,
+      _id: false
     }
   ]
 }, { timestamps: true });
