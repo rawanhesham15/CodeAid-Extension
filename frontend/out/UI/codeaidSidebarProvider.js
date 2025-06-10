@@ -50,9 +50,12 @@ class CodeAidSidebarProvider {
         webviewView.webview.html = this._getHtmlForWebview();
         webviewView.webview.onDidReceiveMessage((message) => {
             switch (message.command) {
-                case "detectSolid":
-                    vscode.commands.executeCommand("extension.detectSOLID", message.context);
+                case "detectSolid": {
+                    const context = message.context;
+                    const label = context === "file" ? "File" : "Project";
+                    vscode.commands.executeCommand("extension.detectSOLID", context, label);
                     break;
+                }
                 case "detectCoupling":
                     vscode.commands.executeCommand("extension.detectCoupling");
                     break;

@@ -17,11 +17,17 @@ export function activate(context: vscode.ExtensionContext) {
   }
 
   context.subscriptions.push(
-    vscode.commands.registerCommand("extension.detectSOLID", async (arg) => {
-      let res = await inputHandler.detectSOLID(arg);
-      secProvider.updateContent(res, "Solid Detection");
-    }),
-
+vscode.commands.registerCommand("extension.detectSOLID", async (arg: string) => {
+  const contextLabel = arg === "file" ? "File" : "Project";
+  let res = await inputHandler.detectSOLID(arg);
+  let title ="";
+  if(contextLabel === "Project") 
+     title =" Solid Detection for Project"; 
+  else 
+     title = "Solid Detection for File";
+  const responseMessage = `**[${contextLabel} Scope]**\n\n${res}`;
+  secProvider.updateContent(res, title);
+}),
     vscode.commands.registerCommand("extension.detectCoupling", async () => {
       let res = await inputHandler.detectCoupling();
       secProvider.updateContent(res, "Coupling Smells Detection");

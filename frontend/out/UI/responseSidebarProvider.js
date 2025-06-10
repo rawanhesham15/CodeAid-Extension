@@ -1,5 +1,39 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", { value: true });
+const vscode = __importStar(require("vscode"));
 class ResponseSidebarProvider {
     _extensionUri;
     static viewType = "ResponseView";
@@ -10,46 +44,12 @@ class ResponseSidebarProvider {
         this._extensionUri = _extensionUri;
     }
     buildContent() {
-        const responseContent = this.responses.length === 0
-            ? "<p style='text-align: center; color: #919191'>No responses yet, start action to get responses</p>"
-            : this.responses
-                .map((res) => `
-              <div id="response-${res.id}" style="
-                background-color: rgb(30, 30, 30);
-                color: white;
-                padding: 15px;
-                border-radius: 8px;
-                box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.5);
-                margin: 10px 0;
-                font-size: 14px;
-                align-items: center;">
-                  <div style="display: flex; justify-content: space-between; align-items: center;margin-bottom:0px; padding-bottom:0px">
-                    <p style="font-size: 17px; font-weight: 500;color: #007f89">${res.responseType}</p>
-                    <div>
-                      <i onclick="deleteResponse(${res.id})" style="
-                      cursor: pointer;
-                      display: inline-block;
-                  ">
-                      <svg xmlns="http://www.w3.org/2000/svg" x="0px" y="0px" width="15" height="15" viewBox="0,0,256,256">
-                        <g fill="#9C9B9B" fill-rule="nonzero" stroke="none" stroke-width="1" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="10" stroke-dasharray="" stroke-dashoffset="0" font-family="none" font-weight="none" font-size="none" text-anchor="none" style="mix-blend-mode: normal"><g transform="scale(5.12,5.12)"><path d="M7.71875,6.28125l-1.4375,1.4375l17.28125,17.28125l-17.28125,17.28125l1.4375,1.4375l17.28125,-17.28125l17.28125,17.28125l1.4375,-1.4375l-17.28125,-17.28125l17.28125,-17.28125l-1.4375,-1.4375l-17.28125,17.28125z"></path></g></g>
-                      </svg>
-                      </i>
-                    </div>    
-                  </div>
-                <div style="margin-top:0px; padding-top:0px">
-                  <p>${res.content}</p>
-                  <small style="color: gray;">${res.timestamp}</small>
-                </div>   
-              </div>
-            `)
-                .join("");
-        return `<!DOCTYPE html>
+        if (this.responses.length === 0) {
+            return `<!DOCTYPE html>
             <html lang="en">
             <head>
                 <meta charset="UTF-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <link rel="preconnect" href="https://fonts.googleapis.com">
-                <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
                 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&display=swap" rel="stylesheet">
                 <style>
                     body {
@@ -58,7 +58,72 @@ class ResponseSidebarProvider {
                         color: white;
                         padding: 20px;
                     }
-                </style>    
+                </style>
+            </head>
+            <body>
+                <h2 style="text-align: center;">CodeAid Responses Panel</h2>
+                <p style='text-align: center; color: #919191'>No responses yet, start action to get responses</p>
+            </body>
+            </html>`;
+        }
+        const refactorEligibleTypes = ["Coupling Smells Detection", "Solid Detection for File"];
+        const lastEligibleResponse = this.responses.find((res) => refactorEligibleTypes.includes(res.responseType));
+        const responseContent = this.responses
+            .map((res) => {
+            const showRefactor = lastEligibleResponse && lastEligibleResponse.id === res.id;
+            return `
+        <div id="response-${res.id}" style="
+          background-color: rgb(30, 30, 30);
+          color: white;
+          padding: 15px;
+          border-radius: 8px;
+          box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.5);
+          margin: 10px 0;
+          font-size: 14px;
+          align-items: center;">
+            <div style="display: flex; justify-content: space-between; align-items: center;margin-bottom:0px; padding-bottom:0px">
+              <p style="font-size: 17px; font-weight: 500;color: #007f89">${res.responseType}</p>
+              <div>
+                <i onclick="deleteResponse(${res.id})" style="cursor: pointer; display: inline-block;">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0,0,256,256">
+                    <g fill="#9C9B9B"><g transform="scale(5.12,5.12)">
+                      <path d="M7.71875,6.28125l-1.4375,1.4375l17.28125,17.28125l-17.28125,17.28125l1.4375,1.4375l17.28125,-17.28125l17.28125,17.28125l1.4375,-1.4375l-17.28125,-17.28125l17.28125,-17.28125l-1.4375,-1.4375l-17.28125,17.28125z"></path>
+                    </g></g>
+                  </svg>
+                </i>
+              </div>    
+            </div>
+          <div style="margin-top:0px; padding-top:0px">
+            <p>${res.content}</p>
+            <small style="color: gray;">${res.timestamp}</small>
+            ${showRefactor
+                ? `<button onclick="refactorResponse(${res.id})" style="
+                  margin-top: 10px;
+                  padding: 5px 10px;
+                  background-color: #007f89;
+                  color: white;
+                  border: none;
+                  border-radius: 4px;
+                  cursor: pointer;">Refactor</button>`
+                : ""}
+          </div>   
+        </div>`;
+        })
+            .join("");
+        return `<!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&display=swap" rel="stylesheet">
+                <style>
+                    body {
+                        font-family: 'Outfit', sans-serif;
+                        background-color: rgb(18, 18, 18);
+                        color: white;
+                        padding: 20px;
+                    }
+                </style>
             </head>
             <body>
                 <h2 style="text-align: center;">CodeAid Responses Panel</h2>
@@ -68,6 +133,10 @@ class ResponseSidebarProvider {
 
                   function deleteResponse(id) {
                     vscode.postMessage({ command: 'deleteResponse', id: id });
+                  }
+
+                  function refactorResponse(id) {
+                    vscode.postMessage({ command: 'refactorResponse', id: id });
                   }
                 </script>
             </body>
@@ -82,6 +151,13 @@ class ResponseSidebarProvider {
         webviewView.webview.onDidReceiveMessage((message) => {
             if (message.command === "deleteResponse") {
                 this.deleteResponse(message.id);
+            }
+            else if (message.command === "refactorResponse") {
+                const response = this.responses.find((r) => r.id === message.id);
+                if (response) {
+                    vscode.window.showInformationMessage(`Refactor requested for: "${response.responseType}"`);
+                    // TODO: Add logic to apply refactoring
+                }
             }
         });
     }

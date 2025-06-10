@@ -56,8 +56,15 @@ function activate(context) {
         console.log("no workspace");
     }
     context.subscriptions.push(vscode.commands.registerCommand("extension.detectSOLID", async (arg) => {
+        const contextLabel = arg === "file" ? "File" : "Project";
         let res = await inputHandler.detectSOLID(arg);
-        secProvider.updateContent(res, "Solid Detection");
+        let title = "";
+        if (contextLabel === "Project")
+            title = " Solid Detection for Project";
+        else
+            title = "Solid Detection for File";
+        const responseMessage = `**[${contextLabel} Scope]**\n\n${res}`;
+        secProvider.updateContent(res, title);
     }), vscode.commands.registerCommand("extension.detectCoupling", async () => {
         let res = await inputHandler.detectCoupling();
         secProvider.updateContent(res, "Coupling Smells Detection");
