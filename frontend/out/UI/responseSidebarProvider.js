@@ -68,11 +68,20 @@ class ResponseSidebarProvider {
         }
         const undoEligibleTypes = ["Refactor Result"];
         const refactorEligibleTypes = ["Coupling Smells Detection", "Solid Detection for File"];
-        const lastEligibleResponse = this.responses.find((res) => refactorEligibleTypes.includes(res.responseType));
+        // const lastEligibleResponse = this.responses.find((res) =>
+        //   refactorEligibleTypes.includes(res.responseType)
+        // );
+        const lastEligibleMap = {};
+        [...this.responses].forEach((res) => {
+            if (refactorEligibleTypes.includes(res.responseType) &&
+                !(res.responseType in lastEligibleMap)) {
+                lastEligibleMap[res.responseType] = res.id;
+            }
+        });
         const responseContent = this.responses
             .map((res) => {
             const showRefactor = refactorEligibleTypes.includes(res.responseType) &&
-                lastEligibleResponse && lastEligibleResponse.id === res.id;
+                lastEligibleMap[res.responseType] === res.id;
             const showUndo = undoEligibleTypes.includes(res.responseType);
             return `
         <div id="response-${res.id}" style="
