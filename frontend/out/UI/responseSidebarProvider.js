@@ -169,6 +169,7 @@ class ResponseSidebarProvider {
             enableScripts: true,
         };
         webviewView.webview.html = this.buildContent();
+        // 🟢 Listen to messages from the webview
         webviewView.webview.onDidReceiveMessage((message) => {
             if (message.command === "deleteResponse") {
                 this.deleteResponse(message.id);
@@ -208,6 +209,18 @@ class ResponseSidebarProvider {
                 }
                 const path = editor.document.uri.fsPath;
                 vscode.commands.executeCommand("extension.undo", path);
+                if (this._view) {
+                    this._view.webview.html = this.buildContent();
+                }
+            }
+        });
+        // 🟢 Listen for text changes and disable refactor
+        vscode.workspace.onDidChangeTextDocument((event) => {
+            const lastRefactorable = this.responses.find((r) => (r.responseType === "Solid Detection for File" ||
+                r.responseType === "Coupling Smells Detection") &&
+                !r.refactorDisabled);
+            if (lastRefactorable) {
+                lastRefactorable.refactorDisabled = true;
                 if (this._view) {
                     this._view.webview.html = this.buildContent();
                 }

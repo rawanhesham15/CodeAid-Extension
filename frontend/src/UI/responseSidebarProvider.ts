@@ -148,54 +148,27 @@ class ResponseSidebarProvider implements vscode.WebviewViewProvider {
       </html>`;
   }
 
-  resolveWebviewView(webviewView: vscode.WebviewView) {
-    this._view = webviewView;
-    webviewView.webview.options = {
-      enableScripts: true,
-    };
+resolveWebviewView(webviewView: vscode.WebviewView) {
+  this._view = webviewView;
+  webviewView.webview.options = {
+    enableScripts: true,
+  };
 
-    webviewView.webview.html = this.buildContent();
+  webviewView.webview.html = this.buildContent();
 
-    webviewView.webview.onDidReceiveMessage((message) => {
-      if (message.command === "deleteResponse") {
-        this.deleteResponse(message.id);
-      } else if (message.command === "refactorResponse") {
-        const lastRefactorable = this.responses.find(
-          (r) =>
-            r.responseType === "Solid Detection for File" ||
-            r.responseType === "Coupling Smells Detection"
-        );
+  // 🟢 Listen to messages from the webview
+  webviewView.webview.onDidReceiveMessage((message) => {
+    if (message.command === "deleteResponse") {
+      this.deleteResponse(message.id);
+    } else if (message.command === "refactorResponse") {
+      const lastRefactorable = this.responses.find(
+        (r) =>
+          r.responseType === "Solid Detection for File" ||
+          r.responseType === "Coupling Smells Detection"
+      );
 
-        if (lastRefactorable) {
-          lastRefactorable.refactorDisabled = true;
-
-          const editor = vscode.window.activeTextEditor;
-          if (!editor) {
-            vscode.window.showErrorMessage("No active editor found.");
-            return;
-          }
-
-          const path = editor.document.uri.fsPath;
-          const content = editor.document.getText();
-
-          if (lastRefactorable.responseType === "Solid Detection for File") {
-            vscode.commands.executeCommand("extension.refactorCode", path, content);
-          } else if (lastRefactorable.responseType === "Coupling Smells Detection") {
-            vscode.commands.executeCommand("extension.refactorCouplingSmells");
-          }
-
-          if (this._view) {
-            this._view.webview.html = this.buildContent();
-          }
-        }
-      } else if (message.command === "undoResponse") {
-        const lastUndoable = this.responses.find(
-          (r) => r.responseType === "Refactor Result"
-        );
-
-        if (lastUndoable) {
-          lastUndoable.undoDisabled = true;
-        }
+      if (lastRefactorable) {
+        lastRefactorable.refactorDisabled = true;
 
         const editor = vscode.window.activeTextEditor;
         if (!editor) {
@@ -204,14 +177,60 @@ class ResponseSidebarProvider implements vscode.WebviewViewProvider {
         }
 
         const path = editor.document.uri.fsPath;
-        vscode.commands.executeCommand("extension.undo", path);
+        const content = editor.document.getText();
+
+        if (lastRefactorable.responseType === "Solid Detection for File") {
+          vscode.commands.executeCommand("extension.refactorCode", path, content);
+        } else if (lastRefactorable.responseType === "Coupling Smells Detection") {
+          vscode.commands.executeCommand("extension.refactorCouplingSmells");
+        }
 
         if (this._view) {
           this._view.webview.html = this.buildContent();
         }
       }
-    });
-  }
+    } else if (message.command === "undoResponse") {
+      const lastUndoable = this.responses.find(
+        (r) => r.responseType === "Refactor Result"
+      );
+
+      if (lastUndoable) {
+        lastUndoable.undoDisabled = true;
+      }
+
+      const editor = vscode.window.activeTextEditor;
+      if (!editor) {
+        vscode.window.showErrorMessage("No active editor found.");
+        return;
+      }
+
+      const path = editor.document.uri.fsPath;
+      vscode.commands.executeCommand("extension.undo", path);
+
+      if (this._view) {
+        this._view.webview.html = this.buildContent();
+      }
+    }
+  });
+
+  // 🟢 Listen for text changes and disable refactor
+  vscode.workspace.onDidChangeTextDocument((event) => {
+    const lastRefactorable = this.responses.find(
+      (r) =>
+        (r.responseType === "Solid Detection for File" ||
+         r.responseType === "Coupling Smells Detection") &&
+        !r.refactorDisabled
+    );
+
+    if (lastRefactorable) {
+      lastRefactorable.refactorDisabled = true;
+      if (this._view) {
+        this._view.webview.html = this.buildContent();
+      }
+    }
+  });
+}
+
 
   updateContent(newContent: string, responseType: string) {
     const timestamp = new Date().toLocaleTimeString();
