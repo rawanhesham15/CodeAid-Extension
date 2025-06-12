@@ -9,6 +9,7 @@ class ResponseSidebarProvider implements vscode.WebviewViewProvider {
     timestamp: string;
     responseType: string;
     undoDisabled?: boolean;
+    refactorDisabled?: boolean;
   }[] = [];
   private responseCounter: number = 0;
 
@@ -79,14 +80,15 @@ class ResponseSidebarProvider implements vscode.WebviewViewProvider {
             <small style="color: gray;">${res.timestamp}</small>
             ${
               showRefactor
-                ? `<button onclick="refactorResponse(${res.id})" style="
+                ? `<button class="refactor-btn" onclick="refactorResponse()" style="
                     margin-top: 10px;
                     padding: 5px 10px;
-                    background-color: #007f89;
+                    background-color: ${res.refactorDisabled ? '#6c757d' : '#007f89'};
                     color: white;
                     border: none;
                     border-radius: 4px;
-                    cursor: pointer;">Refactor</button>`
+                    cursor: ${res.refactorDisabled ? 'not-allowed' : 'pointer'};"
+                    ${res.refactorDisabled ? 'disabled' : ''}>${res.refactorDisabled ? 'Refactored' : 'Refactor'}</button>`
                 : ""
             }
             ${
@@ -95,14 +97,12 @@ class ResponseSidebarProvider implements vscode.WebviewViewProvider {
                     margin-top: 10px;
                     margin-left: 10px;
                     padding: 5px 10px;
-                    background-color: ${res.undoDisabled ? "#6c757d" : "#007f89"};
+                    background-color: ${res.undoDisabled ? '#6c757d' : '#007f89'};
                     color: white;
                     border: none;
                     border-radius: 4px;
-                    cursor: ${res.undoDisabled ? "not-allowed" : "pointer"};
-                    opacity: ${res.undoDisabled ? "0.6" : "1"};
-                    pointer-events: ${res.undoDisabled ? "none" : "auto"};"
-                  ${res.undoDisabled ? "disabled" : ""}>${res.undoDisabled ? "Undone" : "Undo"}</button>`
+                    cursor: ${res.undoDisabled ? 'not-allowed' : 'pointer'};"
+                    ${res.undoDisabled ? 'disabled' : ''}>${res.undoDisabled ? 'Undone' : 'Undo'}</button>`
                 : ""
             }
           </div>   
@@ -132,16 +132,17 @@ class ResponseSidebarProvider implements vscode.WebviewViewProvider {
           const vscode = acquireVsCodeApi();
 
           function deleteResponse(id) {
-            vscode.postMessage({ command: 'deleteResponse', id });
+            vscode.postMessage({ command: 'deleteResponse', id: id });
           }
 
-          function refactorResponse(id) {
-            vscode.postMessage({ command: 'refactorResponse', id });
+          function refactorResponse() {
+            vscode.postMessage({ command: 'refactorResponse' });
           }
 
           function undoResponse() {
             vscode.postMessage({ command: 'undoResponse' });
           }
+
         </script>
       </body>
       </html>`;
@@ -159,8 +160,15 @@ class ResponseSidebarProvider implements vscode.WebviewViewProvider {
       if (message.command === "deleteResponse") {
         this.deleteResponse(message.id);
       } else if (message.command === "refactorResponse") {
-        const response = this.responses.find((r) => r.id === message.id);
-        if (response) {
+        const lastRefactorable = this.responses.find(
+          (r) =>
+            r.responseType === "Solid Detection for File" ||
+            r.responseType === "Coupling Smells Detection"
+        );
+
+        if (lastRefactorable) {
+          lastRefactorable.refactorDisabled = true;
+
           const editor = vscode.window.activeTextEditor;
           if (!editor) {
             vscode.window.showErrorMessage("No active editor found.");
@@ -170,15 +178,25 @@ class ResponseSidebarProvider implements vscode.WebviewViewProvider {
           const path = editor.document.uri.fsPath;
           const content = editor.document.getText();
 
-          if (response.responseType === "Solid Detection for File") {
+          if (lastRefactorable.responseType === "Solid Detection for File") {
             vscode.commands.executeCommand("extension.refactorCode", path, content);
-          } else if (response.responseType === "Coupling Smells Detection") {
+          } else if (lastRefactorable.responseType === "Coupling Smells Detection") {
             vscode.commands.executeCommand("extension.refactorCouplingSmells");
-          } else {
-            vscode.window.showInformationMessage(`Refactor not applicable for: ${response.responseType}`);
+          }
+
+          if (this._view) {
+            this._view.webview.html = this.buildContent();
           }
         }
       } else if (message.command === "undoResponse") {
+        const lastUndoable = this.responses.find(
+          (r) => r.responseType === "Refactor Result"
+        );
+
+        if (lastUndoable) {
+          lastUndoable.undoDisabled = true;
+        }
+
         const editor = vscode.window.activeTextEditor;
         if (!editor) {
           vscode.window.showErrorMessage("No active editor found.");
@@ -188,14 +206,8 @@ class ResponseSidebarProvider implements vscode.WebviewViewProvider {
         const path = editor.document.uri.fsPath;
         vscode.commands.executeCommand("extension.undo", path);
 
-        const lastUndo = this.responses.find(
-          (r) => r.responseType === "Refactor Result" && !r.undoDisabled
-        );
-        if (lastUndo) {
-          lastUndo.undoDisabled = true;
-          if (this._view) {
-            this._view.webview.html = this.buildContent();
-          }
+        if (this._view) {
+          this._view.webview.html = this.buildContent();
         }
       }
     });
@@ -206,8 +218,8 @@ class ResponseSidebarProvider implements vscode.WebviewViewProvider {
     this.responses.unshift({
       id: this.responseCounter++,
       content: newContent,
-      timestamp,
-      responseType,
+      timestamp: timestamp,
+      responseType: responseType,
     });
 
     if (this._view) {
