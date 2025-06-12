@@ -135,7 +135,7 @@ class RefactorStorage {
       console.log("Last state before clearing:", lastState);
 
       await this.clearLastState(projectId);
-      return lastState;
+      return lastState.filePathsLastState;
     } catch (error) {
       console.error("Error during undo:", error.message);
       throw error;

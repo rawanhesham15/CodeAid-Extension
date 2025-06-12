@@ -1,18 +1,38 @@
 import { Router } from "express";
 import RefactorStorage from "../refactoring/refactorStorage.js"; // Capitalized, not refactorStorage
 import path from "path";
+import fs from "fs/promises";
+
 const RefactorRouter = Router();
 
 // ✅ Instantiate the class
 const store = new RefactorStorage();
 
 
+// RefactorRouter.post("/solid", async (req, res) => {
+//   const { path, content } = req.body;
+
+//   try {
+//     await store.save(path, content);
+//     res.json({ message: "Solid violations refactored and state saved", data: req.body });
+//   } catch (err) {
+//     res.status(500).json({ error: err.message });
+//   }
+// });
+
 RefactorRouter.post("/solid", async (req, res) => {
-  const { path, content } = req.body;
+  const { path: filePath, content } = req.body;
 
   try {
-    await store.save(path, content);
-    res.json({ message: "Solid violations refactored and state saved", data: req.body });
+    const projectDir = path.dirname(filePath);
+    const allJavaFiles = await store.getAllJavaFiles(projectDir);
+
+    for (const file of allJavaFiles) {
+      const fileContent = await fs.readFile(file, "utf-8");
+      await store.save(file, fileContent);
+    }
+
+    res.json({ message: "All project files saved before solid refactor" });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

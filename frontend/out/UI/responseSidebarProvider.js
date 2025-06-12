@@ -110,15 +110,18 @@ class ResponseSidebarProvider {
                     cursor: pointer;">Refactor</button>`
                 : ""}
             ${showUndo
-                ? `<button onclick="undoResponse(${res.id})" style="
+                ? `<button class="undo-btn" onclick="undoResponse()" style="
                     margin-top: 10px;
                     margin-left: 10px;
                     padding: 5px 10px;
-                    background-color: #007f89;
+                    background-color: ${res.undoDisabled ? "#6c757d" : "#007f89"};
                     color: white;
                     border: none;
                     border-radius: 4px;
-                    cursor: pointer;">Undo</button>`
+                    cursor: ${res.undoDisabled ? "not-allowed" : "pointer"};
+                    opacity: ${res.undoDisabled ? "0.6" : "1"};
+                    pointer-events: ${res.undoDisabled ? "none" : "auto"};"
+                  ${res.undoDisabled ? "disabled" : ""}>${res.undoDisabled ? "Undone" : "Undo"}</button>`
                 : ""}
           </div>   
         </div>`;
@@ -146,15 +149,15 @@ class ResponseSidebarProvider {
           const vscode = acquireVsCodeApi();
 
           function deleteResponse(id) {
-            vscode.postMessage({ command: 'deleteResponse', id: id });
+            vscode.postMessage({ command: 'deleteResponse', id });
           }
 
           function refactorResponse(id) {
-            vscode.postMessage({ command: 'refactorResponse', id: id });
+            vscode.postMessage({ command: 'refactorResponse', id });
           }
 
-          function undoResponse(id) {
-            vscode.postMessage({ command: 'undoResponse', id: id });
+          function undoResponse() {
+            vscode.postMessage({ command: 'undoResponse' });
           }
         </script>
       </body>
@@ -173,14 +176,14 @@ class ResponseSidebarProvider {
             else if (message.command === "refactorResponse") {
                 const response = this.responses.find((r) => r.id === message.id);
                 if (response) {
+                    const editor = vscode.window.activeTextEditor;
+                    if (!editor) {
+                        vscode.window.showErrorMessage("No active editor found.");
+                        return;
+                    }
+                    const path = editor.document.uri.fsPath;
+                    const content = editor.document.getText();
                     if (response.responseType === "Solid Detection for File") {
-                        const editor = vscode.window.activeTextEditor;
-                        if (!editor) {
-                            vscode.window.showErrorMessage("No active editor found.");
-                            return;
-                        }
-                        const path = editor.document.uri.fsPath;
-                        const content = editor.document.getText();
                         vscode.commands.executeCommand("extension.refactorCode", path, content);
                     }
                     else if (response.responseType === "Coupling Smells Detection") {
@@ -199,6 +202,13 @@ class ResponseSidebarProvider {
                 }
                 const path = editor.document.uri.fsPath;
                 vscode.commands.executeCommand("extension.undo", path);
+                const lastUndo = this.responses.find((r) => r.responseType === "Refactor Result" && !r.undoDisabled);
+                if (lastUndo) {
+                    lastUndo.undoDisabled = true;
+                    if (this._view) {
+                        this._view.webview.html = this.buildContent();
+                    }
+                }
             }
         });
     }
@@ -207,8 +217,8 @@ class ResponseSidebarProvider {
         this.responses.unshift({
             id: this.responseCounter++,
             content: newContent,
-            timestamp: timestamp,
-            responseType: responseType,
+            timestamp,
+            responseType,
         });
         if (this._view) {
             this._view.webview.html = this.buildContent();
