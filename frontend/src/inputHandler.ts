@@ -334,7 +334,23 @@ async undo(filePath: string): Promise<string> {
 
     for (const file of lastState) {
       const uri = vscode.Uri.file(file.filePath);
-      const document = await vscode.workspace.openTextDocument(uri);
+      let document: vscode.TextDocument;
+
+      try {
+        // Try opening the document
+        document = await vscode.workspace.openTextDocument(uri);
+      } catch (err) {
+        // If not found, create a new one with the content
+        const dirPath = vscode.Uri.file(require("path").dirname(file.filePath));
+        await vscode.workspace.fs.createDirectory(dirPath);
+
+        const encoder = new TextEncoder();
+        const fileContent = encoder.encode(file.content);
+        await vscode.workspace.fs.writeFile(uri, fileContent);
+
+        document = await vscode.workspace.openTextDocument(uri);
+      }
+
       const editor = await vscode.window.showTextDocument(document, { preview: false });
 
       const fullRange = new vscode.Range(
@@ -356,6 +372,7 @@ async undo(filePath: string): Promise<string> {
     return `Undo failed: ${error instanceof Error ? error.message : error}`;
   }
 }
+
 
 ///////////////////////////////////////////////////////
 }

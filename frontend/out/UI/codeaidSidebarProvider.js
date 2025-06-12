@@ -34,7 +34,6 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 const vscode = __importStar(require("vscode"));
-// 3 removes
 class CodeAidSidebarProvider {
     _extensionUri;
     static viewType = "codeAidView";
@@ -254,26 +253,6 @@ class CodeAidSidebarProvider {
             <button id="displayRateBtn">Display</button>
           </div>
         </div>
-// to remove //
-        <div class="section">
-          <h3>Refactor Code</h3>
-          <div class="btn-container">
-            <button id="refactorCodeBtn">Refactor</button>
-          </div>
-        </div>
-        <div class="section">
-          <h3>Undo Refactor Code</h3>
-          <div class="btn-container">
-            <button id="undo">undo Refactor</button>
-          </div>
-        </div>
-                <div class="section">
-          <h3>Undo Refactor coupling</h3>
-          <div class="btn-container">
-            <button id="couplingref">coutpling Refactor</button>
-          </div>
-        </div>
-        /*//////////////////*/
         <script>
           const vscode = acquireVsCodeApi();
 
@@ -293,20 +272,6 @@ class CodeAidSidebarProvider {
 
           document.getElementById("displayRateBtn").addEventListener("click", () => {
             vscode.postMessage({ command: "displayRate" });
-          });
-// to remove // 
-          document.getElementById("refactorCodeBtn").addEventListener("click", () => {
-            vscode.postMessage({ command: "refactorCode" });
-          });
-          document.getElementById("undo").addEventListener("click", () => {
-            vscode.postMessage({ command: "undo" });
-          });
-           document.getElementById("couplingref").addEventListener("click", () => {
-            vscode.postMessage({ command: "refactorCouplingSmells" });
-          });
-          window.addEventListener("message", (event) => {
-            const message = event.data;
-            document.getElementById("result").innerText = message.text;
           });
         </script>
       </body>

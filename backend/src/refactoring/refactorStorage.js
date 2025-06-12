@@ -3,7 +3,7 @@ import path from "path";
 import { stat } from "fs/promises";
 import project from "../Models/ProjectModel.js";
 
- class RefactorStorage {
+class RefactorStorage {
   constructor() {}
 
   // Locate .codeaid-meta.json and extract the projectId
@@ -51,16 +51,21 @@ import project from "../Models/ProjectModel.js";
   async save(filePath, content) {
     try {
       const projectId = await this.extractProjectId(filePath);
+
       const update = {
+        $addToSet: { "lastState.allFilePaths": filePath }, // Avoid duplicates
         $push: {
-          lastState: {
+          "lastState.filePathsLastState": {
             filePath,
             content,
           },
         },
       };
-      console.log(`Saving file to lastState for projectId: ${projectId}`, { filePath, content });
+
+      // console.log(`Saving file to lastState for projectId: ${projectId}`, { filePath, content });
+
       const result = await project.findByIdAndUpdate(projectId, update, { new: true });
+
       if (!result) {
         throw new Error(`Project with ID ${projectId} not found`);
       }
@@ -71,13 +76,23 @@ import project from "../Models/ProjectModel.js";
       throw error;
     }
   }
-    async clearLastState(projectId) {
-      await project.updateOne(
-        { _id: projectId },
-        { $set: { lastState: [] } }
-      );
-    }
-   async undo(filePath) {
+
+
+
+  async clearLastState(projectId) {
+    await project.updateOne(
+      { _id: projectId },
+      {
+        $set: {
+          lastState: {
+            allFilePaths: [],
+            filePathsLastState: []
+          }
+        }
+      }
+    );
+  }
+  async undo(filePath) {
     try {
       const projectId = await this.extractProjectId(filePath);
       const projectData = await project.findById(projectId);
@@ -85,14 +100,56 @@ import project from "../Models/ProjectModel.js";
       if (!projectData) {
         throw new Error(`Project with ID ${projectId} not found`);
       }
-      const lastState = projectData.lastState || [];
-      console.log("Last state before undo:", lastState);
-      this.clearLastState (projectId);            
-      return lastState; // you can return it for further use in the route
+
+      const lastState = projectData.lastState;
+      const allSavedPaths = lastState?.allFilePaths || [];
+      const workspaceDir = path.dirname(filePath);
+
+      if (allSavedPaths.length === 0) {
+        console.log("No saved paths in lastState. Skipping file deletion.");
+      } else {
+        const filesInDir = await this.getAllJavaFiles(workspaceDir);
+        for (const file of filesInDir) {
+          const normalizedPath = path.normalize(file);
+          const isSaved = allSavedPaths.some(savedPath => path.normalize(savedPath) === normalizedPath);
+          if (!isSaved) {
+            await fs.unlink(file);
+            console.log(`Deleted unsaved file: ${file}`);
+          }
+        }
+      }
+
+      // 🛠️ Restore saved content from lastState
+      for (const file of lastState.filePathsLastState || []) {
+        const uri = path.resolve(file.filePath);
+        const dir = path.dirname(uri);
+        try {
+          await fs.mkdir(dir, { recursive: true }); // Ensure directory exists
+          await fs.writeFile(uri, file.content, "utf-8");
+          console.log(`Restored file: ${uri}`);
+        } catch (error) {
+          console.error(`Failed to restore file: ${uri}`, error.message);
+        }
+      }
+
+      console.log("Last state before clearing:", lastState);
+
+      await this.clearLastState(projectId);
+      return lastState;
     } catch (error) {
       console.error("Error during undo:", error.message);
       throw error;
     }
   }
+
+  async getAllJavaFiles(dirPath) {
+    const entries = await fs.readdir(dirPath, { withFileTypes: true });
+    const files = await Promise.all(entries.map(entry => {
+      const res = path.resolve(dirPath, entry.name);
+      return entry.isDirectory() ? this.getAllJavaFiles(res) : res;
+    }));
+    return files.flat().filter(file => file.endsWith('.java'));
+  }
 }
+
 export default RefactorStorage;

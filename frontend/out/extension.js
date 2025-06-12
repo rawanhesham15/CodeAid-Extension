@@ -81,7 +81,7 @@ function activate(context) {
         secProvider.updateContent(res, "Refactor Result");
     }), vscode.commands.registerCommand("extension.undo", async (path) => {
         let res = await inputHandler.undo(path);
-        secProvider.updateContent(res, "Refactor Result");
+        secProvider.updateContent(res, "Undo Done");
     }), vscode.commands.registerCommand("extension.refactorCouplingSmells", async () => {
         let res = await inputHandler.refactorCouplingSmells();
         secProvider.updateContent(res, "Refactor Result");

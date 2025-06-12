@@ -3,13 +3,16 @@ import mongoose from 'mongoose';
 const projectSchema = new mongoose.Schema({
   threshold: { type: Number, required: true },
   projectPath: { type: String, required: true },
-  lastState: [
+  lastState: {
+  allFilePaths:[String],
+  filePathsLastState:[
     {
       filePath: { type: String, required: true },
       content: { type: String, required: true },
       _id: false
     }
-  ],
+  ]
+},
   solidViolations: [
     {
       mainFilePath: String,
