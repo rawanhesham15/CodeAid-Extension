@@ -1,8 +1,8 @@
 import { Router } from "express";
-import CouplingDetection from "../detection/couplingDetection.js";
 import FileSOLIDViolationDetection from "../detection/fileSolidViolationsDetection.js";
 import ProjectSOLIDViolationDetection from "../detection/projectSolidViolationDetection.js";
-
+import FileCOUPLINGViolationDetection from "../detection/fileCouplingViolationsDetection.js";
+import ProjectCOUPLINGViolationDetection from "../detection/projectCouplingViolationDetection.js";
 const DetectRouter = Router();
 
 DetectRouter.post("/solid", async (req, res) => {
@@ -24,8 +24,16 @@ DetectRouter.post("/solid", async (req, res) => {
 
 DetectRouter.post("/couplingsmells", async (req, res) => {
   try {
-    var couplingSmellsDetector = new CouplingDetection();
-    var returnedVal = await couplingSmellsDetector.detectionMethod(req);
+    let context = req.body.context;
+    let couplingDetector;
+    console.log(context);
+    if (context === "file") {
+      couplingDetector = new FileCOUPLINGViolationDetection();
+    } else {
+      couplingDetector = new ProjectCOUPLINGViolationDetection();
+    }
+    var returnedVal = await couplingDetector.detectionMethod(req);
+    console.log(returnedVal)
     res.json({ message: returnedVal, data: req.body });
   } catch (error) {
     res.status(500).json({ error: error.message });

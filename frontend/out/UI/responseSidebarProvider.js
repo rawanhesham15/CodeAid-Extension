@@ -67,7 +67,7 @@ class ResponseSidebarProvider {
         </html>`;
         }
         const undoEligibleTypes = ["Refactor Result"];
-        const refactorEligibleTypes = ["Coupling Smells Detection", "Solid Detection for File"];
+        const refactorEligibleTypes = ["Coupling Smells Detection for File", "Solid Detection for File"];
         // const lastEligibleResponse = this.responses.find((res) =>
         //   refactorEligibleTypes.includes(res.responseType)
         // );
@@ -185,7 +185,7 @@ class ResponseSidebarProvider {
             }
             else if (message.command === "refactorResponse") {
                 const lastRefactorable = this.responses.find((r) => r.responseType === "Solid Detection for File" ||
-                    r.responseType === "Coupling Smells Detection");
+                    r.responseType === "Coupling Smells Detection for File");
                 if (lastRefactorable) {
                     lastRefactorable.refactorDisabled = true;
                     const editor = vscode.window.activeTextEditor;
@@ -198,7 +198,7 @@ class ResponseSidebarProvider {
                     if (lastRefactorable.responseType === "Solid Detection for File") {
                         vscode.commands.executeCommand("extension.refactorCode", path, content);
                     }
-                    else if (lastRefactorable.responseType === "Coupling Smells Detection") {
+                    else if (lastRefactorable.responseType === "Coupling Smells Detection for File") {
                         vscode.commands.executeCommand("extension.refactorCouplingSmells");
                     }
                     if (this._view) {
@@ -226,7 +226,7 @@ class ResponseSidebarProvider {
         // 🟢 Listen for text changes and disable refactor
         vscode.workspace.onDidChangeTextDocument((event) => {
             const lastRefactorable = this.responses.find((r) => (r.responseType === "Solid Detection for File" ||
-                r.responseType === "Coupling Smells Detection") &&
+                r.responseType === "Coupling Smells Detection for File") &&
                 !r.refactorDisabled);
             if (lastRefactorable) {
                 lastRefactorable.refactorDisabled = true;

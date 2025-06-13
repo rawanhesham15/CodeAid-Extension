@@ -104,12 +104,30 @@ class InputHandler {
             return errorMessage;
         }
     }
-    async detectCoupling() {
-        if (this.workspacePath == "")
-            return "No workspace folder is open";
+    async detectCoupling(context) {
+        let path = "";
+        if (context === "project") {
+            if (this.workspacePath === "")
+                return "No workspace folder is open";
+            path = this.workspacePath;
+        }
+        else {
+            const result = this.getActiveEditorPath();
+            if (result === "")
+                return "No active editor found.";
+            const filePath = result[0];
+            const editor = result[1];
+            const fileContent = editor.document.getText();
+            if (!fileContent.trim()) {
+                return "The file is empty. Nothing to analyze.";
+            }
+            path = filePath;
+            console.log(path, "from frontend");
+        }
         try {
             const response = await axios_1.default.post("http://localhost:3000/detect/couplingsmells", {
-                path: this.workspacePath,
+                path: path,
+                context: context,
             });
             const responseData = response.data;
             if (responseData && responseData.message) {

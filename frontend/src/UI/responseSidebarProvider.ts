@@ -40,7 +40,7 @@ class ResponseSidebarProvider implements vscode.WebviewViewProvider {
     }
 
     const undoEligibleTypes = ["Refactor Result"];
-    const refactorEligibleTypes = ["Coupling Smells Detection", "Solid Detection for File"];
+    const refactorEligibleTypes = ["Coupling Smells Detection for File", "Solid Detection for File"];
     // const lastEligibleResponse = this.responses.find((res) =>
     //   refactorEligibleTypes.includes(res.responseType)
     // );
@@ -176,7 +176,7 @@ resolveWebviewView(webviewView: vscode.WebviewView) {
       const lastRefactorable = this.responses.find(
         (r) =>
           r.responseType === "Solid Detection for File" ||
-          r.responseType === "Coupling Smells Detection"
+          r.responseType === "Coupling Smells Detection for File"
       );
 
       if (lastRefactorable) {
@@ -193,7 +193,7 @@ resolveWebviewView(webviewView: vscode.WebviewView) {
 
         if (lastRefactorable.responseType === "Solid Detection for File") {
           vscode.commands.executeCommand("extension.refactorCode", path, content);
-        } else if (lastRefactorable.responseType === "Coupling Smells Detection") {
+        } else if (lastRefactorable.responseType === "Coupling Smells Detection for File") {
           vscode.commands.executeCommand("extension.refactorCouplingSmells");
         }
 
@@ -230,7 +230,7 @@ resolveWebviewView(webviewView: vscode.WebviewView) {
     const lastRefactorable = this.responses.find(
       (r) =>
         (r.responseType === "Solid Detection for File" ||
-         r.responseType === "Coupling Smells Detection") &&
+         r.responseType === "Coupling Smells Detection for File") &&
         !r.refactorDisabled
     );
 

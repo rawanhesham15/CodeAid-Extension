@@ -21,9 +21,12 @@ class CodeAidSidebarProvider implements vscode.WebviewViewProvider {
           vscode.commands.executeCommand("extension.detectSOLID", context, label);
           break;
         }
-        case "detectCoupling":
-          vscode.commands.executeCommand("extension.detectCoupling");
+        case "detectCoupling":{
+          const context = message.context;
+          const label = context === "file" ? "File" : "Project";
+          vscode.commands.executeCommand("extension.detectCoupling", context, label);
           break;
+        }
         case "plotDiagram":
           vscode.commands.executeCommand("extension.plotDiagram", message.diagram);
           break;
@@ -197,7 +200,15 @@ class CodeAidSidebarProvider implements vscode.WebviewViewProvider {
         </div>
 
         <div class="section">
-          <h3>Coupling smells Detection</h3>
+          <div class="flex-wrapper">
+          <h3>Coupling smells <br> Detection</h3>
+              <div class="custom-select">
+                <select id="couplingSelect">
+                  <option value="project">Project</option>
+                  <option value="file">File</option>
+                </select>
+            </div>
+          </div>
           <div class="btn-container">
             <button id="detectCoupling">Detect</button>
           </div>
@@ -234,7 +245,8 @@ class CodeAidSidebarProvider implements vscode.WebviewViewProvider {
           });
 
           document.getElementById("detectCoupling").addEventListener("click", () => {
-            vscode.postMessage({ command: "detectCoupling" });
+            const couplingContext = document.getElementById("couplingSelect").value;
+            vscode.postMessage({ command: "detectCoupling", context: couplingContext });
           });
 
           document.getElementById("plotDiagram").addEventListener("click", () => {

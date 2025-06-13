@@ -5,6 +5,7 @@ import * as path from "path";
 class InputHandler {
   workspacePath: String;
   constructor() {
+    
     this.workspacePath = this.getWorkSpacePath();
   }
 
@@ -68,13 +69,31 @@ class InputHandler {
     }
   }
 
-  async detectCoupling(): Promise<string> {
-    if (this.workspacePath == "") return "No workspace folder is open";
+  async detectCoupling(context: string): Promise<string> {
+
+    let path: String = "";
+    if (context === "project") {
+      if (this.workspacePath === "") return "No workspace folder is open";
+      path = this.workspacePath;
+    } else {
+      const result: any = this.getActiveEditorPath();
+      if (result === "") return "No active editor found.";
+      const filePath: String = result[0];
+      const editor: any = result[1];
+      const fileContent = editor.document.getText();
+      if (!fileContent.trim()) {
+        return "The file is empty. Nothing to analyze.";
+      }
+      path = filePath;
+      console.log(path,"from frontend");
+    }
+
     try {
       const response = await axios.post(
         "http://localhost:3000/detect/couplingsmells",
         {
-          path: this.workspacePath,
+          path: path,
+          context: context,
         }
       );
 

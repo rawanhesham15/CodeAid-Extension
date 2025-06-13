@@ -63,11 +63,16 @@ function activate(context) {
             title = " Solid Detection for Project";
         else
             title = "Solid Detection for File";
-        const responseMessage = `**[${contextLabel} Scope]**\n\n${res}`;
         secProvider.updateContent(res, title);
-    }), vscode.commands.registerCommand("extension.detectCoupling", async () => {
-        let res = await inputHandler.detectCoupling();
-        secProvider.updateContent(res, "Coupling Smells Detection");
+    }), vscode.commands.registerCommand("extension.detectCoupling", async (arg) => {
+        const contextLabel = arg === "file" ? "File" : "Project";
+        let res = await inputHandler.detectCoupling(arg);
+        let title = "";
+        if (contextLabel === "Project")
+            title = " Coupling Smells Detection for Project";
+        else
+            title = "Coupling Smells Detection for File";
+        secProvider.updateContent(res, title);
     }), vscode.commands.registerCommand("extension.plotDiagram", async (arg) => {
         let res = await inputHandler.plotDiagram(arg);
         secProvider.updateContent(res, `Plotting ${arg} Diagram`);
