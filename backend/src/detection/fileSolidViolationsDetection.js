@@ -1,4 +1,5 @@
 import FileDetectSOLIDViolationsPG from "../promptGenerator/fileDetectSolidViolationsPG.js";
+import getFileWithDependencies from "./../fileManager/filePrepare.js";
 import DetectionAction from "./detectionAction.js";
 import project from "../Models/ProjectModel.js";
 import { readFile, stat } from "fs/promises";
@@ -14,19 +15,54 @@ class FileSOLIDViolationDetection extends DetectionAction {
   }
 
   async detectionMethod(req) {
-    const projectPath = req?.body?.path;
-    if (!projectPath || typeof projectPath !== "string") {
+    const filePath = req?.body?.path;
+    if (!filePath || typeof filePath !== "string") {
       throw new Error("Invalid or missing project path.");
     }
 
-    console.log("Project path:", projectPath);
+    // Go up until src/main/java
+    let rootDir = filePath;
+    while (!rootDir.endsWith(path.join("src", "main", "java"))) {
+      rootDir = path.dirname(rootDir);
+      if (rootDir === path.dirname(rootDir)) break; // Prevent infinite loop
+    }
 
-    const codeJSON = this.gatherCode(projectPath);
-    const summarizedCode = this.summarize(projectPath);
-    const prompt = this.generatePrompt(codeJSON, summarizedCode);
-    const response = await this.processPrompt(prompt); // Use real response instead of dummy
+
+   
+    const reqData = await getFileWithDependencies(
+      filePath,
+      rootDir
+    ); // this is the file content with dependencies
+
+    
+    console.log("Request data for SOLID detection:", reqData);
+
+    const apiData = [reqData];
+    
+    fetch("http://localhost:8000/detect-solid", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(apiData)
+    })
+      .then(async response => {
+        if (!response.ok) throw new Error("Network response was not ok");
+        const result = await response.json(); // 👈 result is saved here
+        console.log("Result:", result);
+        return result;
+      })
+      .then(data => {
+        console.log("SOLID Violations:", data);
+      })
+      .catch(error => {
+        console.error("Error calling API:", error);
+      });
+
+
     // const parsed = typeof response === 'string' ? JSON.parse(response) : response;
     // const violations = parsed.violations;
+
 
     const dummyResponse = `{
       "project_id": 239,
@@ -75,7 +111,7 @@ class FileSOLIDViolationDetection extends DetectionAction {
     console.log("Extracted violations:", violations);
 
     // Read projectId from .codeaid-meta.json
-    const metaFilePath = await this.findMetadataFile(projectPath);
+    const metaFilePath = await this.findMetadataFile(filePath);
 
     let metaData;
     try {
