@@ -34,8 +34,12 @@ class FileSOLIDViolationDetection extends DetectionAction {
       rootDir
     ); // this is the file content with dependencies
 
-    
-    console.log("Request data for SOLID detection:", reqData);
+    let dependencies = [];
+    for(const dep of reqData.dependencies) {
+      dependencies.push(dep.depFilePath);
+    }
+    console.log("Dependencies found:", dependencies);
+    // console.log("Request data for SOLID detection:", reqData);
 
     const apiData = [reqData];
     
@@ -64,9 +68,7 @@ class FileSOLIDViolationDetection extends DetectionAction {
     // const violations = parsed.violations;
 
 
-    const dummyResponse = `{
-      "project_id": 239,
-      "chunk_id": 0,
+    const dummyResponse = `[{
       "violations": [
         {
           "file_path": "sorting/SortGolfers.java",
@@ -84,18 +86,9 @@ class FileSOLIDViolationDetection extends DetectionAction {
               "justification": "The high-level sorting logic directly depends on the concrete Golfer class. It should depend on abstractions."
             }
           ]
-        },
-        {
-          "file_path": "sorting/Golfer.java",
-          "violatedPrinciples": [
-            {
-              "principle": "Liskov",
-              "justification": "The equals method uses getClass() for type checking, breaking substitutability."
-            }
-          ]
         }
       ]
-    }`;
+    }]`;
 
     let parsed;
     try {
@@ -107,7 +100,7 @@ class FileSOLIDViolationDetection extends DetectionAction {
 
     console.log("Parsed response:", parsed);
 
-    const violations = parsed.violations;
+    const violations = parsed[0].violations;
     console.log("Extracted violations:", violations);
 
     // Read projectId from .codeaid-meta.json
@@ -129,12 +122,12 @@ class FileSOLIDViolationDetection extends DetectionAction {
 
     console.log("Extracted projectId:", projectId);
 
-    await this.saveViolations(violations, projectId);
+    await this.saveViolations(violations, projectId, dependencies);
     return this.formatViolationsAsString(violations);
     // return this.formatLLMResponse(JSON.stringify(parsed));
   }
 
-  async saveViolations(violations, projectId) {
+  async saveViolations(violations, projectId, dependencies) {
     if (!projectId || typeof projectId !== "string") {
       throw new Error("Invalid project ID");
     }
@@ -144,7 +137,6 @@ class FileSOLIDViolationDetection extends DetectionAction {
     }
 
     const mainFile = violations[0];
-    const dependencies = violations.slice(1).map((v) => v.file_path);
 
     const formatted = {
       mainFilePath: mainFile.file_path,
