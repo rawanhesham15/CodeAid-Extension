@@ -27,8 +27,6 @@ class FileSOLIDViolationDetection extends DetectionAction {
       if (rootDir === path.dirname(rootDir)) break; // Prevent infinite loop
     }
 
-
-   
     const reqData = await getFileWithDependencies(
       filePath,
       rootDir
@@ -63,10 +61,8 @@ class FileSOLIDViolationDetection extends DetectionAction {
         console.error("Error calling API:", error);
       });
 
-
     // const parsed = typeof response === 'string' ? JSON.parse(response) : response;
     // const violations = parsed.violations;
-
 
     const dummyResponse = `[{
       "violations": [

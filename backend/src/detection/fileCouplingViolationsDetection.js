@@ -2,7 +2,8 @@ import DetectionAction from "./detectionAction.js";
 import fileDetectCouplingViolationsPG from "./../promptGenerator/fileDetectCouplingViolationsPG.js";
 import { readFile } from "fs/promises";
 import project from "../Models/ProjectModel.js";
-
+import getFileWithDependencies from "./../fileManager/filePrepare.js";
+import path from "path";
 class fileCOUPLINGViolationDetection extends DetectionAction {
   generatePrompt(codeJSON, summary) {
     let promptGenerator = new fileDetectCouplingViolationsPG();
@@ -10,26 +11,60 @@ class fileCOUPLINGViolationDetection extends DetectionAction {
   }
 
   async detectionMethod(req) {
-    const projectPath = req?.body?.path;
-    if (!projectPath || typeof projectPath !== "string") {
+    const filePath = req?.body?.path;
+    if (!filePath || typeof filePath !== "string") {
       throw new Error("Invalid or missing project path.");
     }
 
-    console.log("Project path:", projectPath);
+    console.log("Project path:", filePath);
 
-    const codeJSON = await this.gatherCode(projectPath);
-    console.log(codeJSON);
-    const summarizedCode = await this.summarize(projectPath);
-    console.log(summarizedCode);
-    const prompt = this.generatePrompt(codeJSON, summarizedCode);
-    const response = await this.processPrompt(prompt); // Real response in production
+    // const codeJSON = await this.gatherCode(projectPath);
+    // console.log(codeJSON);
+    // const summarizedCode = await this.summarize(projectPath);
+    // console.log(summarizedCode);
+    // const prompt = this.generatePrompt(codeJSON, summarizedCode);
+    // const response = await this.processPrompt(prompt); // Real response in production
+
+    // Go up until src/main/java
+    let rootDir = filePath;
+    while (!rootDir.endsWith(path.join("src", "main", "java"))) {
+      rootDir = path.dirname(rootDir);
+      if (rootDir === path.dirname(rootDir)) break; // Prevent infinite loop
+    }
+
+    const reqData = await getFileWithDependencies(filePath, rootDir); // this is the file content with dependencies
+
+    let dependencies = [];
+    for (const dep of reqData.dependencies) {
+      dependencies.push(dep.depFilePath);
+    }
+    console.log("Dependencies found:", dependencies);
+    // console.log("Request data for SOLID detection:", reqData);
+
+    const apiData = [reqData];
+
+    fetch("http://localhost:8000/detect-coupling", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(apiData),
+    })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Network response was not ok");
+        const result = await response.json(); // 👈 result is saved here
+        console.log("Result:", result);
+        return result;
+      })
+      .then((data) => {
+        console.log("Coupling Smells:", data);
+      })
+      .catch((error) => {
+        console.error("Error calling API:", error);
+      });
 
     // Dummy response for testing
     const dummyResponse = `[{
-      "project_id": 22,
-      "chunk_id": 0,
-      "prompt": {},
-      "task": "Coupling Smells Detection",
       "couplingSmells": [
         {
           "filesPaths": [
@@ -46,7 +81,6 @@ class fileCOUPLINGViolationDetection extends DetectionAction {
       ]
     }]`;
 
-
     console.log(dummyResponse);
     let parsed;
     try {
@@ -55,10 +89,9 @@ class fileCOUPLINGViolationDetection extends DetectionAction {
       console.error("Failed to parse JSON:", error.message);
       throw error;
     }
-
-    console.log(dummyResponse);
+    
     // Read projectId from metadata
-    const metaFilePath = await this.findMetadataFile(projectPath);
+    const metaFilePath = await this.findMetadataFile(filePath);
     let metaData;
     try {
       metaData = JSON.parse(await readFile(metaFilePath, "utf-8"));
@@ -68,13 +101,12 @@ class fileCOUPLINGViolationDetection extends DetectionAction {
       );
     }
 
-    console.log("object 111112222222222")
     const projectId = metaData.projectId;
     if (!projectId) {
       throw new Error("projectId not found in metadata.");
     }
 
-        await this.clearViolationsForProject(projectId);
+    await this.clearViolationsForProject(projectId);
 
     console.log("Extracted projectId:", projectId);
 
@@ -92,10 +124,10 @@ class fileCOUPLINGViolationDetection extends DetectionAction {
       // for (const singleViolation of couplingViolations) {
       //   await this.saveViolations(singleViolation, projectId);
       // }
-      console.log("couplingViolations ",couplingViolations);
+      console.log("couplingViolations ", couplingViolations);
       // await this.saveViolations(couplingViolations, projectId);
       if (couplingViolations.length > 0) {
-        await this.saveViolations(couplingViolations[0], projectId);
+        await this.saveViolations(couplingViolations[0], projectId, dependencies);
       } else {
         console.warn("No coupling violations to save.");
       }
@@ -112,7 +144,9 @@ class fileCOUPLINGViolationDetection extends DetectionAction {
         for (const smellObj of smells) {
           const { smell, justification } = smellObj;
           allFormattedViolations.push(
-            `File(s): ${filePaths.join(", ")}\nPrinciple: ${smell}\nJustification: ${justification}\n`
+            `File(s): ${filePaths.join(
+              ", "
+            )}\nPrinciple: ${smell}\nJustification: ${justification}\n`
           );
         }
       }
@@ -127,7 +161,11 @@ class fileCOUPLINGViolationDetection extends DetectionAction {
       throw new Error("Invalid project ID");
     }
 
-    if (!Violations || typeof Violations !== "object" || !Array.isArray(Violations.filePaths)) {
+    if (
+      !Violations ||
+      typeof Violations !== "object" ||
+      !Array.isArray(Violations.filePaths)
+    ) {
       throw new Error("Invalid violation format.");
     }
 
@@ -181,8 +219,7 @@ class fileCOUPLINGViolationDetection extends DetectionAction {
   //     .join("\n\n");
   // }
 
-
-    formatViolationsAsString(violations) {
+  formatViolationsAsString(violations) {
     return violations
       .map((v) => {
         const header = `File: ${v.file_path}`;
@@ -196,7 +233,7 @@ class fileCOUPLINGViolationDetection extends DetectionAction {
       })
       .join("\n\n");
 
-      console.log("object 1111111111111111111111")
+    console.log("object 1111111111111111111111");
   }
   async clearViolationsForProject(projectId) {
     await project.updateOne(
