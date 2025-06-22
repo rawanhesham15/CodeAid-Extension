@@ -27,7 +27,15 @@ async function findJavaFiles(root) {
     const files = await fg("**/*.java", {
       cwd: root,
       absolute: true,
-      ignore: ["**/node_modules/**", "**/build/**", "**/out/**"],
+      // ignore: ["**/node_modules/**", "**/build/**", "**/out/**"],
+      ignore: [
+        "**/node_modules/**",
+        "**/build/**",
+        "**/out/**",
+        "**/System Volume Information/**",
+        "**/$RECYCLE.BIN/**",
+        "**/Recycler/**",
+      ],
     });
     // console.log("Found Java files:", files);
     return files;
@@ -251,11 +259,22 @@ async function getFileWithDependencies(srcPath, projectRootDir) {
 
     let depPaths = [];
     try {
+      // depPaths = await resolveDepsForFile(projectRootDir, srcPath);
+      // depPaths = depPaths.filter(
+      //   (p) => path.normalize(p) !== path.normalize(srcPath)
+      // ); // to avoid self-dependency
+      // // console.log("Dependencies for", srcPath, ":", depPaths);
       depPaths = await resolveDepsForFile(projectRootDir, srcPath);
-      depPaths = depPaths.filter(
-        (p) => path.normalize(p) !== path.normalize(srcPath)
-      ); // to avoid self-dependency
-      // console.log("Dependencies for", srcPath, ":", depPaths);
+      const normalizedRoot = path.normalize(projectRootDir);
+
+      depPaths = depPaths.filter((p) => {
+        const normalizedPath = path.normalize(p);
+        return (
+          normalizedPath !== path.normalize(srcPath) &&
+          normalizedPath.startsWith(normalizedRoot)
+        );
+      });
+
     } catch (error) {
       console.error("Error resolving dependencies:", error.message);
       throw error;
@@ -267,7 +286,7 @@ async function getFileWithDependencies(srcPath, projectRootDir) {
       try {
         await fs.access(depPath); // add this
         const depContent = await fs.readFile(depPath, "utf8");
-        console.log(`Read dependency file: ${depPath} and its content : ${depContent}`);
+        // console.log(`Read dependency file: ${depPath} and its content : ${depContent}`);
         dependencies.push({
           depFilePath: path.normalize(depPath),
           content: depContent,

@@ -67,7 +67,7 @@ class FileSOLIDViolationDetection extends DetectionAction {
     const dummyResponse = `[{
       "violations": [
         {
-          "file_path": "sorting/SortGolfers.java",
+          "file_path": "e:\\\\FCAI\\\\secondYear\\\\secondSemester\\\\sw\\\\Assignments\\\\ToffeeStore\\\\ToffeeStore\\\\category.java",
           "violatedPrinciples": [
             {
               "principle": "Single Responsibility",
@@ -123,55 +123,67 @@ class FileSOLIDViolationDetection extends DetectionAction {
     // return this.formatLLMResponse(JSON.stringify(parsed));
   }
 
-  async saveViolations(violations, projectId, dependencies) {
-    if (!projectId || typeof projectId !== "string") {
-      throw new Error("Invalid project ID");
-    }
+async saveViolations(violations, projectId, dependencies) {
+  if (!projectId || typeof projectId !== "string") {
+    throw new Error("Invalid project ID");
+  }
 
-    if (!Array.isArray(violations) || violations.length === 0) {
-      throw new Error("No violations to save.");
-    }
+  if (!Array.isArray(violations) || violations.length === 0) {
+    throw new Error("No violations to save.");
+  }
 
-    const mainFile = violations[0];
+  const allowedPrinciples = ["Single Responsibility", "Open-Closed"];
+  const mainFile = violations[0];
 
-    const formatted = {
-      mainFilePath: mainFile.file_path,
-      dependenciesFilePaths: dependencies,
-      violations: mainFile.violatedPrinciples.map((p) => ({
-        principle: p.principle,
-        justification: p.justification,
-      })),
-    };
+  // Filter principles to include only the allowed ones
+  const filteredPrinciples = mainFile.violatedPrinciples.filter((p) =>
+    allowedPrinciples.includes(p.principle)
+  );
 
-    console.log(
-      "Formatted SOLID violations for saving:",
-      JSON.stringify(formatted, null, 2)
+  if (filteredPrinciples.length === 0) {
+    console.log("No SRP or OCP violations found. Skipping save.");
+    return;
+  }
+
+  const formatted = {
+    mainFilePath: mainFile.file_path,
+    dependenciesFilePaths: dependencies,
+    violations: filteredPrinciples.map((p) => ({
+      principle: p.principle,
+      justification: p.justification,
+    })),
+  };
+
+  console.log(
+    "Filtered SOLID violations to save:",
+    JSON.stringify(formatted, null, 2)
+  );
+
+  try {
+    const updatedProject = await project.findByIdAndUpdate(
+      projectId,
+      { $set: { solidViolations: [formatted] } }, // you may use $push instead if you want to accumulate
+      { new: true }
     );
 
-    try {
-      const updatedProject = await project.findByIdAndUpdate(
-        projectId,
-        { $set: { solidViolations: [formatted] } }, // wrap in array
-        { new: true }
-      );
-
-      if (!updatedProject) {
-        throw new Error(`Project with ID ${projectId} not found`);
-      }
-
-      console.log("Updated project successfully:", updatedProject._id);
-    } catch (error) {
-      console.error(
-        `Error saving violations for project ${projectId}: ${error.message}`,
-        {
-          projectId,
-          violations,
-          stack: error.stack,
-        }
-      );
-      throw error;
+    if (!updatedProject) {
+      throw new Error(`Project with ID ${projectId} not found`);
     }
+
+    console.log("Updated project successfully:", updatedProject._id);
+  } catch (error) {
+    console.error(
+      `Error saving violations for project ${projectId}: ${error.message}`,
+      {
+        projectId,
+        violations,
+        stack: error.stack,
+      }
+    );
+    throw error;
   }
+}
+
 
   formatViolationsAsString(violations) {
     return violations

@@ -2,12 +2,12 @@ import { Router } from "express";
 import RefactorStorage from "../refactoring/refactorStorage.js"; // Capitalized, not refactorStorage
 import path from "path";
 import fs from "fs/promises";
-
+import refactorSolidViolationsAction from "../refactoring/refactorSolidViolationsActoin.js";
 const RefactorRouter = Router();
 
 // ✅ Instantiate the class
 const store = new RefactorStorage();
-
+const refactorSolid = new refactorSolidViolationsAction();
 
 // RefactorRouter.post("/solid", async (req, res) => {
 //   const { path, content } = req.body;
@@ -31,6 +31,8 @@ RefactorRouter.post("/solid", async (req, res) => {
       const fileContent = await fs.readFile(file, "utf-8");
       await store.save(file, fileContent);
     }
+
+    refactorSolid.refactorMethod(req)
 
     res.json({ message: "All project files saved before solid refactor" });
   } catch (err) {

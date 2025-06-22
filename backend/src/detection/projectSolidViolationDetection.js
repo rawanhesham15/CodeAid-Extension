@@ -40,6 +40,25 @@ class ProjectSOLIDViolationDetection extends DetectionAction {
     // const violations = parsed.violations;
 
     // const rootDir = this.resolveJavaRoot(projectPath);
+
+    const metaFilePath = await this.findMetadataFile(projectPath);
+
+    let metaData;
+    try {
+      metaData = JSON.parse(await readFile(metaFilePath, "utf-8"));
+    } catch (error) {
+      throw new Error(
+        `Failed to read or parse metadata file at ${metaFilePath}: ${error.message}`
+      );
+    }
+
+    const projectId = metaData.projectId;
+    if (!projectId) {
+      throw new Error("projectId not found in metadata.");
+    }
+
+    await this.clearViolationsForProject(projectId);
+
     const javaFiles = await this.getAllJavaFiles(projectPath);
     console.log("Found Java files:", javaFiles);
     for (const filePath of javaFiles) {
@@ -55,11 +74,12 @@ class ProjectSOLIDViolationDetection extends DetectionAction {
           body: JSON.stringify(apiData),
         });
 
+
         if (!res.ok) throw new Error(`API failed for ${filePath}`);
         console.log("before before")
         const parsed = await res.json();
-
-        const violations = parsed?.[0]?.violations || [];
+        console.log("parsed",parsed)
+        const violations = parsed;
         console.log("before save")
         await this.saveViolations(violations, projectId, dependencies);
         console.log(`Detected for: ${filePath}`);
@@ -169,133 +189,118 @@ class ProjectSOLIDViolationDetection extends DetectionAction {
   }
 ]`;
 
-    let parsed;
-    try {
-      parsed = JSON.parse(dummyResponse);
-    } catch (error) {
-      console.error("Failed to parse JSON:", error.message);
-      throw error;
-    }
+  //   let parsed;
+  //   try {
+  //     parsed = JSON.parse(dummyResponse);
+  //   } catch (error) {
+  //     console.error("Failed to parse JSON:", error.message);
+  //     throw error;
+  //   }
 
-    // console.log("Parsed response:", parsed);
+  //   // console.log("Parsed response:", parsed);
 
-    const metaFilePath = await this.findMetadataFile(projectPath);
+  
+  //   await this.clearViolationsForProject(projectId);
 
-    let metaData;
-    try {
-      metaData = JSON.parse(await readFile(metaFilePath, "utf-8"));
-    } catch (error) {
-      throw new Error(
-        `Failed to read or parse metadata file at ${metaFilePath}: ${error.message}`
-      );
-    }
+  //   console.log("Extracted projectId:", projectId);
 
-    const projectId = metaData.projectId;
-    if (!projectId) {
-      throw new Error("projectId not found in metadata.");
-    }
+  //   for (const entry of parsed) {
+  //     const violations = entry.violations || [];
+  //     const mainFilePath = entry.prompt.main_file_path;
+  //     const dependenciesFilePaths =
+  //       entry.prompt.dependencies?.map((dep) => dep.file_path) || [];
 
-    await this.clearViolationsForProject(projectId);
+  //     const solidViolations = violations.map((violation) => ({
+  //       mainFilePath: mainFilePath,
+  //       dependenciesFilePaths: dependenciesFilePaths,
+  //       violations: violation.violatedPrinciples.map((principleObj) => ({
+  //         principle: principleObj.principle,
+  //         justification: principleObj.justification,
+  //       })),
+  //     }));
 
-    console.log("Extracted projectId:", projectId);
+  //     await this.saveViolations(solidViolations, projectId,dependenciesFilePaths);
+  //   }
+  //   let allFormattedViolations = [];
 
-    for (const entry of parsed) {
-      const violations = entry.violations || [];
-      const mainFilePath = entry.prompt.main_file_path;
-      const dependenciesFilePaths =
-        entry.prompt.dependencies?.map((dep) => dep.file_path) || [];
+  //   for (const entry of parsed) {
+  //     const violations = entry.violations || [];
+  //     const mainFilePath = entry.prompt.main_file_path;
 
-      const solidViolations = violations.map((violation) => ({
-        mainFilePath: mainFilePath,
-        dependenciesFilePaths: dependenciesFilePaths,
-        violations: violation.violatedPrinciples.map((principleObj) => ({
-          principle: principleObj.principle,
-          justification: principleObj.justification,
-        })),
-      }));
+  //     for (const violation of violations) {
+  //       const filePath = violation.file_path;
+  //       const principles = violation.violatedPrinciples;
 
-      await this.saveViolations(solidViolations, projectId);
-    }
-    let allFormattedViolations = [];
+  //       for (const principleObj of principles) {
+  //         const { principle, justification } = principleObj;
+  //         allFormattedViolations.push(
+  //           `File: ${filePath}\nPrinciple: ${principle}\nJustification: ${justification}\n`
+  //         );
+  //       }
+  //     }
+  //   }
 
-    for (const entry of parsed) {
-      const violations = entry.violations || [];
-      const mainFilePath = entry.prompt.main_file_path;
+  //   const formattedViolationsString = allFormattedViolations.join("\n---\n");
 
-      for (const violation of violations) {
-        const filePath = violation.file_path;
-        const principles = violation.violatedPrinciples;
-
-        for (const principleObj of principles) {
-          const { principle, justification } = principleObj;
-          allFormattedViolations.push(
-            `File: ${filePath}\nPrinciple: ${principle}\nJustification: ${justification}\n`
-          );
-        }
-      }
-    }
-
-    const formattedViolationsString = allFormattedViolations.join("\n---\n");
-
-    return formattedViolationsString;
+  //   return formattedViolationsString;
   }
 
-  resolveJavaRoot(filePath) {
-    let rootDir = filePath;
-    while (!rootDir.endsWith(path.join("src", "main", "java"))) {
-      const parent = path.dirname(rootDir);
-      if (parent === rootDir) break;
-      rootDir = parent;
-    }
-    console.log("root directory: ", rootDir);
-    return rootDir;
+
+async saveViolations(violations, projectId, dependencies) {
+  if (!projectId || typeof projectId !== "string") {
+    throw new Error("Invalid project ID");
   }
 
-  async saveViolations(violations, projectId) {
-    if (!projectId || typeof projectId !== "string") {
-      throw new Error("Invalid project ID");
+  if (!Array.isArray(violations)) {
+    throw new Error("Violations must be an array.");
+  }
+
+  const allowedPrinciples = ["Single Responsibility", "Open-Closed"];
+  const mainFileViolations = violations[0];
+
+  // Filter principles
+  const filteredPrinciples = mainFileViolations.violations.filter((p) =>
+    allowedPrinciples.includes(p.principle)
+  );
+
+  if (filteredPrinciples.length === 0) {
+    console.log(
+      `Skipping save: No SRP or OCP violations found for file ${mainFileViolations?.mainFilePath}`
+    );
+    return;
+  }
+
+  const formatted = {
+    mainFilePath: mainFileViolations.mainFilePath || "unknown",
+    dependenciesFilePaths: dependencies,
+    violations: filteredPrinciples,
+  };
+
+  try {
+    const updatedProject = await project.findByIdAndUpdate(
+      projectId,
+      { $push: { solidViolations: [formatted] } },
+      { new: true }
+    );
+
+    if (!updatedProject) {
+      throw new Error(`Project with ID ${projectId} not found`);
     }
 
-    if (!Array.isArray(violations) || violations.length === 0) {
-      throw new Error("No violations to save.");
-    }
-
-    const mainFile = violations[0];
-    const formatted = {
-      mainFilePath: mainFile.mainFilePath,
-      dependenciesFilePaths: mainFile.dependenciesFilePaths,
-      violations: mainFile.violations,
-    };
-
-    // console.log(
-    //   "Formatted SOLID violations for saving:",
-    //   JSON.stringify(formatted, null, 2)
-    // );
-
-    try {
-      const updatedProject = await project.findByIdAndUpdate(
+    console.log("Filtered SOLID violations saved successfully:", formatted);
+  } catch (error) {
+    console.error(
+      `Error saving filtered violations for project ${projectId}: ${error.message}`,
+      {
         projectId,
-        { $push: { solidViolations: [formatted] } }, // wrap in array
-        { new: true }
-      );
-
-      if (!updatedProject) {
-        throw new Error(`Project with ID ${projectId} not found`);
+        violations,
+        stack: error.stack,
       }
-
-      console.log("Updated project successfully:", updatedProject._id);
-    } catch (error) {
-      console.error(
-        `Error saving violations for project ${projectId}: ${error.message}`,
-        {
-          projectId,
-          violations,
-          stack: error.stack,
-        }
-      );
-      throw error;
-    }
+    );
+    throw error;
   }
+}
+
 
   async clearViolationsForProject(projectId) {
     await project.updateOne(
