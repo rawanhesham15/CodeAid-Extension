@@ -3,6 +3,8 @@ import DetectionAction from "./detectionAction.js";
 import project from "../Models/ProjectModel.js";
 import { readFile, stat } from "fs/promises";
 import path from "path";
+import getFileWithDependencies from "../fileManager/filePrepare.js";
+import fg from "fast-glob";
 
 class ProjectSOLIDViolationDetection extends DetectionAction {
   generatePrompt(codeJSON, summary) {
@@ -14,6 +16,14 @@ class ProjectSOLIDViolationDetection extends DetectionAction {
     return promptGenerator.generatePrompt(codeString, summary);
   }
 
+  async getAllJavaFiles(rootDir) {
+    return await fg("**/*.java", {
+      cwd: rootDir,
+      absolute: true,
+      ignore: ["**/build/**", "**/out/**", "**/node_modules/**"],
+    });
+  }
+
   async detectionMethod(req) {
     const projectPath = req?.body?.path;
     if (!projectPath || typeof projectPath !== "string") {
@@ -22,12 +32,42 @@ class ProjectSOLIDViolationDetection extends DetectionAction {
 
     console.log("Project path:", projectPath);
 
-    const codeJSON = this.gatherCode(projectPath);
-    const summarizedCode = this.summarize(projectPath);
-    const prompt = this.generatePrompt(codeJSON, summarizedCode);
-    const response = await this.processPrompt(prompt); // Use real response instead of dummy
+    // const codeJSON = this.gatherCode(projectPath);
+    // const summarizedCode = this.summarize(projectPath);
+    // const prompt = this.generatePrompt(codeJSON, summarizedCode);
+    // const response = await this.processPrompt(prompt); // Use real response instead of dummy
     // const parsed = typeof response === 'string' ? JSON.parse(response) : response;
     // const violations = parsed.violations;
+
+    // const rootDir = this.resolveJavaRoot(projectPath);
+    const javaFiles = await this.getAllJavaFiles(projectPath);
+    console.log("Found Java files:", javaFiles);
+    for (const filePath of javaFiles) {
+      try {
+        const reqData = await getFileWithDependencies(filePath, projectPath);
+        const dependencies = reqData.dependencies.map((dep) => dep.depFilePath);
+        const apiData = [reqData];
+        console.log("filePath", filePath);
+        console.log("dependencies  ", dependencies);
+        const res = await fetch("http://localhost:8000/detect-solid", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(apiData),
+        });
+
+        if (!res.ok) throw new Error(`API failed for ${filePath}`);
+        console.log("before before")
+        const parsed = await res.json();
+
+        const violations = parsed?.[0]?.violations || [];
+        console.log("before save")
+        await this.saveViolations(violations, projectId, dependencies);
+        console.log(`Detected for: ${filePath}`);
+      } catch (error) {
+        console.error(`Failed for ${filePath}:`, error.message);
+        continue;
+      }
+    }
 
     const dummyResponse = `[
   {
@@ -137,7 +177,7 @@ class ProjectSOLIDViolationDetection extends DetectionAction {
       throw error;
     }
 
-    console.log("Parsed response:", parsed);
+    // console.log("Parsed response:", parsed);
 
     const metaFilePath = await this.findMetadataFile(projectPath);
 
@@ -200,6 +240,17 @@ class ProjectSOLIDViolationDetection extends DetectionAction {
     return formattedViolationsString;
   }
 
+  resolveJavaRoot(filePath) {
+    let rootDir = filePath;
+    while (!rootDir.endsWith(path.join("src", "main", "java"))) {
+      const parent = path.dirname(rootDir);
+      if (parent === rootDir) break;
+      rootDir = parent;
+    }
+    console.log("root directory: ", rootDir);
+    return rootDir;
+  }
+
   async saveViolations(violations, projectId) {
     if (!projectId || typeof projectId !== "string") {
       throw new Error("Invalid project ID");
@@ -216,10 +267,10 @@ class ProjectSOLIDViolationDetection extends DetectionAction {
       violations: mainFile.violations,
     };
 
-    console.log(
-      "Formatted SOLID violations for saving:",
-      JSON.stringify(formatted, null, 2)
-    );
+    // console.log(
+    //   "Formatted SOLID violations for saving:",
+    //   JSON.stringify(formatted, null, 2)
+    // );
 
     try {
       const updatedProject = await project.findByIdAndUpdate(

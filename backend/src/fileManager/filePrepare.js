@@ -13,7 +13,10 @@ class FileManager {
         content,
       };
     } catch (error) {
-      console.error(`FileManager.getFileContent failed for ${filePath}:`, error.message);
+      console.error(
+        `FileManager.getFileContent failed for ${filePath}:`,
+        error.message
+      );
       return null;
     }
   }
@@ -26,7 +29,7 @@ async function findJavaFiles(root) {
       absolute: true,
       ignore: ["**/node_modules/**", "**/build/**", "**/out/**"],
     });
-    console.log("Found Java files:", files);
+    // console.log("Found Java files:", files);
     return files;
   } catch (error) {
     console.error(`Error in findJavaFiles for root ${root}:`, error.message);
@@ -38,7 +41,8 @@ async function findJavaFiles(root) {
 function extractSimpleNames(code) {
   const simpleNames = new Set();
   // Match class/interface declarations, type references, and generic types
-  const typeRegex = /\b(?:class|interface)\s+(\w+)|(\w+)(?=\s+\w+\s*(?:=|\(|\{|<|;))|(\w+)(?=\s*\.\s*\w+)|(\w+)(?=<)|(\w+)(?=>)/g;
+  const typeRegex =
+    /\b(?:class|interface)\s+(\w+)|(\w+)(?=\s+\w+\s*(?:=|\(|\{|<|;))|(\w+)(?=\s*\.\s*\w+)|(\w+)(?=<)|(\w+)(?=>)/g;
   let match;
   while ((match = typeRegex.exec(code))) {
     if (match[1]) simpleNames.add(match[1]); // Class/interface names
@@ -59,24 +63,31 @@ async function extractTypeNames(cst, code) {
   const compilationUnit = cst.children.ordinaryCompilationUnit?.[0];
   if (!compilationUnit) {
     console.error("No ordinaryCompilationUnit found in CST");
-    return { fqImports: Array.from(fqImports), wildcardPkgs: Array.from(wildcardPkgs), simpleNames };
+    return {
+      fqImports: Array.from(fqImports),
+      wildcardPkgs: Array.from(wildcardPkgs),
+      simpleNames,
+    };
   }
 
   // Debug CST structure
-  console.log("CST keys:", Object.keys(cst.children));
-  console.log("Compilation unit keys:", Object.keys(compilationUnit.children || {}));
-  console.log(
-    "Import declarations count:",
-    (compilationUnit.children.importDeclaration || []).length
-  );
+  // console.log("CST keys:", Object.keys(cst.children));
+  // console.log("Compilation unit keys:", Object.keys(compilationUnit.children || {}));
+  // console.log(
+  //   "Import declarations count:",
+  //   (compilationUnit.children.importDeclaration || []).length
+  // );
 
   // Process imports
   try {
     for (const imp of compilationUnit.children.importDeclaration || []) {
-      const qName = imp.children.qualifiedName?.[0] || imp.children.qualifiedIdentifier?.[0];
+      const qName =
+        imp.children.qualifiedName?.[0] ||
+        imp.children.qualifiedIdentifier?.[0];
       if (!qName) continue;
 
-      const identifiers = qName.children?.Identifier?.map((id) => id.image) || [];
+      const identifiers =
+        qName.children?.Identifier?.map((id) => id.image) || [];
       if (identifiers.length > 0) {
         const qn = identifiers.join(".");
         if (imp.children?.asterisk) {
@@ -91,9 +102,9 @@ async function extractTypeNames(cst, code) {
     console.error("Error processing imports:", error.message);
   }
 
-  console.log("Extracted fqImports:", Array.from(fqImports));
-  console.log("Extracted wildcardPkgs:", Array.from(wildcardPkgs));
-  console.log("Extracted simpleNames:", Array.from(simpleNames));
+  // console.log("Extracted fqImports:", Array.from(fqImports));
+  // console.log("Extracted wildcardPkgs:", Array.from(wildcardPkgs));
+  // console.log("Extracted simpleNames:", Array.from(simpleNames));
 
   return {
     fqImports: Array.from(fqImports),
@@ -122,16 +133,21 @@ async function buildFqnMap(root) {
     }
   }
 
-  console.log("FQN Map:", fqnMap);
+  // console.log("FQN Map:", fqnMap);
   return fqnMap;
 }
 
 export async function resolveDepsForFile(rootDir, srcFile) {
   try {
     const fqnMap = await buildFqnMap(rootDir);
-    console.log("FQN Map built:", fqnMap);
+    // console.log("FQN Map built:", fqnMap);
 
-    if (!(await fs.access(srcFile).then(() => true).catch(() => false))) {
+    if (
+      !(await fs
+        .access(srcFile)
+        .then(() => true)
+        .catch(() => false))
+    ) {
       throw new Error(`Source file not found: ${srcFile}`);
     }
 
@@ -144,7 +160,10 @@ export async function resolveDepsForFile(rootDir, srcFile) {
       throw parseError;
     }
 
-    const { fqImports, wildcardPkgs, simpleNames } = await extractTypeNames(cst, code);
+    const { fqImports, wildcardPkgs, simpleNames } = await extractTypeNames(
+      cst,
+      code
+    );
 
     const deps = new Set();
     const covered = new Set();
@@ -198,7 +217,7 @@ export async function resolveDepsForFile(rootDir, srcFile) {
       }
     }
 
-    console.log("Resolved dependencies:", Array.from(deps));
+    // console.log("Resolved dependencies:", Array.from(deps));
     return Array.from(deps).sort();
   } catch (error) {
     console.error(`Error in resolveDepsForFile for ${srcFile}:`, error.message);
@@ -207,30 +226,36 @@ export async function resolveDepsForFile(rootDir, srcFile) {
 }
 
 async function getFileWithDependencies(srcPath, projectRootDir) {
-  console.log("Project root:", projectRootDir);
-  console.log("Attempting to access file:", srcPath);
+  // console.log("Project root:", projectRootDir);
+  // console.log("Attempting to access file:", srcPath);
 
   try {
     const fileManager = new FileManager();
-    const canAccess = await fs.access(srcPath).then(() => true).catch(() => false);
+    const canAccess = await fs
+      .access(srcPath)
+      .then(() => true)
+      .catch(() => false);
     console.log("File accessible:", canAccess);
     if (!canAccess) {
       throw new Error(`Source file not found: ${srcPath}`);
     }
-    console.log("Calling FileManager.getFileContent...");
+    // console.log("Calling FileManager.getFileContent...");
     const mainFile = await fileManager.getFileContent(srcPath);
-    console.log("FileManager.getFileContent result:", mainFile);
+    // console.log("FileManager.getFileContent result:", mainFile);
     if (!mainFile) {
-      console.error(`Failed to read file: ${srcPath}`);
+      // console.error(`Failed to read file: ${srcPath}`);
       throw new Error(`Failed to read file: ${srcPath}`);
     }
 
-    console.log("Main file read successfully:", mainFile.filePath);
+    // console.log("Main file read successfully:", mainFile.filePath);
 
     let depPaths = [];
     try {
       depPaths = await resolveDepsForFile(projectRootDir, srcPath);
-      console.log("Dependencies for", srcPath, ":", depPaths);
+      depPaths = depPaths.filter(
+        (p) => path.normalize(p) !== path.normalize(srcPath)
+      ); // to avoid self-dependency
+      // console.log("Dependencies for", srcPath, ":", depPaths);
     } catch (error) {
       console.error("Error resolving dependencies:", error.message);
       throw error;
@@ -240,13 +265,18 @@ async function getFileWithDependencies(srcPath, projectRootDir) {
     const dependencies = [];
     for (const depPath of depPaths) {
       try {
+        await fs.access(depPath); // add this
         const depContent = await fs.readFile(depPath, "utf8");
+        console.log(`Read dependency file: ${depPath} and its content : ${depContent}`);
         dependencies.push({
           depFilePath: path.normalize(depPath),
           content: depContent,
         });
       } catch (error) {
-        console.error(`Failed to read dependency file ${depPath}:`, error.message);
+        console.error(
+          `Failed to read dependency file ${depPath}:`,
+          error.message
+        );
         // Skip failed dependencies to avoid blocking
         continue;
       }
@@ -258,7 +288,11 @@ async function getFileWithDependencies(srcPath, projectRootDir) {
       dependencies,
     };
   } catch (error) {
-    console.error(`Error in getFileWithDependencies for ${srcPath}:`, error.message, error.stack);
+    console.error(
+      `Error in getFileWithDependencies for ${srcPath}:`,
+      error.message,
+      error.stack
+    );
     throw error;
   }
 }
