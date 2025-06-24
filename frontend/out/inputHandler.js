@@ -62,14 +62,19 @@ class InputHandler {
     }
     async detectSOLID(context) {
         let path = "";
-        if (context == "project") {
-            if (this.workspacePath == "")
+        let rootDir = "";
+        const workspaceFolders = vscode.workspace.workspaceFolders;
+        if (workspaceFolders && workspaceFolders.length > 0) {
+            rootDir = workspaceFolders[0].uri.fsPath;
+        }
+        if (context === "project") {
+            if (!rootDir)
                 return "No workspace folder is open";
-            path = this.workspacePath;
+            path = rootDir;
         }
         else {
             const result = this.getActiveEditorPath();
-            if (result == "")
+            if (result === "")
                 return "No active editor found.";
             const filePath = result[0];
             const editor = result[1];
@@ -83,6 +88,7 @@ class InputHandler {
             const response = await axios_1.default.post("http://localhost:3000/detect/solid", {
                 path: path,
                 context: context,
+                rootDir: rootDir, // ✅ send it here
             });
             const responseData = response.data;
             if (responseData && responseData.message) {

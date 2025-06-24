@@ -4,6 +4,7 @@ import { readFile } from "fs/promises";
 import project from "../Models/ProjectModel.js";
 import getFileWithDependencies from "./../fileManager/filePrepare.js";
 import path from "path";
+import getFileWithDependenciesChunked from "./../fileManager/filePrepare.js";
 class fileCOUPLINGViolationDetection extends DetectionAction {
   generatePrompt(codeJSON, summary) {
     let promptGenerator = new fileDetectCouplingViolationsPG();
@@ -26,13 +27,28 @@ class fileCOUPLINGViolationDetection extends DetectionAction {
     // const response = await this.processPrompt(prompt); // Real response in production
 
     // Go up until src/main/java
-    let rootDir = filePath;
-    while (!rootDir.endsWith(path.join("src", "main", "java"))) {
-      rootDir = path.dirname(rootDir);
-      if (rootDir === path.dirname(rootDir)) break; // Prevent infinite loop
+    let rootDir = req?.body?.rootDir || path.dirname(filePath);
+
+
+    const metaFilePath = await this.findMetadataFile(filePath);
+    let metaData;
+    try {
+      metaData = JSON.parse(await readFile(metaFilePath, "utf-8"));
+    } catch (error) {
+      throw new Error(
+        `Failed to read or parse metadata file at ${metaFilePath}: ${error.message}`
+      );
     }
 
-    const reqData = await getFileWithDependencies(filePath, rootDir); // this is the file content with dependencies
+    const projectId = metaData.projectId;
+    if (!projectId) {
+      throw new Error("projectId not found in metadata.");
+    }
+
+    await this.clearViolationsForProject(projectId);
+
+    console.log("Extracted projectId:", projectId);
+    const reqData = await getFileWithDependenciesChunked(filePath, rootDir,projectId); // this is the file content with dependencies
 
     let dependencies = [];
     for (const dep of reqData.dependencies) {
@@ -64,52 +80,32 @@ class fileCOUPLINGViolationDetection extends DetectionAction {
       });
 
     // Dummy response for testing
-    const dummyResponse = `[{
-      "couplingSmells": [
-        {
-          "filesPaths": [
-            "bomberman-master\\\\src\\\\components\\\\entities\\\\statics\\\\items\\\\Item.java",
-            "bomberman-master\\\\src\\\\components\\\\entities\\\\dynamics\\\\characters\\\\player\\\\Player.java"
-          ],
-          "smells": [
-            {
-              "smell": "Inappropriate Intimacy",
-              "justification": "The abstract method 'boost(Player player)' in Item implies that concrete Item implementations are expected to deeply interact with the Player's internals. This creates tight coupling, as Item needs to know specific details about Player's structure to apply boosts."
-            }
-          ]
-        }
-      ]
-    }]`;
+    // const dummyResponse = `[{
+    //   "couplingSmells": [
+    //     {
+    //       "filesPaths": [
+    //         "bomberman-master\\\\src\\\\components\\\\entities\\\\statics\\\\items\\\\Item.java",
+    //         "bomberman-master\\\\src\\\\components\\\\entities\\\\dynamics\\\\characters\\\\player\\\\Player.java"
+    //       ],
+    //       "smells": [
+    //         {
+    //           "smell": "Inappropriate Intimacy",
+    //           "justification": "The abstract method 'boost(Player player)' in Item implies that concrete Item implementations are expected to deeply interact with the Player's internals. This creates tight coupling, as Item needs to know specific details about Player's structure to apply boosts."
+    //         }
+    //       ]
+    //     }
+    //   ]
+    // }]`;
 
-    console.log(dummyResponse);
+    // console.log(dummyResponse);
     let parsed;
     try {
-      parsed = JSON.parse(dummyResponse);
+      parsed = JSON.parse(response);
     } catch (error) {
       console.error("Failed to parse JSON:", error.message);
       throw error;
     }
     
-    // Read projectId from metadata
-    const metaFilePath = await this.findMetadataFile(filePath);
-    let metaData;
-    try {
-      metaData = JSON.parse(await readFile(metaFilePath, "utf-8"));
-    } catch (error) {
-      throw new Error(
-        `Failed to read or parse metadata file at ${metaFilePath}: ${error.message}`
-      );
-    }
-
-    const projectId = metaData.projectId;
-    if (!projectId) {
-      throw new Error("projectId not found in metadata.");
-    }
-
-    await this.clearViolationsForProject(projectId);
-
-    console.log("Extracted projectId:", projectId);
-
     for (const entry of parsed) {
       const violations = entry.couplingSmells || [];
 

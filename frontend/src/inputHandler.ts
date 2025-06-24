@@ -26,48 +26,56 @@ class InputHandler {
     const filePath = editor.document.uri.fsPath;
     return [filePath, editor];
   }
+async detectSOLID(context: string): Promise<string> {
+  let path: string = "";
+  let rootDir: string = "";
 
-  async detectSOLID(context: string): Promise<string> {
-    let path: String = "";
-    if (context == "project") {
-      if (this.workspacePath == "") return "No workspace folder is open";
-      path = this.workspacePath;
-    } else {
-      const result: any = this.getActiveEditorPath();
-      if (result == "") return "No active editor found.";
-      const filePath: String = result[0];
-      const editor: any = result[1];
-      const fileContent = editor.document.getText();
-      if (!fileContent.trim()) {
-        return "The file is empty. Nothing to analyze.";
-      }
-      path = filePath;
-    }
-
-    try {
-      const response = await axios.post("http://localhost:3000/detect/solid", {
-        path: path,
-        context: context,
-      });
-
-      const responseData = response.data;
-      if (responseData && responseData.message) {
-        return responseData.message;
-      }
-      return "";
-    } catch (error: any) {
-      let errorMessage = "An error occurred while analyzing.";
-
-      if (error.response) {
-        errorMessage += ` Server responded with: ${error.response.status} - ${error.response.data}`;
-      } else if (error.request) {
-        errorMessage += " No response from the server. Is it running?";
-      } else {
-        errorMessage += ` ${error.message}`;
-      }
-      return errorMessage;
-    }
+  const workspaceFolders = vscode.workspace.workspaceFolders;
+  if (workspaceFolders && workspaceFolders.length > 0) {
+    rootDir = workspaceFolders[0].uri.fsPath;
   }
+
+  if (context === "project") {
+    if (!rootDir) return "No workspace folder is open";
+    path = rootDir;
+  } else {
+    const result: any = this.getActiveEditorPath();
+    if (result === "") return "No active editor found.";
+    const filePath: string = result[0];
+    const editor: any = result[1];
+    const fileContent = editor.document.getText();
+    if (!fileContent.trim()) {
+      return "The file is empty. Nothing to analyze.";
+    }
+    path = filePath;
+  }
+
+  try {
+    const response = await axios.post("http://localhost:3000/detect/solid", {
+      path: path,
+      context: context,
+      rootDir: rootDir,  // ✅ send it here
+    });
+
+    const responseData = response.data;
+    if (responseData && responseData.message) {
+      return responseData.message;
+    }
+    return "";
+  } catch (error: any) {
+    let errorMessage = "An error occurred while analyzing.";
+
+    if (error.response) {
+      errorMessage += ` Server responded with: ${error.response.status} - ${error.response.data}`;
+    } else if (error.request) {
+      errorMessage += " No response from the server. Is it running?";
+    } else {
+      errorMessage += ` ${error.message}`;
+    }
+    return errorMessage;
+  }
+}
+
 
   async detectCoupling(context: string): Promise<string> {
 
