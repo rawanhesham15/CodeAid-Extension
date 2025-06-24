@@ -6,10 +6,6 @@ import getFileWithDependencies from "./../fileManager/filePrepare.js";
 import path from "path";
 import getFileWithDependenciesChunked from "./../fileManager/filePrepare.js";
 class fileCOUPLINGViolationDetection extends DetectionAction {
-  generatePrompt(codeJSON, summary) {
-    let promptGenerator = new fileDetectCouplingViolationsPG();
-    return promptGenerator.generatePrompt(codeJSON.content, summary);
-  }
 
   async detectionMethod(req) {
     const filePath = req?.body?.path;
@@ -19,16 +15,7 @@ class fileCOUPLINGViolationDetection extends DetectionAction {
 
     console.log("Project path:", filePath);
 
-    // const codeJSON = await this.gatherCode(projectPath);
-    // console.log(codeJSON);
-    // const summarizedCode = await this.summarize(projectPath);
-    // console.log(summarizedCode);
-    // const prompt = this.generatePrompt(codeJSON, summarizedCode);
-    // const response = await this.processPrompt(prompt); // Real response in production
-
-    // Go up until src/main/java
     let rootDir = req?.body?.rootDir || path.dirname(filePath);
-
 
     const metaFilePath = await this.findMetadataFile(filePath);
     let metaData;
@@ -51,13 +38,17 @@ class fileCOUPLINGViolationDetection extends DetectionAction {
     const reqData = await getFileWithDependenciesChunked(filePath, rootDir,projectId); // this is the file content with dependencies
 
     let dependencies = [];
-    for (const dep of reqData.dependencies) {
-      dependencies.push(dep.depFilePath);
+    for (const dep of reqData) {
+      for (const depFile of dep.dependencies) {
+        if (depFile.depFilePath) {
+          dependencies.push(depFile.depFilePath);
+        }
+      }
     }
     console.log("Dependencies found:", dependencies);
     // console.log("Request data for SOLID detection:", reqData);
 
-    const apiData = [reqData];
+    const apiData = reqData;
 
     fetch("http://localhost:8000/detect-coupling", {
       method: "POST",
@@ -79,25 +70,6 @@ class fileCOUPLINGViolationDetection extends DetectionAction {
         console.error("Error calling API:", error);
       });
 
-    // Dummy response for testing
-    // const dummyResponse = `[{
-    //   "couplingSmells": [
-    //     {
-    //       "filesPaths": [
-    //         "bomberman-master\\\\src\\\\components\\\\entities\\\\statics\\\\items\\\\Item.java",
-    //         "bomberman-master\\\\src\\\\components\\\\entities\\\\dynamics\\\\characters\\\\player\\\\Player.java"
-    //       ],
-    //       "smells": [
-    //         {
-    //           "smell": "Inappropriate Intimacy",
-    //           "justification": "The abstract method 'boost(Player player)' in Item implies that concrete Item implementations are expected to deeply interact with the Player's internals. This creates tight coupling, as Item needs to know specific details about Player's structure to apply boosts."
-    //         }
-    //       ]
-    //     }
-    //   ]
-    // }]`;
-
-    // console.log(dummyResponse);
     let parsed;
     try {
       parsed = JSON.parse(response);
@@ -106,68 +78,50 @@ class fileCOUPLINGViolationDetection extends DetectionAction {
       throw error;
     }
     
-    for (const entry of parsed) {
-      const violations = entry.couplingSmells || [];
+    // for (const entry of parsed) {
+    //   const violations = entry.couplingSmells || [];
 
-      const couplingViolations = violations.map((violation) => ({
-        filePaths: violation.filesPaths,
-        violations: violation.smells.map((smellsObj) => ({
-          smell: smellsObj.smell,
-          justification: smellsObj.justification,
-        })),
-      }));
-
-      // for (const singleViolation of couplingViolations) {
-      //   await this.saveViolations(singleViolation, projectId);
-      // }
-      console.log("couplingViolations ", couplingViolations);
-      // await this.saveViolations(couplingViolations, projectId);
-      if (couplingViolations.length > 0) {
-        await this.saveViolations(couplingViolations[0], projectId, dependencies);
-      } else {
-        console.warn("No coupling violations to save.");
-      }
-    }
-
-    let allFormattedViolations = [];
-
-    for (const entry of parsed) {
-      const violations = entry.couplingSmells || [];
-      for (const violation of violations) {
-        const filePaths = violation.filesPaths;
-        const smells = violation.smells;
-
-        for (const smellObj of smells) {
-          const { smell, justification } = smellObj;
-          allFormattedViolations.push(
-            `File(s): ${filePaths.join(
-              ", "
-            )}\nPrinciple: ${smell}\nJustification: ${justification}\n`
-          );
-        }
-      }
-    }
-
-    const formattedViolationsString = allFormattedViolations.join("\n---\n");
-    return formattedViolationsString;
+    //   const couplingViolations = violations.map((violation) => ({
+    //     filePaths: violation.filesPaths,
+    //     violations: violation.smells.map((smellsObj) => ({
+    //       smell: smellsObj.smell,
+    //       justification: smellsObj.justification,
+    //     })),
+    //   }));
+    // }
+    console.log("parsed ", parsed);
+    await this.saveViolations(parsed, projectId);
+    return this.formatViolationsAsString(parsed);
   }
 
-  async saveViolations(Violations, projectId) {
+  async saveViolations(violations, projectId) {
     if (!projectId || typeof projectId !== "string") {
       throw new Error("Invalid project ID");
     }
 
     if (
-      !Violations ||
-      typeof Violations !== "object" ||
-      !Array.isArray(Violations.filePaths)
+      !violations ||
+      typeof violations !== "object" ||
+      !Array.isArray(violations.filePaths) ////////////////////
     ) {
       throw new Error("Invalid violation format.");
     }
+    for (const v of violations) {
+      const filePath = v.filePaths || "unknown";
+      const smells = v.smells || [];
 
+
+    formattedViolations.push({
+      FilePaths: filePath,
+      couplingSmells: smells.map((p) => ({
+        smell: p.smell,
+        justification: p.justification,
+      })),
+    });
+  }
     const formatted = {
-      FilePaths: Violations.filePaths,
-      couplingSmells: Violations.violations,
+      FilePaths: formattedViolations.FilePaths,
+      couplingSmells: formattedViolations.couplingSmells,
     };
 
     console.log(
@@ -192,7 +146,7 @@ class fileCOUPLINGViolationDetection extends DetectionAction {
         `Error saving violations for project ${projectId}: ${error.message}`,
         {
           projectId,
-          Violations,
+          violations,
           stack: error.stack,
         }
       );
@@ -200,36 +154,26 @@ class fileCOUPLINGViolationDetection extends DetectionAction {
     }
   }
 
-  // formatViolationsAsString(violations) {
-  //   return violations
-  //     .map((v) => {
-  //       const header = `File(s): ${v.filePaths.join(", ")}`;
-  //       const details = v.couplingSmells
-  //         .map(
-  //           (p) =>
-  //             `- Principle: ${p.smell}\n  Justification: ${p.justification}`
-  //         )
-  //         .join("\n");
-  //       return `${header}\n${details}`;
-  //     })
-  //     .join("\n\n");
-  // }
+  formatViolationsAsString(parsed) {
+    let allFormattedViolations = [];
+    for (const entry of parsed) {
+      const violations = entry.couplingSmells || [];
+      for (const violation of violations) {
+        const filePaths = violation.filesPaths;
+        const smells = violation.smells;
 
-  formatViolationsAsString(violations) {
-    return violations
-      .map((v) => {
-        const header = `File: ${v.file_path}`;
-        const details = v.violatedPrinciples
-          .map(
-            (p) =>
-              `- Principle: ${p.principle}\n  Justification: ${p.justification}`
-          )
-          .join("\n");
-        return `${header}\n${details}`;
-      })
-      .join("\n\n");
-
-    console.log("object 1111111111111111111111");
+        for (const smellObj of smells) {
+          const { smell, justification } = smellObj;
+          allFormattedViolations.push(
+            `File(s): ${filePaths.join(
+              ", "
+            )}\nPrinciple: ${smell}\nJustification: ${justification}\n`
+          );
+        }
+      }
+    }
+    const formattedViolationsString = allFormattedViolations.join("\n---\n");
+    return formattedViolationsString;
   }
   async clearViolationsForProject(projectId) {
     await project.updateOne(
@@ -240,3 +184,5 @@ class fileCOUPLINGViolationDetection extends DetectionAction {
 }
 
 export default fileCOUPLINGViolationDetection;
+
+//[{"filesPaths": ["c:\\\\Users\\\\marwa\\\\Downloads\\\\ToffeeStore\\\\category.java", "c:\\\\Users\\\\marwa\\\\Downloads\\\\ToffeeStore\\\\item.java"], "smells": [{"smell": "Message Chains", "justification": "The `category.displayCategoryItem()` method exhibits a message chain by calling `items.get(i).getCategory().getName()`. This forces the `category` class to navigate through `item` to `category` again to retrieve a name, violating the Law of Demeter."}, {"smell": "Message Chains", "justification": "The `item.displayItem()` and `item.displayItemForCart()` methods both use a message chain `category.getName()`. Although `item` holds a direct reference to `category`, it asks `category` for its name instead of using its own state, which could be considered a minor chain if `item` should manage its category\'s display name."}]}]\n```'}]
