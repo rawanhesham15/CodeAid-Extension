@@ -1,15 +1,11 @@
 import DetectionAction from "./detectionAction.js";
-import fileDetectCouplingViolationsPG from "./../promptGenerator/fileDetectCouplingViolationsPG.js";
 import { readFile } from "fs/promises";
 import project from "../Models/ProjectModel.js";
-import getFileWithDependencies from "./../fileManager/filePrepare.js";
+import getFileWithDependenciesChunked from "./../fileManager/filePrepare.js";
 import path from "path";
-class fileCOUPLINGViolationDetection extends DetectionAction {
-  generatePrompt(codeJSON, summary) {
-    let promptGenerator = new fileDetectCouplingViolationsPG();
-    return promptGenerator.generatePrompt(codeJSON.content, summary);
-  }
 
+
+class fileCOUPLINGViolationDetection extends DetectionAction {
   async detectionMethod(req) {
     const filePath = req?.body?.path;
     if (!filePath || typeof filePath !== "string") {
@@ -18,13 +14,6 @@ class fileCOUPLINGViolationDetection extends DetectionAction {
 
     console.log("Project path:", filePath);
 
-    // const codeJSON = await this.gatherCode(projectPath);
-    // console.log(codeJSON);
-    // const summarizedCode = await this.summarize(projectPath);
-    // console.log(summarizedCode);
-    // const prompt = this.generatePrompt(codeJSON, summarizedCode);
-    // const response = await this.processPrompt(prompt); // Real response in production
-
     // Go up until src/main/java
     let rootDir = filePath;
     while (!rootDir.endsWith(path.join("src", "main", "java"))) {
@@ -32,16 +21,47 @@ class fileCOUPLINGViolationDetection extends DetectionAction {
       if (rootDir === path.dirname(rootDir)) break; // Prevent infinite loop
     }
 
-    const reqData = await getFileWithDependencies(filePath, rootDir); // this is the file content with dependencies
+    // Read projectId from metadata
+    const metaFilePath = await this.findMetadataFile(filePath);
+    let metaData;
+    try {
+      metaData = JSON.parse(await readFile(metaFilePath, "utf-8"));
+    } catch (error) {
+      throw new Error(
+        `Failed to read or parse metadata file at ${metaFilePath}: ${error.message}`
+      );
+    }
 
+    const projectId = metaData.projectId;
+    if (!projectId) {
+      throw new Error("projectId not found in metadata.");
+    }
+
+    await this.clearViolationsForProject(projectId);
+
+    console.log("Extracted projectId:", projectId);
+
+    const reqData = await getFileWithDependenciesChunked(filePath, rootDir,projectId); // this is the file content with dependencies
+
+    // console.log("Request data for coupling detection:", reqData);
+    // console.log("Request data for coupling detection: with dependencies:", reqData[0].content.dependencies);
+
+
+
+    // extract dependencies from the request data to store it in DB
     let dependencies = [];
-    for (const dep of reqData.dependencies) {
-      dependencies.push(dep.depFilePath);
+    for (const dep of reqData) {
+      for (const depFile of dep.content.dependencies) {
+        if (depFile.depFilePath) {
+          dependencies.push(depFile.depFilePath);
+        }
+      }
     }
     console.log("Dependencies found:", dependencies);
-    // console.log("Request data for SOLID detection:", reqData);
 
-    const apiData = [reqData];
+    const apiData = reqData;
+
+    console.log("api data",apiData)
 
     fetch("http://localhost:8000/detect-coupling", {
       method: "POST",
@@ -68,7 +88,7 @@ class fileCOUPLINGViolationDetection extends DetectionAction {
       "couplingSmells": [
         {
           "filesPaths": [
-            "bomberman-master\\\\src\\\\components\\\\entities\\\\statics\\\\items\\\\Item.java",
+            "e:\\\\FCAI\\\\secondYear\\\\secondSemester\\\\sw\\\\Assignments\\\\ToffeeStore\\\\ToffeeStore\\\\category.java",
             "bomberman-master\\\\src\\\\components\\\\entities\\\\dynamics\\\\characters\\\\player\\\\Player.java"
           ],
           "smells": [
@@ -90,25 +110,6 @@ class fileCOUPLINGViolationDetection extends DetectionAction {
       throw error;
     }
     
-    // Read projectId from metadata
-    const metaFilePath = await this.findMetadataFile(filePath);
-    let metaData;
-    try {
-      metaData = JSON.parse(await readFile(metaFilePath, "utf-8"));
-    } catch (error) {
-      throw new Error(
-        `Failed to read or parse metadata file at ${metaFilePath}: ${error.message}`
-      );
-    }
-
-    const projectId = metaData.projectId;
-    if (!projectId) {
-      throw new Error("projectId not found in metadata.");
-    }
-
-    await this.clearViolationsForProject(projectId);
-
-    console.log("Extracted projectId:", projectId);
 
     for (const entry of parsed) {
       const violations = entry.couplingSmells || [];

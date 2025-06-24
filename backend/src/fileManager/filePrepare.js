@@ -233,87 +233,166 @@ export async function resolveDepsForFile(rootDir, srcFile) {
   }
 }
 
-async function getFileWithDependencies(srcPath, projectRootDir) {
-  // console.log("Project root:", projectRootDir);
-  // console.log("Attempting to access file:", srcPath);
+// async function getFileWithDependencies(srcPath, projectRootDir) {
+//   // console.log("Project root:", projectRootDir);
+//   // console.log("Attempting to access file:", srcPath);
 
-  try {
-    const fileManager = new FileManager();
-    const canAccess = await fs
-      .access(srcPath)
-      .then(() => true)
-      .catch(() => false);
-    console.log("File accessible:", canAccess);
-    if (!canAccess) {
-      throw new Error(`Source file not found: ${srcPath}`);
-    }
-    // console.log("Calling FileManager.getFileContent...");
-    const mainFile = await fileManager.getFileContent(srcPath);
-    // console.log("FileManager.getFileContent result:", mainFile);
-    if (!mainFile) {
-      // console.error(`Failed to read file: ${srcPath}`);
-      throw new Error(`Failed to read file: ${srcPath}`);
-    }
+//   try {
+//     const fileManager = new FileManager();
+//     const canAccess = await fs
+//       .access(srcPath)
+//       .then(() => true)
+//       .catch(() => false);
+//     console.log("File accessible:", canAccess);
+//     if (!canAccess) {
+//       throw new Error(`Source file not found: ${srcPath}`);
+//     }
+//     // console.log("Calling FileManager.getFileContent...");
+//     const mainFile = await fileManager.getFileContent(srcPath);
+//     // console.log("FileManager.getFileContent result:", mainFile);
+//     if (!mainFile) {
+//       // console.error(`Failed to read file: ${srcPath}`);
+//       throw new Error(`Failed to read file: ${srcPath}`);
+//     }
 
-    // console.log("Main file read successfully:", mainFile.filePath);
+//     // console.log("Main file read successfully:", mainFile.filePath);
 
-    let depPaths = [];
-    try {
-      // depPaths = await resolveDepsForFile(projectRootDir, srcPath);
-      // depPaths = depPaths.filter(
-      //   (p) => path.normalize(p) !== path.normalize(srcPath)
-      // ); // to avoid self-dependency
-      // // console.log("Dependencies for", srcPath, ":", depPaths);
-      depPaths = await resolveDepsForFile(projectRootDir, srcPath);
-      const normalizedRoot = path.normalize(projectRootDir);
+//     let depPaths = [];
+//     try {
+//       // depPaths = await resolveDepsForFile(projectRootDir, srcPath);
+//       // depPaths = depPaths.filter(
+//       //   (p) => path.normalize(p) !== path.normalize(srcPath)
+//       // ); // to avoid self-dependency
+//       // // console.log("Dependencies for", srcPath, ":", depPaths);
+//       depPaths = await resolveDepsForFile(projectRootDir, srcPath);
+//       const normalizedRoot = path.normalize(projectRootDir);
 
-      depPaths = depPaths.filter((p) => {
-        const normalizedPath = path.normalize(p);
-        return (
-          normalizedPath !== path.normalize(srcPath) &&
-          normalizedPath.startsWith(normalizedRoot)
-        );
-      });
+//       depPaths = depPaths.filter((p) => {
+//         const normalizedPath = path.normalize(p);
+//         return (
+//           normalizedPath !== path.normalize(srcPath) &&
+//           normalizedPath.startsWith(normalizedRoot)
+//         );
+//       });
 
-    } catch (error) {
-      console.error("Error resolving dependencies:", error.message);
-      throw error;
-    }
+//     } catch (error) {
+//       console.error("Error resolving dependencies:", error.message);
+//       throw error;
+//     }
 
-    // Read content for each dependency
-    const dependencies = [];
-    for (const depPath of depPaths) {
-      try {
-        await fs.access(depPath); // add this
-        const depContent = await fs.readFile(depPath, "utf8");
-        // console.log(`Read dependency file: ${depPath} and its content : ${depContent}`);
-        dependencies.push({
-          depFilePath: path.normalize(depPath),
-          content: depContent,
-        });
-      } catch (error) {
-        console.error(
-          `Failed to read dependency file ${depPath}:`,
-          error.message
-        );
-        // Skip failed dependencies to avoid blocking
-        continue;
-      }
-    }
+//     // Read content for each dependency
+//     const dependencies = [];
+//     for (const depPath of depPaths) {
+//       try {
+//         await fs.access(depPath); // add this
+//         const depContent = await fs.readFile(depPath, "utf8");
+//         // console.log(`Read dependency file: ${depPath} and its content : ${depContent}`);
+//         dependencies.push({
+//           depFilePath: path.normalize(depPath),
+//           content: depContent,
+//         });
+//       } catch (error) {
+//         console.error(
+//           `Failed to read dependency file ${depPath}:`,
+//           error.message
+//         );
+//         // Skip failed dependencies to avoid blocking
+//         continue;
+//       }
+//     }
 
-    return {
-      mainFilePath: mainFile.filePath,
-      content: mainFile.content,
-      dependencies,
-    };
-  } catch (error) {
-    console.error(
-      `Error in getFileWithDependencies for ${srcPath}:`,
-      error.message,
-      error.stack
-    );
-    throw error;
-  }
+//     return {
+//       mainFilePath: mainFile.filePath,
+//       content: mainFile.content,
+//       dependencies,
+//     };
+//   } catch (error) {
+//     console.error(
+//       `Error in getFileWithDependencies for ${srcPath}:`,
+//       error.message,
+//       error.stack
+//     );
+//     throw error;
+//   }
+
+// MAX TOKENS LIMIT per chunk
+const MAX_TOKENS = 5000;
+
+function escape_newlines(str) {
+  return str.replace(/\n/g, "\\n");
 }
 
-export default getFileWithDependencies;
+function count_tokens(str) {
+  return str.split(/\s+/).length;
+}
+
+async function getFileWithDependenciesChunked(srcPath, projectRootDir, projectId) {
+  const fileManager = new FileManager();
+  const mainFile = await fileManager.getFileContent(srcPath);
+  if (!mainFile) throw new Error(`Failed to read file: ${srcPath}`);
+
+  let depPaths = await resolveDepsForFile(projectRootDir, srcPath);
+  const normalizedRoot = path.normalize(projectRootDir);
+  depPaths = depPaths.filter((p) => {
+    const normalizedPath = path.normalize(p);
+    return (
+      normalizedPath !== path.normalize(srcPath) &&
+      normalizedPath.startsWith(normalizedRoot)
+    );
+  });
+
+  const mainFilePath = path.normalize(mainFile.filePath);
+  const mainFileContent = escape_newlines(mainFile.content);
+  const mainFileTokens = count_tokens(mainFileContent);
+
+  const promptChunks = [];
+  let current_chunk_tokens = mainFileTokens;
+  let chunk_id = 0;
+  let chunk = {
+    project_id: projectId,
+    chunk_id: chunk_id,
+    content: {
+      mainFilePath: mainFilePath,
+      mainFileContent: mainFileContent,
+      dependencies: [],
+    },
+  };
+
+  for (const depPath of depPaths) {
+    try {
+      await fs.access(depPath);
+      const depContent = escape_newlines(await fs.readFile(depPath, "utf8"));
+      const depTokens = count_tokens(depContent);
+      const dependency = {
+        depFilePath: path.normalize(depPath),
+        depFileContent: depContent,
+      };
+
+      if (current_chunk_tokens + depTokens > MAX_TOKENS) {
+        promptChunks.push(chunk);
+        chunk_id++;
+        chunk = {
+          project_id: projectId,
+          chunk_id: chunk_id,
+          content: {
+            mainFilePath: mainFilePath,
+            mainFileContent: mainFileContent,
+            dependencies: [dependency],
+          },
+        };
+        current_chunk_tokens = mainFileTokens + depTokens;
+      } else {
+        chunk.content.dependencies.push(dependency);
+        current_chunk_tokens += depTokens;
+      }
+    } catch (error) {
+      console.error(`Failed to read dependency file ${depPath}:`, error.message);
+    }
+  }
+
+  promptChunks.push(chunk);
+  return promptChunks;
+}
+
+export default getFileWithDependenciesChunked;
+
