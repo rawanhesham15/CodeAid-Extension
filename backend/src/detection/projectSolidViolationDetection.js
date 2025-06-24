@@ -1,27 +1,22 @@
-import ProjectDetectSOLIDViolationsPG from "../promptGenerator/projectDetectSolidViolationsPG.js";
 import DetectionAction from "./detectionAction.js";
 import project from "../Models/ProjectModel.js";
 import { readFile, stat } from "fs/promises";
-import path from "path";
-import getFileWithDependencies from "../fileManager/filePrepare.js";
 import fg from "fast-glob";
+import getFileWithDependenciesChunked from "../fileManager/filePrepare.js";
 
 class ProjectSOLIDViolationDetection extends DetectionAction {
-  generatePrompt(codeJSON, summary) {
-    let codeString = "";
-    codeJSON.forEach((file) => {
-      codeString = codeString + file.content;
-    });
-    let promptGenerator = new ProjectDetectSOLIDViolationsPG();
-    return promptGenerator.generatePrompt(codeString, summary);
-  }
-
   async getAllJavaFiles(rootDir) {
-    return await fg("**/*.java", {
-      cwd: rootDir,
-      absolute: true,
-      ignore: ["**/build/**", "**/out/**", "**/node_modules/**"],
-    });
+    try {
+      const files = await fg("**/*.java", {
+        cwd: rootDir,
+        absolute: true,
+        ignore: ["**/build/**", "**/node_modules/**"],
+      });
+      return files;
+    } catch (error) {
+      console.error("Error in getAllJavaFiles:", error.message);
+      throw error;
+    }
   }
 
   async detectionMethod(req) {
@@ -31,15 +26,6 @@ class ProjectSOLIDViolationDetection extends DetectionAction {
     }
 
     console.log("Project path:", projectPath);
-
-    // const codeJSON = this.gatherCode(projectPath);
-    // const summarizedCode = this.summarize(projectPath);
-    // const prompt = this.generatePrompt(codeJSON, summarizedCode);
-    // const response = await this.processPrompt(prompt); // Use real response instead of dummy
-    // const parsed = typeof response === 'string' ? JSON.parse(response) : response;
-    // const violations = parsed.violations;
-
-    // const rootDir = this.resolveJavaRoot(projectPath);
 
     const metaFilePath = await this.findMetadataFile(projectPath);
 
@@ -61,246 +47,158 @@ class ProjectSOLIDViolationDetection extends DetectionAction {
 
     const javaFiles = await this.getAllJavaFiles(projectPath);
     console.log("Found Java files:", javaFiles);
+    let allViolations = [];
     for (const filePath of javaFiles) {
       try {
-        const reqData = await getFileWithDependencies(filePath, projectPath);
-        const dependencies = reqData.dependencies.map((dep) => dep.depFilePath);
-        const apiData = [reqData];
+        const reqData = await getFileWithDependenciesChunked(
+          filePath,
+          projectPath,
+          projectId
+        );
+        console.log("Request data for SOLID detection:", reqData);
+
+        let dependencies = [];
+        let res = "";
+        for (const dep of reqData) {
+          for (const depFile of dep.dependencies) {
+            if (depFile.depFilePath) {
+              dependencies.push(depFile.depFilePath);
+            }
+          }
+        }
+
+        const apiData = reqData;
         console.log("filePath", filePath);
         console.log("dependencies  ", dependencies);
-        const res = await fetch("http://localhost:8000/detect-solid", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(apiData),
-        });
 
+        let result;
+        try {
+          const response = await fetch("http://localhost:8000/detect-solid", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(apiData),
+          });
 
-        if (!res.ok) throw new Error(`API failed for ${filePath}`);
-        console.log("before before")
-        const parsed = await res.json();
-        console.log("parsed",parsed)
-        const violations = parsed;
-        console.log("before save")
+          if (!response.ok) {
+            throw new Error(`API call failed with status ${response.status}`);
+          }
+
+          result = await response.json();
+          console.log("SOLID Violations:", result);
+        } catch (error) {
+          console.error("Error calling detect-solid API:", error);
+          throw error;
+        }
+
+        const violations = result;
+        allViolations.push(...violations);
+
         await this.saveViolations(violations, projectId, dependencies);
-        console.log(`Detected for: ${filePath}`);
       } catch (error) {
         console.error(`Failed for ${filePath}:`, error.message);
         continue;
       }
     }
-
-    const dummyResponse = `[
-  {
-    "project_id": 105,
-    "chunk_id": 0,
-    "prompt": {
-      "main_file_path": "SecExample-main\\\\.mvn\\\\wrapper\\\\MavenWrapperDownloader.java",
-      "main_file_content": "import java.net.*; import java.io.*; import java.nio.channels.*; import java.util.Properties; public class MavenWrapperDownloader { ... }",
-      "dependencies": []
-    },
-    "task": "SOLID Violations Detection",
-    "output_schema": "{\\"$defs\\": {\\"ViolatedPrinciple\\": {\\"properties\\": {\\"principle\\": {\\"description\\": \\"The violated SOLID principle.\\", \\"enum\\": [\\"Single Responsibility\\", \\"Open-Closed\\", \\"Liskov\\", \\"Interface Segregation\\", \\"Dependency Inversion\\"], \\"title\\": \\"Principle\\", \\"type\\": \\"string\\"}, \\"justification\\": {\\"description\\": \\"Explanation of why the principle was violated in 2 sentences only.\\", \\"maxLength\\": 300, \\"title\\": \\"Justification\\", \\"type\\": \\"string\\"}}, \\"required\\": [\\"principle\\", \\"justification\\"], \\"title\\": \\"ViolatedPrinciple\\", \\"type\\": \\"object\\"}, \\"Violation\\": {\\"properties\\": {\\"file_path\\": {\\"description\\": \\"Path of the file containing the violation.\\", \\"title\\": \\"File Path\\", \\"type\\": \\"string\\"}, \\"violatedPrinciples\\": {\\"description\\": \\"List of violated principles with justifications.\\", \\"items\\": {\\"$ref\\": \\"#/$defs/ViolatedPrinciple\\"}, \\"title\\": \\"Violatedprinciples\\", \\"type\\": \\"array\\"}}, \\"required\\": [\\"file_path\\", \\"violatedPrinciples\\"], \\"title\\": \\"Violation\\", \\"type\\": \\"object\\"}}, \\"properties\\": {\\"violations\\": {\\"description\\": \\"Detected SOLID violations.\\", \\"items\\": {\\"$ref\\": \\"#/$defs/Violation\\"}, \\"title\\": \\"Violations\\", \\"type\\": \\"array\\"}}, \\"required\\": [\\"violations\\"], \\"title\\": \\"SolidDetectionOutput\\", \\"type\\": \\"object\\"}",
-    "violations": [
-      {
-        "file_path": "SecExample-main\\\\.mvn\\\\wrapper\\\\MavenWrapperDownloader.java",
-        "violatedPrinciples": [
-          {
-            "principle": "Single Responsibility",
-            "justification": "The class handles multiple responsibilities including reading properties files, managing directories, downloading files via HTTP, and handling authentication. These distinct functions should be separated into different classes."
-          }
-        ]
-      }
-    ]
-  },
-  {
-    "project_id": 105,
-    "chunk_id": 0,
-    "prompt": {
-      "main_file_path": "SecExample-main\\\\src\\\\main\\\\java\\\\com\\\\suyu\\\\secexample\\\\csrf\\\\controller\\\\csrfcontroller.java",
-      "main_file_content": "package com.suyu.secexample.csrf.controller; ...",
-      "dependencies": [
-        {
-          "file_path": "SecExample-main\\\\src\\\\main\\\\java\\\\com\\\\suyu\\\\secexample\\\\csrf\\\\model\\\\User.java",
-          "file_content": "package com.suyu.secexample.csrf.model; ..."
-        },
-        {
-          "file_path": "SecExample-main\\\\src\\\\main\\\\java\\\\com\\\\suyu\\\\secexample\\\\csrf\\\\service\\\\UsernameService.java",
-          "file_content": "package com.suyu.secexample.csrf.service; ..."
-        }
-      ]
-    },
-    "task": "SOLID Violations Detection",
-    "output_schema": "...",
-    "violations": [
-      {
-        "file_path": "SecExample-main\\\\src\\\\main\\\\java\\\\com\\\\suyu\\\\secexample\\\\csrf\\\\controller\\\\csrfcontroller.java",
-        "violatedPrinciples": [
-          {
-            "principle": "Single Responsibility",
-            "justification": "The class handles multiple responsibilities including reading properties files, managing directories, downloading files via HTTP, and handling authentication. These distinct functions should be separated into different classes."
-          },
-          {
-            "principle": "Open-Closed",
-            "justification": "The class is not extendable for new download methods (e.g., FTP, retry mechanisms) without modifying existing code. Adding new functionality would require changes to the downloadFileFromURL method."
-          }
-        ]
-      },
-      {
-        "file_path": "SecExample-main\\\\src\\\\main\\\\java\\\\com\\\\suyu\\\\secexample\\\\csrf\\\\model\\\\User.java",
-        "violatedPrinciples": [
-          {
-            "principle": "Single Responsibility",
-            "justification": "The class handles multiple responsibilities including reading properties files, managing directories, downloading files via HTTP, and handling authentication. These distinct functions should be separated into different classes."
-          }
-        ]
-      }
-    ]
-  },
-  {
-    "project_id": 105,
-    "chunk_id": 0,
-    "prompt": {
-      "main_file_path": "SecExample-main\\\\src\\\\main\\\\java\\\\com\\\\suyu\\\\secexample\\\\csrf\\\\mapper\\\\UsernameMapper.java",
-      "main_file_content": "package com.suyu.secexample.csrf.mapper; ...",
-      "dependencies": [
-        {
-          "file_path": "SecExample-main\\\\src\\\\main\\\\java\\\\com\\\\suyu\\\\secexample\\\\csrf\\\\model\\\\User.java",
-          "file_content": "package com.suyu.secexample.csrf.model; ..."
-        }
-      ]
-    },
-    "task": "SOLID Violations Detection",
-    "output_schema": "...",
-    "violations": [
-    {
-        "file_path": "SecExample-main\\\\src\\\\main\\\\java\\\\com\\\\suyu\\\\secexample\\\\csrf\\\\mapper\\\\UsernameMapper.java",
-        "violatedPrinciples": [
-          {
-            "principle": "Single Responsibility",
-            "justification": "The class handles multiple responsibilities including reading properties files, managing directories, downloading files via HTTP, and handling authentication. These distinct functions should be separated into different classes."
-          },
-          {
-            "principle": "Open-Closed",
-            "justification": "The class is not extendable for new download methods (e.g., FTP, retry mechanisms) without modifying existing code. Adding new functionality would require changes to the downloadFileFromURL method."
-          }
-        ]
-      }
-    ]
-  }
-]`;
-
-  //   let parsed;
-  //   try {
-  //     parsed = JSON.parse(dummyResponse);
-  //   } catch (error) {
-  //     console.error("Failed to parse JSON:", error.message);
-  //     throw error;
-  //   }
-
-  //   // console.log("Parsed response:", parsed);
-
-  
-  //   await this.clearViolationsForProject(projectId);
-
-  //   console.log("Extracted projectId:", projectId);
-
-  //   for (const entry of parsed) {
-  //     const violations = entry.violations || [];
-  //     const mainFilePath = entry.prompt.main_file_path;
-  //     const dependenciesFilePaths =
-  //       entry.prompt.dependencies?.map((dep) => dep.file_path) || [];
-
-  //     const solidViolations = violations.map((violation) => ({
-  //       mainFilePath: mainFilePath,
-  //       dependenciesFilePaths: dependenciesFilePaths,
-  //       violations: violation.violatedPrinciples.map((principleObj) => ({
-  //         principle: principleObj.principle,
-  //         justification: principleObj.justification,
-  //       })),
-  //     }));
-
-  //     await this.saveViolations(solidViolations, projectId,dependenciesFilePaths);
-  //   }
-  //   let allFormattedViolations = [];
-
-  //   for (const entry of parsed) {
-  //     const violations = entry.violations || [];
-  //     const mainFilePath = entry.prompt.main_file_path;
-
-  //     for (const violation of violations) {
-  //       const filePath = violation.file_path;
-  //       const principles = violation.violatedPrinciples;
-
-  //       for (const principleObj of principles) {
-  //         const { principle, justification } = principleObj;
-  //         allFormattedViolations.push(
-  //           `File: ${filePath}\nPrinciple: ${principle}\nJustification: ${justification}\n`
-  //         );
-  //       }
-  //     }
-  //   }
-
-  //   const formattedViolationsString = allFormattedViolations.join("\n---\n");
-
-  //   return formattedViolationsString;
+    return this.formatViolationsAsString(allViolations);
   }
 
-
-async saveViolations(violations, projectId, dependencies) {
-  if (!projectId || typeof projectId !== "string") {
-    throw new Error("Invalid project ID");
-  }
-
-  if (!Array.isArray(violations)) {
-    throw new Error("Violations must be an array.");
-  }
-
-  const allowedPrinciples = ["Single Responsibility", "Open-Closed"];
-  const mainFileViolations = violations[0];
-
-  // Filter principles
-  const filteredPrinciples = mainFileViolations.violations.filter((p) =>
-    allowedPrinciples.includes(p.principle)
-  );
-
-  if (filteredPrinciples.length === 0) {
-    console.log(
-      `Skipping save: No SRP or OCP violations found for file ${mainFileViolations?.mainFilePath}`
-    );
-    return;
-  }
-
-  const formatted = {
-    mainFilePath: mainFileViolations.mainFilePath || "unknown",
-    dependenciesFilePaths: dependencies,
-    violations: filteredPrinciples,
-  };
-
-  try {
-    const updatedProject = await project.findByIdAndUpdate(
-      projectId,
-      { $push: { solidViolations: [formatted] } },
-      { new: true }
-    );
-
-    if (!updatedProject) {
-      throw new Error(`Project with ID ${projectId} not found`);
+  async saveViolations(violations, projectId, dependencies) {
+    if (!projectId || typeof projectId !== "string") {
+      throw new Error("Invalid project ID");
     }
 
-    console.log("Filtered SOLID violations saved successfully:", formatted);
-  } catch (error) {
-    console.error(
-      `Error saving filtered violations for project ${projectId}: ${error.message}`,
-      {
-        projectId,
-        violations,
-        stack: error.stack,
-      }
-    );
-    throw error;
-  }
-}
+    if (!Array.isArray(violations)) {
+      throw new Error("Violations must be an array.");
+    }
 
+    const allowedPrinciples = ["Single Responsibility", "Open-Closed"];
+    const formattedViolations = [];
+
+    for (const v of violations) {
+      const mainFilePath = v.mainFilePath || "unknown";
+      const entries = v.violations || [];
+
+      // Only extract the violation entry that matches the main file
+      const matchedEntry = entries.find(
+        (entry) => entry.file_path === mainFilePath
+      );
+
+      if (!matchedEntry) {
+        console.warn(`No matching violation found for: ${mainFilePath}`);
+        continue;
+      }
+
+      const filteredPrinciples = (matchedEntry.violatedPrinciples || []).filter(
+        (p) => allowedPrinciples.includes(p.principle)
+      );
+
+      if (filteredPrinciples.length === 0) continue;
+
+      formattedViolations.push({
+        mainFilePath,
+        dependenciesFilePaths: dependencies,
+        violations: filteredPrinciples.map((p) => ({
+          principle: p.principle,
+          justification: p.justification,
+        })),
+      });
+    }
+
+    try {
+      const projectDoc = await project.findById(projectId).lean();
+      if (!projectDoc) {
+        throw new Error(`Project with ID ${projectId} not found`);
+      }
+
+      const existingViolations = projectDoc.solidViolations || [];
+      console.log(
+        "Existing violations:",
+        JSON.stringify(existingViolations, null, 2)
+      );
+
+      // Merge logic
+      for (const newEntry of formattedViolations) {
+        const existingIndex = existingViolations.findIndex(
+          (v) => v.mainFilePath === newEntry.mainFilePath
+        );
+
+        if (existingIndex !== -1) {
+          const existing = existingViolations[existingIndex];
+          const existingPrinciples = new Set(
+            existing.violations.map((v) => v.principle)
+          );
+
+          for (const newV of newEntry.violations) {
+            if (!existingPrinciples.has(newV.principle)) {
+              existing.violations.push(newV);
+            }
+          }
+        } else {
+          existingViolations.push(newEntry);
+        }
+      }
+
+      const updated = await project.findByIdAndUpdate(
+        projectId,
+        { $set: { solidViolations: existingViolations } },
+        { new: true }
+      );
+
+      console.log(
+        "Saved merged violations:",
+        JSON.stringify(existingViolations, null, 2)
+      );
+
+      if (!updated) {
+        throw new Error("Failed to update project document");
+      }
+    } catch (error) {
+      console.error("Error saving violations:", error.message);
+      throw error;
+    }
+  }
 
   async clearViolationsForProject(projectId) {
     await project.updateOne(
@@ -308,5 +206,23 @@ async saveViolations(violations, projectId, dependencies) {
       { $set: { solidViolations: [] } }
     );
   }
+
+  formatViolationsAsString(violations) {
+    return violations
+      .filter((v) => v && v.mainFilePath && Array.isArray(v.violations))
+      .map((v) => {
+        const header = `File: ${v.mainFilePath}`;
+        const details = v.violations
+          .map(
+            (p) =>
+              `- Principle: ${p.principle}\n  Justification: ${p.justification}`
+          )
+          .join("\n");
+
+        return `${header}\n${details}`;
+      })
+      .join("\n\n");
+  }
 }
+
 export default ProjectSOLIDViolationDetection;
