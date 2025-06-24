@@ -3,13 +3,12 @@ import RefactorStorage from "../refactoring/refactorStorage.js"; // Capitalized,
 import path from "path";
 import fs from "fs/promises";
 import refactorSolidViolationsAction from "../refactoring/refactorSolidViolationsActoin.js";
-import refactorCouplingAction from "../refactoring/refactorCouplingAction.js";
 const RefactorRouter = Router();
 
 // ✅ Instantiate the class
 const store = new RefactorStorage();
 const refactorSolid = new refactorSolidViolationsAction();
-const refactorCoupling = new refactorCouplingAction();
+
 // RefactorRouter.post("/solid", async (req, res) => {
 //   const { path, content } = req.body;
 
@@ -54,10 +53,10 @@ RefactorRouter.post("/undo", async (req, res) => {
   }
 });
 
-// function refactorCouplingCode(code) {
-//   // Apply your coupling smell refactoring logic here
-//   return code.replace(/System\.out\.println/g, "// Refactored println");
-// }
+function refactorCouplingCode(code) {
+  // Apply your coupling smell refactoring logic here
+  return code.replace(/System\.out\.println/g, "// Refactored println");
+}
 
 RefactorRouter.post("/couplingsmells", async (req, res) => {
   const { projectRoot, files } = req.body;
@@ -94,9 +93,9 @@ RefactorRouter.post("/couplingsmells", async (req, res) => {
 
       // Save refactored code
       await store.save(fullPath, refactoredCode);
-      refactoredFiles[relativePath] = refactoredCode;     
+      refactoredFiles[relativePath] = refactoredCode;
     }
-    refactorCoupling.refactorMethod(req);
+
     res.json({
       message: "Coupling smells refactored and saved.",
       refactoredFiles,

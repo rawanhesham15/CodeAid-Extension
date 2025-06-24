@@ -20,7 +20,7 @@
         {
           "id": "codeAidSidebar",
           "title": "CodeAid",
-          "icon": "media/sc.png"
+          "icon": "media/logo.png"
         }
       ]
     },
@@ -29,7 +29,8 @@
         {
           "id": "codeAidView",
           "name": "",
-          "type": "webview"
+          "type": "webview",
+          "icon": "media/logo.png"
         }
       ],
       "explorer": [
@@ -37,7 +38,7 @@
           "id": "ResponseView",
           "name": "CodeAidff",
           "type": "webview",
-          "icon": "media/sc.png"
+          "icon": "media/logo.png"
         }
       ]
     },

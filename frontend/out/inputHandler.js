@@ -196,9 +196,19 @@ class InputHandler {
             const responseData = response.data;
             const decorations = [];
             complexityDataMap.clear();
+            // responseData.data.forEach((fileData: any) => {
+            //   complexityDataMap.set(fileData.file, fileData.classes);
+            // });
+            let hasComplexity = false;
             responseData.data.forEach((fileData) => {
                 complexityDataMap.set(fileData.file, fileData.classes);
+                if (fileData.classes && fileData.classes.length > 0) {
+                    hasComplexity = true;
+                }
             });
+            if (!hasComplexity) {
+                return "No class exceeded the complexity threshold.";
+            }
             if (editor) {
                 responseData.data.forEach((fileData) => {
                     if (filePath === fileData.file) {

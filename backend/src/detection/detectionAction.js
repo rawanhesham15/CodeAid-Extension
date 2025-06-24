@@ -1,14 +1,18 @@
+import LLMController from "../llms/llmController.js";
 import FileManager from "./../fileManager/fileManager.js";
-import { stat } from "fs/promises";
+import project from "../Models/ProjectModel.js";
+import { readFile, stat } from "fs/promises";
 import path from "path";
 
 class DetectionAction {
-  constructor(fileManager) {
+  constructor(llmController, fileManager) {
     if (new.target === DetectionAction) {
       throw new Error("Can't instantiate an abstract class directly");
     }
+    this.llmController = llmController || new LLMController();
     this.fileManager = fileManager || new FileManager();
   }
+
   /**
    * Walks up from a given file or directory path until it finds `.codeaid-meta.json`.
    * @param {string} startPath - The starting file or directory path.
@@ -60,11 +64,71 @@ class DetectionAction {
   }
 
   async saveCouplingViolations(violations, projectId) {
-    throw new Error("saveCouplingViolations must be implemented by subclass.");
+    if (!projectId || typeof projectId !== "string") {
+      throw new Error("Invalid project ID");
+    }
+
+    const formatted = violations.flatMap((v) =>
+      v.smells.map((smell) => ({
+        filePaths: v.filesPaths,
+        violation: smell.smell,
+        justification: smell.justification,
+      }))
+    );
+
+    console.log(
+      "Formatted coupling violations for saving:",
+      JSON.stringify(formatted, null, 2)
+    );
+
+    try {
+      const updatedProject = await project.findByIdAndUpdate(
+        projectId,
+        { $set: { couplingViolations: formatted } },
+        { new: true }
+      );
+
+      if (!updatedProject) {
+        throw new Error(`Project with ID ${projectId} not found`);
+      }
+
+      console.log(
+        "Coupling violations saved successfully for project:",
+        updatedProject._id
+      );
+      return updatedProject;
+    } catch (error) {
+      console.error(
+        `Error saving coupling violations for project ${projectId}: ${error.message}`,
+        {
+          projectId,
+          violations,
+          stack: error.stack,
+        }
+      );
+      throw error;
+    }
   }
 
   async saveViolations(violations, projectId) {
     throw new Error("saveViolations must be implemented by subclass.");
+  }
+
+  gatherCode(path) {
+    return this.fileManager.gatherCode(path);
+  }
+
+  summarize(path) {
+    const code = this.fileManager.gatherCode(path);
+    return `Summary of code at ${path}`; // Placeholder implementation
+  }
+
+  generatePrompt(codeJSON, summary) {
+    throw new Error("generatePrompt must be implemented by subclass.");
+  }
+
+  async processPrompt(prompt) {
+    return this.llmController.generateResponse(prompt);
   }
 
   formatViolationsAsString(violations) {
@@ -72,6 +136,17 @@ class DetectionAction {
       "formatViolationsAsString must be implemented by subclass."
     );
   }
+
+  // formatLLMResponse(response) {
+  //   if (typeof response !== 'string') {
+  //     return JSON.stringify(response);
+  //   }
+  //   return response
+  //     .replace(/\*\*(.*?)\*\*/g, "<b>$1</b>")
+  //     .replace(/\*(.*?)\*/g, "<i>$1</i>")
+  //     .replace(/`(.*?)`/g, "<code>$1</code>")
+  //     .replace(/\n/g, "<br>");
+  // }
 }
 
 export default DetectionAction;

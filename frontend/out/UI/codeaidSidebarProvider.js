@@ -98,7 +98,7 @@ class CodeAidSidebarProvider {
     }
     _getHtmlForWebview() {
         const webview = this._view?.webview;
-        const imageUri = webview?.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, "media", "sc.png"));
+        const imageUri = webview?.asWebviewUri(vscode.Uri.joinPath(this._extensionUri, "media", "logo.png"));
         return `
       <!DOCTYPE html>
       <html lang="en">
@@ -138,7 +138,7 @@ class CodeAidSidebarProvider {
           }
           button {
             font-family: "Outfit", serif;
-            background-color: #007f89;
+            background-color: #178cad;
             color: white;
             border: none;
             padding: 8px 16px;
@@ -150,8 +150,8 @@ class CodeAidSidebarProvider {
           }
           button:hover {
             background-color: transparent;
-            border: 1px solid #007f89;
-            color: #007f89;
+            border: 1px solid #178cad;
+            color: #178cad;
             transition: 0.5s;
           }
           #result {
@@ -208,7 +208,7 @@ class CodeAidSidebarProvider {
       </head>
       <body>
         <div class="header">
-          <img src="${imageUri}" width="28" />
+          <img src="${imageUri}" width="32" />
           <p style="line-height: 28px">&nbsp;&nbsp;CodeAid</p>
         </div>
 

@@ -76,9 +76,20 @@ function activate(context) {
     }), vscode.commands.registerCommand("extension.plotDiagram", async (arg) => {
         let res = await inputHandler.plotDiagram(arg);
         secProvider.updateContent(res, `Plotting ${arg} Diagram`);
-    }), vscode.commands.registerCommand("extension.displayRate", async () => {
-        let res = await inputHandler.displayRate();
-        secProvider.updateContent(res, "Displaying Complexity Rate");
+    }), 
+    // vscode.commands.registerCommand("extension.displayRate", async () => {
+    //   let res = await inputHandler.displayRate();
+    //   secProvider.updateContent(res, "Displaying Complexity Rate");
+    // }),
+    vscode.commands.registerCommand("extension.displayRate", async () => {
+        const res = await inputHandler.displayRate();
+        // If the backend returns a warning string instead of complexity info
+        if (res === "No active editor found." || res === "The file is empty. Nothing to analyze." || res === "No class exceeded the complexity threshold.") {
+            secProvider.updateContent(res, "Complexity Check");
+        }
+        else {
+            secProvider.updateContent(res, "Displaying Complexity Rate");
+        }
     }), 
     /////////////remove /////////////////////
     vscode.commands.registerCommand("extension.refactorCode", async (path, content) => {
