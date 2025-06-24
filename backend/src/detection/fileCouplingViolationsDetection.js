@@ -6,7 +6,6 @@ import getFileWithDependencies from "./../fileManager/filePrepare.js";
 import path from "path";
 import getFileWithDependenciesChunked from "./../fileManager/filePrepare.js";
 class fileCOUPLINGViolationDetection extends DetectionAction {
-
   async detectionMethod(req) {
     const filePath = req?.body?.path;
     if (!filePath || typeof filePath !== "string") {
@@ -35,7 +34,11 @@ class fileCOUPLINGViolationDetection extends DetectionAction {
     await this.clearViolationsForProject(projectId);
 
     console.log("Extracted projectId:", projectId);
-    const reqData = await getFileWithDependenciesChunked(filePath, rootDir,projectId); // this is the file content with dependencies
+    const reqData = await getFileWithDependenciesChunked(
+      filePath,
+      rootDir,
+      projectId
+    ); // this is the file content with dependencies
 
     let dependencies = [];
     for (const dep of reqData) {
@@ -49,35 +52,56 @@ class fileCOUPLINGViolationDetection extends DetectionAction {
     // console.log("Request data for SOLID detection:", reqData);
 
     const apiData = reqData;
+    // let result;
+    // fetch("http://localhost:8000/detect-coupling", {
+    //   method: "POST",
+    //   headers: {
+    //     "Content-Type": "application/json",
+    //   },
+    //   body: JSON.stringify(apiData),
+    // })
+    //   .then(async (response) => {
+    //     if (!response.ok) throw new Error("Network response was not ok");
+    //     result = await response.json(); // 👈 result is saved here
+    //     console.log("Result:", result);
+    //     return result;
+    //   })
+    //   .then((data) => {
+    //     console.log("Coupling Smells:", data);
+    //   })
+    //   .catch((error) => {
+    //     console.error("Error calling API:", error);
+    //   });
 
-    fetch("http://localhost:8000/detect-coupling", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(apiData),
-    })
-      .then(async (response) => {
-        if (!response.ok) throw new Error("Network response was not ok");
-        const result = await response.json(); // 👈 result is saved here
-        console.log("Result:", result);
-        return result;
-      })
-      .then((data) => {
-        console.log("Coupling Smells:", data);
-      })
-      .catch((error) => {
-        console.error("Error calling API:", error);
+    let result;
+    try {
+      const response = await fetch("http://localhost:8000/detect-coupling", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(apiData),
       });
 
-    let parsed;
-    try {
-      parsed = JSON.parse(response);
+      if (!response.ok) {
+        throw new Error(`API call failed with status ${response.status}`);
+      }
+
+      result = await response.json();
+      console.log("Coupling Violations:", result);
     } catch (error) {
-      console.error("Failed to parse JSON:", error.message);
+      console.error("Error calling detect-solid API:", error);
       throw error;
     }
-    
+
+    let parsed = result;
+    // try {
+    //   parsed = JSON.parse(response);
+    // } catch (error) {
+    //   console.error("Failed to parse JSON:", error.message);
+    //   throw error;
+    // }
+
     // for (const entry of parsed) {
     //   const violations = entry.couplingSmells || [];
 
@@ -99,82 +123,69 @@ class fileCOUPLINGViolationDetection extends DetectionAction {
       throw new Error("Invalid project ID");
     }
 
-    if (
-      !violations ||
-      typeof violations !== "object" ||
-      !Array.isArray(violations.filePaths) ////////////////////
-    ) {
-      throw new Error("Invalid violation format.");
-    }
     for (const v of violations) {
-      const filePath = v.filePaths || "unknown";
-      const smells = v.smells || [];
+      const filePath = v.filesPaths || "unknown";
+      const smells = v.couplingSmells || [];
 
+      let formattedViolations = {
+        FilePaths: filePath,
+        couplingSmells: smells.map((p) => ({
+          smell: p.smell,
+          justification: p.justification,
+        })),
+      };
 
-    formattedViolations.push({
-      FilePaths: filePath,
-      couplingSmells: smells.map((p) => ({
-        smell: p.smell,
-        justification: p.justification,
-      })),
-    });
-  }
-    const formatted = {
-      FilePaths: formattedViolations.FilePaths,
-      couplingSmells: formattedViolations.couplingSmells,
-    };
-
-    console.log(
-      "Formatted coupling violations for saving:",
-      JSON.stringify(formatted, null, 2)
-    );
-
-    try {
-      const updatedProject = await project.findByIdAndUpdate(
-        projectId,
-        { $push: { couplingViolations: [formatted] } }, // store as array of violations
-        { new: true }
+      console.log(
+        "Formatted coupling violations for saving:",
+        JSON.stringify(formattedViolations, null, 2)
       );
 
-      if (!updatedProject) {
-        throw new Error(`Project with ID ${projectId} not found`);
-      }
-
-      console.log("Updated project successfully:", updatedProject._id);
-    } catch (error) {
-      console.error(
-        `Error saving violations for project ${projectId}: ${error.message}`,
-        {
+      try {
+        const updatedProject = await project.findByIdAndUpdate(
           projectId,
-          violations,
-          stack: error.stack,
+          { $push: { couplingViolations: formattedViolations } },
+          { new: true }
+        );
+
+        if (!updatedProject) {
+          throw new Error(`Project with ID ${projectId} not found`);
         }
-      );
-      throw error;
+
+        console.log("Updated project successfully:", updatedProject._id);
+      } catch (error) {
+        console.error(
+          `Error saving violations for project ${projectId}: ${error.message}`,
+          {
+            projectId,
+            violations,
+            stack: error.stack,
+          }
+        );
+        throw error;
+      }
     }
   }
 
   formatViolationsAsString(parsed) {
     let allFormattedViolations = [];
-    for (const entry of parsed) {
-      const violations = entry.couplingSmells || [];
-      for (const violation of violations) {
-        const filePaths = violation.filesPaths;
-        const smells = violation.smells;
 
-        for (const smellObj of smells) {
-          const { smell, justification } = smellObj;
-          allFormattedViolations.push(
-            `File(s): ${filePaths.join(
-              ", "
-            )}\nPrinciple: ${smell}\nJustification: ${justification}\n`
-          );
-        }
+    for (const entry of parsed) {
+      const filePaths = entry.filesPaths || [];
+      const smells = entry.couplingSmells || [];
+
+      for (const smellObj of smells) {
+        const { smell, justification } = smellObj;
+        allFormattedViolations.push(
+          `File(s): ${filePaths.join(
+            ", "
+          )}\nSmell: ${smell}\nJustification: ${justification}`
+        );
       }
     }
-    const formattedViolationsString = allFormattedViolations.join("\n---\n");
-    return formattedViolationsString;
+
+    return allFormattedViolations.join("\n---\n");
   }
+
   async clearViolationsForProject(projectId) {
     await project.updateOne(
       { _id: projectId },
