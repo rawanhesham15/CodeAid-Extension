@@ -45,22 +45,70 @@ class ProjectCOUPLINGViolationDetection extends DetectionAction {
 
     const javaFiles = await this.getAllJavaFiles(projectPath);
     console.log("Found Java files:", javaFiles);
+    let allViolations = [];
     for (const filePath of javaFiles) {
       try {
         const reqData = await getFileWithDependenciesChunked(filePath, projectPath, projectId);
+        // // Assume first chunk is the main one
+        // const mainChunk = reqData.find(chunk => chunk.mainFilePath === filePath);
+        // const mainContent = mainChunk?.mainFileContent || "";
 
-        let dependencies = [];
-        for (const dep of reqData) {
-          for (const depFile of dep.dependencies) {
-            if (depFile.depFilePath) {
-              dependencies.push(depFile.depFilePath);
-            }
-          }
+        // // Remove comments and whitespace
+        // const cleanedContent = mainContent.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, "").trim();
+
+        // if (cleanedContent === "") {
+        //   console.log(`File is empty (ignoring comments/whitespace): ${filePath}`);
+        //   await this.saveViolations(
+        //     [{
+        //       couplingSmells: [{filesPaths:filePath , smells:[]}]
+        //     }],
+        //     projectId
+        //   );
+        //   continue; // Skip API call
+        // }
+
+        // let dependencies = [];
+        // for (const dep of reqData) {
+        //   for (const depFile of dep.dependencies) {
+        //     if (depFile.depFilePath) {
+        //       dependencies.push(depFile.depFilePath);
+        //     }
+        //   }
+        // }
+
+        const normalizedFilePath = path.normalize(filePath);
+        const mainChunk = reqData.find(chunk => path.normalize(chunk.mainFilePath) === normalizedFilePath);
+
+        if (!mainChunk) {
+          console.warn(`No mainChunk found for ${filePath}`);
+          continue; // or handle as needed
         }
+
+        const mainContent = mainChunk.mainFileContent || "";
+
+        // Remove comments and whitespace
+        const cleanedContent = mainContent.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, "").trim();
+
+        if (cleanedContent === "") {
+          console.log(`File is empty (ignoring comments/whitespace): ${filePath}`);
+          await this.saveViolations(
+            [{
+              couplingSmells: [
+                {
+                  filesPaths: [filePath],
+                  smells: []
+                }
+              ]
+            }],
+            projectId
+          );
+          continue; // Skip API call
+        }
+
         const apiData = reqData;
 
         console.log("filePath", filePath);
-        console.log("dependencies  ", dependencies);
+        // console.log("dependencies  ", dependencies);
 
 
         let result;
@@ -82,8 +130,10 @@ class ProjectCOUPLINGViolationDetection extends DetectionAction {
 
           let parsed = result;
           console.log("parsed ", parsed);
+          allViolations.push(...parsed);
+
           await this.saveViolations(parsed, projectId);
-          } catch (error) {
+        } catch (error) {
           console.error("Error calling detect-solid API:", error);
           throw error;
         }
@@ -92,51 +142,54 @@ class ProjectCOUPLINGViolationDetection extends DetectionAction {
         continue;
       }
     }
-              return this.formatViolationsAsString(parsed);
-
+    return this.formatViolationsAsString(allViolations);
   }
 
-  // async saveViolations(Violations, projectId) {
+  // async saveViolations(violations, projectId) {
   //   if (!projectId || typeof projectId !== "string") {
   //     throw new Error("Invalid project ID");
   //   }
 
-  //   if (!Violations || typeof Violations !== "object" || !Array.isArray(Violations.filesPaths)) {
-  //     throw new Error("Invalid violation format.");
-  //   }
+  //   for (const v of violations) {
+  //     const filePath = v.filesPaths || "unknown";
+  //     const smells = v.couplingSmells || [];
 
-  //   const formatted = {
-  //     FilePaths: Violations.filesPaths,
-  //     couplingSmells: Violations.smells,
-  //   };
+  //     let formattedViolations = {
+  //       FilePaths: filePath,
+  //       couplingSmells: smells.map((p) => ({
+  //         smell: p.smell,
+  //         justification: p.justification,
+  //       })),
+  //     };
 
-  //   console.log(
-  //     "Formatted coupling violations for saving:",
-  //     JSON.stringify(formatted, null, 2)
-  //   );
-
-  //   try {
-  //     const updatedProject = await project.findByIdAndUpdate(
-  //       projectId,
-  //       { $push: { couplingViolations: [formatted] } }, // store as array of violations
-  //       { new: true }
+  //     console.log(
+  //       "Formatted coupling violations for saving:",
+  //       JSON.stringify(formattedViolations, null, 2)
   //     );
 
-  //     if (!updatedProject) {
-  //       throw new Error(`Project with ID ${projectId} not found`);
-  //     }
-
-  //     console.log("Updated project successfully:", updatedProject._id);
-  //   } catch (error) {
-  //     console.error(
-  //       `Error saving violations for project ${projectId}: ${error.message}`,
-  //       {
+  //     try {
+  //       const updatedProject = await project.findByIdAndUpdate(
   //         projectId,
-  //         Violations,
-  //         stack: error.stack,
+  //         { $push: { couplingViolations: formattedViolations } },
+  //         { new: true }
+  //       );
+
+  //       if (!updatedProject) {
+  //         throw new Error(`Project with ID ${projectId} not found`);
   //       }
-  //     );
-  //     throw error;
+
+  //       console.log("Updated project successfully:", updatedProject._id);
+  //     } catch (error) {
+  //       console.error(
+  //         `Error saving violations for project ${projectId}: ${error.message}`,
+  //         {
+  //           projectId,
+  //           violations,
+  //           stack: error.stack,
+  //         }
+  //       );
+  //       throw error;
+  //     }
   //   }
   // }
 
@@ -146,47 +199,52 @@ class ProjectCOUPLINGViolationDetection extends DetectionAction {
     }
 
     for (const v of violations) {
-      const filePath = v.filesPaths || "unknown";
-      const smells = v.couplingSmells || [];
+      // const filePaths = v.filesPaths || [];
 
-      let formattedViolations = {
-        FilePaths: filePath,
-        couplingSmells: smells.map((p) => ({
-          smell: p.smell,
-          justification: p.justification,
-        })),
-      };
+      for (const smellGroup of v.couplingSmells || []) {
+        const smellFilePaths = smellGroup.filesPaths || [];
+        const smells = smellGroup.smells || [];
 
-      console.log(
-        "Formatted coupling violations for saving:",
-        JSON.stringify(formattedViolations, null, 2)
-      );
+        const formatted = {
+          FilePaths: smellFilePaths,
+          couplingSmells: smells.map((s) => ({
+            smell: s.smell,
+            justification: s.justification,
+          })),
+        };
 
-      try {
-        const updatedProject = await project.findByIdAndUpdate(
-          projectId,
-          { $push: { couplingViolations: formattedViolations } },
-          { new: true }
+        console.log(
+          "Formatted coupling violation for saving:",
+          JSON.stringify(formatted, null, 2)
         );
 
-        if (!updatedProject) {
-          throw new Error(`Project with ID ${projectId} not found`);
-        }
-
-        console.log("Updated project successfully:", updatedProject._id);
-      } catch (error) {
-        console.error(
-          `Error saving violations for project ${projectId}: ${error.message}`,
-          {
+        try {
+          const updatedProject = await project.findByIdAndUpdate(
             projectId,
-            violations,
-            stack: error.stack,
+            { $push: { couplingViolations: formatted } },
+            { new: true }
+          );
+
+          if (!updatedProject) {
+            throw new Error(`Project with ID ${projectId} not found`);
           }
-        );
-        throw error;
+
+          console.log("Updated project successfully:", updatedProject._id);
+        } catch (error) {
+          console.error(
+            `Error saving violations for project ${projectId}: ${error.message}`,
+            {
+              projectId,
+              violations,
+              stack: error.stack,
+            }
+          );
+          throw error;
+        }
       }
     }
   }
+
 
   // formatViolationsAsString(violations) {
   //   return violations
@@ -203,6 +261,54 @@ class ProjectCOUPLINGViolationDetection extends DetectionAction {
   //     .join("\n\n");
   // }
 
+  // formatViolationsAsString(parsed) {
+  //   let allFormattedViolations = [];
+
+  //   for (const entry of parsed) {
+  //     const filePaths = entry.filesPaths || [];
+  //     const smells = entry.couplingSmells || [];
+
+  //     for (const smellObj of smells) {
+  //       const { smell, justification } = smellObj;
+  //       allFormattedViolations.push(
+  //         `File(s): ${filePaths.join(
+  //           ", "
+  //         )}\nSmell: ${smell}\nJustification: ${justification}`
+  //       );
+  //     }
+  //   }
+
+  //   return allFormattedViolations.join("\n---\n");
+  // }
+
+  formatViolationsAsString(parsed) {
+    let allFormattedViolations = [];
+
+    for (const entry of parsed) {
+      // const mainFilePaths = entry.filesPaths || [];
+      const couplingSmells = entry.couplingSmells || [];
+
+      for (const smellGroup of couplingSmells) {
+        const smellFilePaths = smellGroup.filesPaths || [];
+        const smells = smellGroup.smells || [];
+
+        for (const smellObj of smells) {
+          const { smell, justification } = smellObj;
+
+          allFormattedViolations.push(
+            // `Main File(s): ${mainFilePaths.join(", ")}\n` +
+            `Affected File(s): ${smellFilePaths.join(", ")}\n` +
+            `Smell: ${smell}\n` +
+            `Justification: ${justification}`
+          );
+        }
+      }
+    }
+
+    return allFormattedViolations.join("\n---\n");
+  }
+
+
   async clearViolationsForProject(projectId) {
     await project.updateOne(
       { _id: projectId },
@@ -212,3 +318,8 @@ class ProjectCOUPLINGViolationDetection extends DetectionAction {
 }
 
 export default ProjectCOUPLINGViolationDetection;
+
+
+
+
+// [{'filesPaths': ['e:\\FCAI\\secondYear\\secondSemester\\sw\\Assignments\\ToffeeStore\\ToffeeStore\\item.java'], 'smells': [{'smell': 'Message Chains', 'justification': 'The `displayItem()` and `displayItemForCart()` methods in the `item` class exhibit message chains by calling `category.getName()`. This forces the `item` class to navigate through its `category` object to get a name, coupling it to the internal structure of the `category` class.'}]}]

@@ -2,7 +2,6 @@ import DetectionAction from "./detectionAction.js";
 import fileDetectCouplingViolationsPG from "./../promptGenerator/fileDetectCouplingViolationsPG.js";
 import { readFile } from "fs/promises";
 import project from "../Models/ProjectModel.js";
-import getFileWithDependencies from "./../fileManager/filePrepare.js";
 import path from "path";
 import getFileWithDependenciesChunked from "./../fileManager/filePrepare.js";
 class fileCOUPLINGViolationDetection extends DetectionAction {
@@ -63,6 +62,7 @@ class fileCOUPLINGViolationDetection extends DetectionAction {
         body: JSON.stringify(apiData),
       });
 
+      
       if (!response.ok) {
         throw new Error(`API call failed with status ${response.status}`);
       }

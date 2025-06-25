@@ -3,6 +3,8 @@ import project from "../Models/ProjectModel.js";
 import { readFile, stat } from "fs/promises";
 import fg from "fast-glob";
 import getFileWithDependenciesChunked from "../fileManager/filePrepare.js";
+import path from "path";
+
 
 class ProjectSOLIDViolationDetection extends DetectionAction {
   async getAllJavaFiles(rootDir) {
@@ -57,6 +59,31 @@ class ProjectSOLIDViolationDetection extends DetectionAction {
         );
         console.log("Request data for SOLID detection:", reqData);
 
+        const normalizedFilePath = path.normalize(filePath);
+        const mainChunk = reqData.find(chunk => path.normalize(chunk.mainFilePath) === normalizedFilePath);
+
+        if (!mainChunk) {
+          console.warn(`No mainChunk found for ${filePath}`);
+          continue; // or handle as needed
+        }
+
+        const mainContent = mainChunk.mainFileContent || "";
+
+        // Remove comments and whitespace
+        const cleanedContent = mainContent.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, "").trim();
+
+        if (cleanedContent === "") {
+          console.log(`File is empty (ignoring comments/whitespace): ${filePath}`);
+          await this.saveViolations(
+            [{
+              mainFilePath: filePath,
+              violations: []
+            }],
+            projectId
+          );
+          continue; // Skip API call
+        }
+
         let dependencies = [];
         let res = "";
         for (const dep of reqData) {
@@ -68,6 +95,7 @@ class ProjectSOLIDViolationDetection extends DetectionAction {
         }
 
         const apiData = reqData;
+
         console.log("filePath", filePath);
         console.log("dependencies  ", dependencies);
 
@@ -225,35 +253,35 @@ class ProjectSOLIDViolationDetection extends DetectionAction {
   // }
 
   formatViolationsAsString(violations) {
-  const allowedPrinciples = ["Single Responsibility", "Open-Closed"];
+    const allowedPrinciples = ["Single Responsibility", "Open-Closed"];
 
-  let result = "";
+    let result = "";
 
-  for (const violation of violations) {
-    const entries = violation.violations || [];
+    for (const violation of violations) {
+      const entries = violation.violations || [];
 
-    for (const entry of entries) {
-      const filePath = entry.file_path || "unknown";
-      const principles = entry.violatedPrinciples || [];
+      for (const entry of entries) {
+        const filePath = entry.file_path || "unknown";
+        const principles = entry.violatedPrinciples || [];
 
-      // Filter allowed principles only
-      const filtered = principles.filter((p) =>
-        allowedPrinciples.includes(p.principle)
-      );
+        // Filter allowed principles only
+        const filtered = principles.filter((p) =>
+          allowedPrinciples.includes(p.principle)
+        );
 
-      if (filtered.length === 0) continue;
+        if (filtered.length === 0) continue;
 
-      result += `File: ${filePath}\n`;
-      for (const p of filtered) {
-        result += `- Principle: ${p.principle}\n  Justification: ${p.justification}\n`;
+        result += `File: ${filePath}\n`;
+        for (const p of filtered) {
+          result += `- Principle: ${p.principle}\n  Justification: ${p.justification}\n`;
+        }
+        result += `\n`; // separate entries
       }
-      result += `\n`; // separate entries
     }
-  }
 
-  console.log("Formatted violations string:\n", result);
-  return result.trim(); // remove trailing newline
-}
+    console.log("Formatted violations string:\n", result);
+    return result.trim(); // remove trailing newline
+  }
 
 }
 

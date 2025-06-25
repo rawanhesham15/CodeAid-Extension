@@ -48,6 +48,7 @@ class FileSOLIDViolationDetection extends DetectionAction {
 
     console.log("Request data for SOLID detection:", reqData);
     
+    
     let dependencies = [];
     for (const dep of reqData) {
       for (const depFile of dep.dependencies) {
@@ -61,6 +62,8 @@ class FileSOLIDViolationDetection extends DetectionAction {
     console.log("Request data for SOLID detection:", reqData);
 
     const apiData = reqData;
+
+
 
     let result;
     try {
@@ -91,7 +94,7 @@ class FileSOLIDViolationDetection extends DetectionAction {
     const violations = parsed;
 
     console.log("Extracted violations:", violations);
-    console.log("violations-------- ", violations[0].violations);
+    // console.log("violations-------- ", violations[0].violations);
     console.log("DEP before save", dependencies);
     await this.saveViolations(violations, projectId, dependencies);
     return this.formatViolationsAsString(violations);
