@@ -97,6 +97,11 @@ class FileSOLIDViolationDetection extends DetectionAction {
     return this.formatViolationsAsString(violations);
   }
 
+  getAllowedPrinciples() {
+  return ["Single Responsibility", "Open-Closed"];
+}
+
+
   async saveViolations(violations, projectId, dependencies) {
     if (!projectId || typeof projectId !== "string") {
       throw new Error("Invalid project ID");
@@ -106,7 +111,8 @@ class FileSOLIDViolationDetection extends DetectionAction {
       throw new Error("Violations must be an array.");
     }
 
-    const allowedPrinciples = ["Single Responsibility", "Open-Closed"];
+    // const allowedPrinciples = ["Single Responsibility", "Open-Closed"];
+    const allowedPrinciples = this.getAllowedPrinciples();
     const formattedViolations = [];
 
     for (const v of violations) {
@@ -187,37 +193,38 @@ class FileSOLIDViolationDetection extends DetectionAction {
     }
   }
 
-  formatViolationsAsString(violations) {
-    const allowedPrinciples = ["Single Responsibility", "Open-Closed"];
+formatViolationsAsString(violations) {
+  // const allowedPrinciples = ["Single Responsibility", "Open-Closed"];
+  const allowedPrinciples = this.getAllowedPrinciples();
 
-    const result = violations
-      .map((v) => {
-        const mainFilePath = v.mainFilePath || "unknown";
-        const entries = v.violations || [];
+  let result = "";
 
-        // Format only the allowed principles
-        const filtered = entries.filter((p) =>
-          allowedPrinciples.includes(p.principle)
-        );
+  for (const violation of violations) {
+    const entries = violation.violations || [];
 
-        if (filtered.length === 0) return null;
+    // for (const entry of entries) {
+      const filePath = entries[0].file_path || "unknown";
+      const principles = entries[0].violatedPrinciples || [];
 
-        const header = `File: ${mainFilePath}`;
-        const details = filtered
-          .map(
-            (p) =>
-              `- Principle: ${p.principle}\n  Justification: ${p.justification}`
-          )
-          .join("\n");
+      // Filter allowed principles only
+      const filtered = principles.filter((p) =>
+        allowedPrinciples.includes(p.principle)
+      );
 
-        return `${header}\n${details}`;
-      })
-      .filter(Boolean) // remove null entries
-      .join("\n\n");
+      if (filtered.length === 0) continue;
 
-    console.log("Formatted violations string:\n", result);
-    return result;
+      result += `File: ${filePath}\n`;
+      for (const p of filtered) {
+        result += `- Principle: ${p.principle}\n  Justification: ${p.justification}\n`;
+      }
+      result += `\n`; // separate entries
+    // }
   }
+
+  console.log("Formatted violations string:\n", result);
+  return result.trim(); // remove trailing newline
+}
+
 
   async clearViolationsForProject(projectId) {
     await project.updateOne(

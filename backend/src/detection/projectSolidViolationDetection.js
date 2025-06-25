@@ -207,22 +207,54 @@ class ProjectSOLIDViolationDetection extends DetectionAction {
     );
   }
 
-  formatViolationsAsString(violations) {
-    return violations
-      .filter((v) => v && v.mainFilePath && Array.isArray(v.violations))
-      .map((v) => {
-        const header = `File: ${v.mainFilePath}`;
-        const details = v.violations
-          .map(
-            (p) =>
-              `- Principle: ${p.principle}\n  Justification: ${p.justification}`
-          )
-          .join("\n");
+  // formatViolationsAsString(violations) {
+  //   return violations
+  //     .filter((v) => v && v.mainFilePath && Array.isArray(v.violations))
+  //     .map((v) => {
+  //       const header = `File: ${v.mainFilePath}`;
+  //       const details = v.violations
+  //         .map(
+  //           (p) =>
+  //             `- Principle: ${p.principle}\n  Justification: ${p.justification}`
+  //         )
+  //         .join("\n");
 
-        return `${header}\n${details}`;
-      })
-      .join("\n\n");
+  //       return `${header}\n${details}`;
+  //     })
+  //     .join("\n\n");
+  // }
+
+  formatViolationsAsString(violations) {
+  const allowedPrinciples = ["Single Responsibility", "Open-Closed"];
+
+  let result = "";
+
+  for (const violation of violations) {
+    const entries = violation.violations || [];
+
+    for (const entry of entries) {
+      const filePath = entry.file_path || "unknown";
+      const principles = entry.violatedPrinciples || [];
+
+      // Filter allowed principles only
+      const filtered = principles.filter((p) =>
+        allowedPrinciples.includes(p.principle)
+      );
+
+      if (filtered.length === 0) continue;
+
+      result += `File: ${filePath}\n`;
+      for (const p of filtered) {
+        result += `- Principle: ${p.principle}\n  Justification: ${p.justification}\n`;
+      }
+      result += `\n`; // separate entries
+    }
   }
+
+  console.log("Formatted violations string:\n", result);
+  return result.trim(); // remove trailing newline
+}
+
 }
 
 export default ProjectSOLIDViolationDetection;

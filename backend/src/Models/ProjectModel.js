@@ -35,8 +35,10 @@ const projectSchema = new mongoose.Schema(
           {
             smell: String,
             justification: String,
+            _id: false,
           },
         ],
+        _id: false,
       },
     ],
   },

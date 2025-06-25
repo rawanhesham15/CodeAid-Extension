@@ -52,26 +52,6 @@ class fileCOUPLINGViolationDetection extends DetectionAction {
     // console.log("Request data for SOLID detection:", reqData);
 
     const apiData = reqData;
-    // let result;
-    // fetch("http://localhost:8000/detect-coupling", {
-    //   method: "POST",
-    //   headers: {
-    //     "Content-Type": "application/json",
-    //   },
-    //   body: JSON.stringify(apiData),
-    // })
-    //   .then(async (response) => {
-    //     if (!response.ok) throw new Error("Network response was not ok");
-    //     result = await response.json(); // 👈 result is saved here
-    //     console.log("Result:", result);
-    //     return result;
-    //   })
-    //   .then((data) => {
-    //     console.log("Coupling Smells:", data);
-    //   })
-    //   .catch((error) => {
-    //     console.error("Error calling API:", error);
-    //   });
 
     let result;
     try {
@@ -95,24 +75,6 @@ class fileCOUPLINGViolationDetection extends DetectionAction {
     }
 
     let parsed = result;
-    // try {
-    //   parsed = JSON.parse(response);
-    // } catch (error) {
-    //   console.error("Failed to parse JSON:", error.message);
-    //   throw error;
-    // }
-
-    // for (const entry of parsed) {
-    //   const violations = entry.couplingSmells || [];
-
-    //   const couplingViolations = violations.map((violation) => ({
-    //     filePaths: violation.filesPaths,
-    //     violations: violation.smells.map((smellsObj) => ({
-    //       smell: smellsObj.smell,
-    //       justification: smellsObj.justification,
-    //     })),
-    //   }));
-    // }
     console.log("parsed ", parsed);
     await this.saveViolations(parsed, projectId);
     return this.formatViolationsAsString(parsed);
