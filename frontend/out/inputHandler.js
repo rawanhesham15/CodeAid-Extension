@@ -282,6 +282,7 @@ class InputHandler {
             const response = await axios_1.default.post("http://localhost:3000/refactor/solid", {
                 path: path,
                 content: content,
+                rootDir: this.getWorkSpacePath(), // ✅ send it here
             });
             const responseData = response.data;
             if (responseData && responseData.refactoredCode) {

@@ -265,6 +265,7 @@ async refactorCode(path: string, content: string): Promise<string> {
     const response = await axios.post("http://localhost:3000/refactor/solid", {
       path: path,
       content: content,
+      rootDir: this.getWorkSpacePath(),  // ✅ send it here
     });
 
     const responseData = response.data;
