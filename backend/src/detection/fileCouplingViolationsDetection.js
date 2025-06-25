@@ -80,68 +80,148 @@ class fileCOUPLINGViolationDetection extends DetectionAction {
     return this.formatViolationsAsString(parsed);
   }
 
-  async saveViolations(violations, projectId) {
-    if (!projectId || typeof projectId !== "string") {
-      throw new Error("Invalid project ID");
-    }
+  // async saveViolations(violations, projectId) {
+  //   if (!projectId || typeof projectId !== "string") {
+  //     throw new Error("Invalid project ID");
+  //   }
 
-    for (const v of violations) {
-      const filePath = v.filesPaths || "unknown";
-      const smells = v.couplingSmells || [];
+  //   for (const v of violations) {
+  //     const filePath = v.filesPaths || "unknown";
+  //     const smells = v.couplingSmells || [];
 
-      let formattedViolations = {
-        FilePaths: filePath,
-        couplingSmells: smells.map((p) => ({
-          smell: p.smell,
-          justification: p.justification,
-        })),
-      };
+  //     let formattedViolations = {
+  //       FilePaths: filePath,
+  //       couplingSmells: smells.map((p) => ({
+  //         smell: p.smell,
+  //         justification: p.justification,
+  //       })),
+  //     };
 
-      console.log(
-        "Formatted coupling violations for saving:",
-        JSON.stringify(formattedViolations, null, 2)
-      );
+  //     console.log(
+  //       "Formatted coupling violations for saving:",
+  //       JSON.stringify(formattedViolations, null, 2)
+  //     );
 
-      try {
-        const updatedProject = await project.findByIdAndUpdate(
-          projectId,
-          { $push: { couplingViolations: formattedViolations } },
-          { new: true }
-        );
+  //     try {
+  //       const updatedProject = await project.findByIdAndUpdate(
+  //         projectId,
+  //         { $push: { couplingViolations: formattedViolations } },
+  //         { new: true }
+  //       );
 
-        if (!updatedProject) {
-          throw new Error(`Project with ID ${projectId} not found`);
-        }
+  //       if (!updatedProject) {
+  //         throw new Error(`Project with ID ${projectId} not found`);
+  //       }
 
-        console.log("Updated project successfully:", updatedProject._id);
-      } catch (error) {
-        console.error(
-          `Error saving violations for project ${projectId}: ${error.message}`,
-          {
-            projectId,
-            violations,
-            stack: error.stack,
+  //       console.log("Updated project successfully:", updatedProject._id);
+  //     } catch (error) {
+  //       console.error(
+  //         `Error saving violations for project ${projectId}: ${error.message}`,
+  //         {
+  //           projectId,
+  //           violations,
+  //           stack: error.stack,
+  //         }
+  //       );
+  //       throw error;
+  //     }
+  //   }
+  // }
+
+
+    async saveViolations(violations, projectId) {
+      if (!projectId || typeof projectId !== "string") {
+        throw new Error("Invalid project ID");
+      }
+  
+      for (const v of violations) {
+        // const filePaths = v.filesPaths || [];
+  
+        for (const smellGroup of v.couplingSmells || []) {
+          const smellFilePaths = smellGroup.filesPaths || [];
+          const smells = smellGroup.smells || [];
+  
+          const formatted = {
+            FilePaths: smellFilePaths,
+            couplingSmells: smells.map((s) => ({
+              smell: s.smell,
+              justification: s.justification,
+            })),
+          };
+  
+          console.log(
+            "Formatted coupling violation for saving:",
+            JSON.stringify(formatted, null, 2)
+          );
+  
+          try {
+            const updatedProject = await project.findByIdAndUpdate(
+              projectId,
+              { $push: { couplingViolations: formatted } },
+              { new: true }
+            );
+  
+            if (!updatedProject) {
+              throw new Error(`Project with ID ${projectId} not found`);
+            }
+  
+            console.log("Updated project successfully:", updatedProject._id);
+          } catch (error) {
+            console.error(
+              `Error saving violations for project ${projectId}: ${error.message}`,
+              {
+                projectId,
+                violations,
+                stack: error.stack,
+              }
+            );
+            throw error;
           }
-        );
-        throw error;
+        }
       }
     }
-  }
+
+  // formatViolationsAsString(parsed) {
+  //   let allFormattedViolations = [];
+
+  //   for (const entry of parsed) {
+  //     const filePaths = entry.filesPaths || [];
+  //     const smells = entry.couplingSmells || [];
+
+  //     for (const smellObj of smells) {
+  //       const { smell, justification } = smellObj;
+  //       allFormattedViolations.push(
+  //         `File(s): ${filePaths.join(
+  //           ", "
+  //         )}\nSmell: ${smell}\nJustification: ${justification}`
+  //       );
+  //     }
+  //   }
+
+  //   return allFormattedViolations.join("\n---\n");
+  // }
 
   formatViolationsAsString(parsed) {
     let allFormattedViolations = [];
 
     for (const entry of parsed) {
-      const filePaths = entry.filesPaths || [];
-      const smells = entry.couplingSmells || [];
+      // const mainFilePaths = entry.filesPaths || [];
+      const couplingSmells = entry.couplingSmells || [];
 
-      for (const smellObj of smells) {
-        const { smell, justification } = smellObj;
-        allFormattedViolations.push(
-          `File(s): ${filePaths.join(
-            ", "
-          )}\nSmell: ${smell}\nJustification: ${justification}`
-        );
+      for (const smellGroup of couplingSmells) {
+        const smellFilePaths = smellGroup.filesPaths || [];
+        const smells = smellGroup.smells || [];
+
+        for (const smellObj of smells) {
+          const { smell, justification } = smellObj;
+
+          allFormattedViolations.push(
+            // `Main File(s): ${mainFilePaths.join(", ")}\n` +
+            `Affected File(s): ${smellFilePaths.join(", ")}\n` +
+            `Smell: ${smell}\n` +
+            `Justification: ${justification}`
+          );
+        }
       }
     }
 
