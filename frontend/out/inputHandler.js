@@ -369,12 +369,30 @@ class InputHandler {
         for (const { filePath, fileContent: newContent } of refactoredFiles) {
             try {
                 const oldUri = vscode.Uri.file(filePath);
-                const oldContent = (await vscode.workspace.fs.readFile(oldUri)).toString();
+                // Try to read the old content; if file doesn't exist, create it empty
+                let oldContent;
+                try {
+                    const buffer = await vscode.workspace.fs.readFile(oldUri);
+                    oldContent = buffer.toString();
+                }
+                catch (err) {
+                    if (err.code === "FileNotFound" || err.name === "FileNotFound") {
+                        // Create empty file
+                        await vscode.workspace.fs.writeFile(oldUri, new Uint8Array());
+                        oldContent = "";
+                    }
+                    else {
+                        throw err;
+                    }
+                }
+                // Skip diff if no change
                 if (oldContent === newContent)
                     continue;
+                // Build custom scheme URIs
                 const originalUri = vscode.Uri.parse(`${scheme}://${filePath}.original`);
                 const basePath = (0, url_1.pathToFileURL)(filePath).pathname;
                 const refactoredUri = vscode.Uri.parse(`${scheme}:${basePath}.refactored`);
+                // Register content
                 exports.contentMap.set(originalUri.toString(), oldContent);
                 exports.contentMap.set(refactoredUri.toString(), newContent);
                 const diffTitle = `Refactor Diff: ${path.basename(filePath)}`;

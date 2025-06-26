@@ -366,57 +366,66 @@ class InputHandler {
     }
   }
 
-  async showRefactorDiffs(
-    refactoredFiles: { filePath: string; fileContent: string }[]
-  ) {
-    if (!providerRegistered) {
-      const provider = new RefactorContentProvider();
-      vscode.workspace.registerTextDocumentContentProvider(scheme, provider);
-      providerRegistered = true;
-    }
+async showRefactorDiffs(
+  refactoredFiles: { filePath: string; fileContent: string }[]
+) {
+  if (!providerRegistered) {
+    const provider = new RefactorContentProvider();
+    vscode.workspace.registerTextDocumentContentProvider(scheme, provider);
+    providerRegistered = true;
+  }
 
-    let columnIndex = 2;
-    console.log("response", refactoredFiles)
+  let columnIndex = 2;
+  console.log("response", refactoredFiles);
 
-    for (const { filePath, fileContent: newContent } of refactoredFiles) {
+  for (const { filePath, fileContent: newContent } of refactoredFiles) {
+    try {
+      const oldUri = vscode.Uri.file(filePath);
+
+      // Try to read the old content; if file doesn't exist, create it empty
+      let oldContent: string;
       try {
-        const oldUri = vscode.Uri.file(filePath);
-        const oldContent = (
-          await vscode.workspace.fs.readFile(oldUri)
-        ).toString();
-
-        if (oldContent === newContent) continue;
-        const originalUri = vscode.Uri.parse(
-          `${scheme}://${filePath}.original`
-        );
-        const basePath = pathToFileURL(filePath).pathname;
-        const refactoredUri = vscode.Uri.parse(
-          `${scheme}:${basePath}.refactored`
-        );
-
-        contentMap.set(originalUri.toString(), oldContent);
-        contentMap.set(refactoredUri.toString(), newContent);
-
-        const diffTitle = `Refactor Diff: ${path.basename(filePath)}`;
-        const viewColumn =
-          columnIndex > 2 ? vscode.ViewColumn.Active : columnIndex;
-
-        await vscode.commands.executeCommand(
-          "vscode.diff",
-          originalUri,
-          refactoredUri,
-          diffTitle,
-          { viewColumn, preserveFocus: true, preview: false }
-        );
-
-        columnIndex++;
-      } catch (err) {
-        vscode.window.showErrorMessage(
-          `Error showing diff for ${filePath}: ${err}`
-        );
+        const buffer = await vscode.workspace.fs.readFile(oldUri);
+        oldContent = buffer.toString();
+      } catch (err: any) {
+        if (err.code === "FileNotFound" || err.name === "FileNotFound") {
+          // Create empty file
+          await vscode.workspace.fs.writeFile(oldUri, new Uint8Array());
+          oldContent = "";
+        } else {
+          throw err;
+        }
       }
+
+      // Skip diff if no change
+      if (oldContent === newContent) continue;
+
+      // Build custom scheme URIs
+      const originalUri = vscode.Uri.parse(`${scheme}://${filePath}.original`);
+      const basePath = pathToFileURL(filePath).pathname;
+      const refactoredUri = vscode.Uri.parse(`${scheme}:${basePath}.refactored`);
+
+      // Register content
+      contentMap.set(originalUri.toString(), oldContent);
+      contentMap.set(refactoredUri.toString(), newContent);
+
+      const diffTitle = `Refactor Diff: ${path.basename(filePath)}`;
+      const viewColumn = columnIndex > 2 ? vscode.ViewColumn.Active : columnIndex;
+
+      await vscode.commands.executeCommand(
+        "vscode.diff",
+        originalUri,
+        refactoredUri,
+        diffTitle,
+        { viewColumn, preserveFocus: true, preview: false }
+      );
+
+      columnIndex++;
+    } catch (err) {
+      vscode.window.showErrorMessage(`Error showing diff for ${filePath}: ${err}`);
     }
   }
+}
 
   async applyAllRefactorings(
     refactoredFiles: { filePath: string; fileContent: string }[]

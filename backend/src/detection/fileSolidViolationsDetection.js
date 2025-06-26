@@ -62,9 +62,7 @@ class FileSOLIDViolationDetection extends DetectionAction {
     console.log("Request data for SOLID detection:", reqData);
 
     const apiData = reqData;
-
-
-
+    console.log("sent");
     let result;
     try {
       const response = await fetch("http://localhost:8000/detect-solid", {
@@ -78,6 +76,7 @@ class FileSOLIDViolationDetection extends DetectionAction {
       if (!response.ok) {
         throw new Error(`API call failed with status ${response.status}`);
       }
+    console.log("received");
 
       result = await response.json();
       console.log("SOLID Violations:", result);
