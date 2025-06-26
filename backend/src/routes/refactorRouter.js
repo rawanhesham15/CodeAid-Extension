@@ -32,9 +32,9 @@ RefactorRouter.post("/solid", async (req, res) => {
       await store.save(file, fileContent);
     }
 
-    refactorSolid.refactorMethod(req)
+    const response = await refactorSolid.refactorMethod(req)
 
-    res.json({ message: "All project files saved before solid refactor" });
+    res.json({ message: "All project files saved before solid refactor", data: response });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

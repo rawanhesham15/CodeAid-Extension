@@ -1,15 +1,24 @@
 import * as vscode from "vscode";
 import axios, { get } from "axios";
 import * as path from "path";
-// 1 remove 
+import { pathToFileURL } from "url";
+
+const scheme = "refactor";
+export const contentMap = new Map<string, string>();
+let providerRegistered = false;
+
+class RefactorContentProvider implements vscode.TextDocumentContentProvider {
+  provideTextDocumentContent(uri: vscode.Uri): string {
+    return contentMap.get(uri.toString()) || "";
+  }
+}
 class InputHandler {
-  workspacePath: String;
+  workspacePath: string;
   constructor() {
-    
     this.workspacePath = this.getWorkSpacePath();
   }
 
-  getWorkSpacePath(): String {
+  getWorkSpacePath(): string {
     const workspacePath = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
 
     if (!workspacePath) {
@@ -26,59 +35,61 @@ class InputHandler {
     const filePath = editor.document.uri.fsPath;
     return [filePath, editor];
   }
-async detectSOLID(context: string): Promise<string> {
-  let path: string = "";
-  let rootDir: string = "";
 
-  const workspaceFolders = vscode.workspace.workspaceFolders;
-  if (workspaceFolders && workspaceFolders.length > 0) {
-    rootDir = workspaceFolders[0].uri.fsPath;
-  }
+  async detectSOLID(
+    context: string
+  ): Promise<{ message: string; path: string }> {
+    let path: string = "";
+    let rootDir: string = this.workspacePath;
 
-  if (context === "project") {
-    if (!rootDir) return "No workspace folder is open";
-    path = rootDir;
-  } else {
-    const result: any = this.getActiveEditorPath();
-    if (result === "") return "No active editor found.";
-    const filePath: string = result[0];
-    const editor: any = result[1];
-    const fileContent = editor.document.getText();
-    if (!fileContent.trim()) {
-      return "The file is empty. Nothing to analyze.";
+    const workspaceFolders = vscode.workspace.workspaceFolders;
+    if (workspaceFolders && workspaceFolders.length > 0) {
+      rootDir = workspaceFolders[0].uri.fsPath;
     }
-    path = filePath;
-  }
-
-  try {
-    const response = await axios.post("http://localhost:3000/detect/solid", {
-      path: path,
-      context: context,
-      rootDir: rootDir,  // ✅ send it here
-    });
-
-    const responseData = response.data;
-    if (responseData && responseData.message) {
-      return responseData.message;
-    }
-    return "";
-  } catch (error: any) {
-    let errorMessage = "An error occurred while analyzing.";
-
-    if (error.response) {
-      errorMessage += ` Server responded with: ${error.response.status} - ${error.response.data}`;
-    } else if (error.request) {
-      errorMessage += " No response from the server. Is it running?";
+    
+    if (context === "project") {
+      if (!rootDir) return { message: "No workspace folder is open", path: "" };
+      path = rootDir;
     } else {
-      errorMessage += ` ${error.message}`;
+      const result: any = this.getActiveEditorPath();
+      if (result === "")
+        return { message: "No active editor found.", path: "" };
+      const filePath: string = result[0];
+      const editor: any = result[1];
+      const fileContent = editor.document.getText();
+      if (!fileContent.trim()) {
+        return { message: "The file is empty. Nothing to analyze.", path: "" };
+      }
+      path = filePath;
     }
-    return errorMessage;
-  }
-}
 
+    try {
+      const response = await axios.post("http://localhost:3000/detect/solid", {
+        path: path,
+        context: context,
+        rootDir: rootDir,
+      });
+
+      const responseData = response.data;
+      if (responseData && responseData.message) {
+        return { message: responseData.message, path: path };
+      }
+      return { message: "", path: path };
+    } catch (error: any) {
+      let errorMessage = "An error occurred while analyzing.";
+
+      if (error.response) {
+        errorMessage += ` Server responded with: ${error.response.status} - ${error.response.data}`;
+      } else if (error.request) {
+        errorMessage += " No response from the server. Is it running?";
+      } else {
+        errorMessage += ` ${error.message}`;
+      }
+      return { message: errorMessage, path: path };
+    }
+  }
 
   async detectCoupling(context: string): Promise<string> {
-
     let path: String = "";
     if (context === "project") {
       if (this.workspacePath === "") return "No workspace folder is open";
@@ -93,7 +104,7 @@ async detectSOLID(context: string): Promise<string> {
         return "The file is empty. Nothing to analyze.";
       }
       path = filePath;
-      console.log(path,"from frontend");
+      console.log(path, "from frontend");
     }
 
     try {
@@ -190,9 +201,8 @@ async detectSOLID(context: string): Promise<string> {
       });
 
       if (!hasComplexity) {
-  return "No class exceeded the complexity threshold.";
-}
-
+        return "No class exceeded the complexity threshold.";
+      }
 
       if (editor) {
         responseData.data.forEach((fileData: any) => {
@@ -245,9 +255,9 @@ async detectSOLID(context: string): Promise<string> {
 
   async initProject(workspacePath: string): Promise<string> {
     try {
-      const response = await fetch('http://localhost:3000/db/init', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("http://localhost:3000/db/init", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ workspacePath, threshold: 80 }),
       });
 
@@ -257,165 +267,178 @@ async detectSOLID(context: string): Promise<string> {
       return `Error initializing project: ${err.message}`;
     }
   }
-  ///////////////////////////remove////////////////////////
-async refactorCode(path: string, content: string): Promise<string> {
-  if (!path || !content) return "Missing path or content.";
 
-  try {
-    const response = await axios.post("http://localhost:3000/refactor/solid", {
-      path: path,
-      content: content,
-      rootDir: this.getWorkSpacePath(),  // ✅ send it here
-    });
+  async refactorSOViolations(
+    mainFilePath: string
+  ): Promise<{ filePath: string; fileContent: string }[]> {
+    if (!path) return [];
 
-    const responseData = response.data;
-    if (responseData && responseData.refactoredCode) {
-      const edit = new vscode.WorkspaceEdit();
-      const document = await vscode.workspace.openTextDocument(path);
-      const fullRange = new vscode.Range(
-        document.positionAt(0),
-        document.positionAt(document.getText().length)
+    try {
+      const response = await axios.post(
+        "http://localhost:3000/refactor/solid",
+        {
+          path: mainFilePath,
+          rootDir: this.workspacePath
+        }
       );
-      edit.replace(document.uri, fullRange, responseData.refactoredCode);
-      await vscode.workspace.applyEdit(edit);
-      return "Code has been refactored.";
-    }
+      console.log(response)
 
-    return "No refactored code received.";
-  } catch (error: any) {
-    let errorMessage = "An error occurred during refactoring.";
+      const responseData = response.data.data;
+      console.log(responseData)
+      this.showRefactorDiffs(responseData);
 
-    if (error.response) {
-      errorMessage += ` Server responded with: ${error.response.status} - ${error.response.data}`;
-    } else if (error.request) {
-      errorMessage += " No response from the server. Is it running?";
-    } else {
-      errorMessage += ` ${error.message}`;
-    }
+      return responseData;
+    } catch (error: any) {
+      let errorMessage = "An error occurred during refactoring.";
 
-    return errorMessage;
-  }
-}
-async  refactorCouplingSmells(): Promise<string> {
-  const javaFiles = await vscode.workspace.findFiles("**/*.java");
-
-  if (javaFiles.length === 0) {
-    return "No Java files found in the workspace.";
-  }
-
-  const refactoredFiles: { [relativePath: string]: string } = {};
-  const fileContents: { [relativePath: string]: string } = {};
-  const workspaceFolder = vscode.workspace.workspaceFolders?.[0].uri.fsPath || "";
-
-  // Read and prepare files
-  for (const uri of javaFiles) {
-    const document = await vscode.workspace.openTextDocument(uri);
-    const content = document.getText();
-    const relativePath = vscode.workspace.asRelativePath(uri.fsPath);
-    fileContents[relativePath] = content;
-  }
-
-  try {
-    const response = await axios.post("http://localhost:3000/refactor/couplingsmells", {
-      projectRoot: workspaceFolder,
-      files: fileContents,
-    });
-
-    const data = response.data?.refactoredFiles;
-
-    if (!data || Object.keys(data).length === 0) {
-      return "No refactored files received.";
-    }
-
-    // Apply edits
-    const edit = new vscode.WorkspaceEdit();
-    for (const [relativePath, newContent] of Object.entries(data)) {
-  if (typeof newContent !== 'string') {
-    continue; // Skip if not a string
-  }
-
-  const absolutePath = vscode.Uri.file(path.join(workspaceFolder, relativePath));
-  const document = await vscode.workspace.openTextDocument(absolutePath);
-  const fullRange = new vscode.Range(
-    document.positionAt(0),
-    document.positionAt(document.getText().length)
-  );
-  edit.replace(document.uri, fullRange, newContent); // ✅ newContent is now string
-}
-
-    await vscode.workspace.applyEdit(edit);
-    return "All Java files have been refactored for coupling smells.";
-  } catch (error: any) {
-    let errorMessage = "An error occurred during coupling smell refactoring.";
-
-    if (error.response) {
-      errorMessage += ` Server responded with: ${error.response.status} - ${error.response.data}`;
-    } else if (error.request) {
-      errorMessage += " No response from the server. Is it running?";
-    } else {
-      errorMessage += ` ${error.message}`;
-    }
-
-    return errorMessage;
-  }
-}
-
-
-async undo(filePath: string): Promise<string> {
-  try {
-    const response = await axios.post("http://localhost:3000/refactor/undo", {
-      path: filePath,
-    });
-
-    const lastState = response.data.lastState;
-
-    if (!lastState || lastState.length === 0) {
-      vscode.window.showInformationMessage("No undo states found.");
-      return "No undo states found.";
-    }
-
-    for (const file of lastState) {
-      const uri = vscode.Uri.file(file.filePath);
-      let document: vscode.TextDocument;
-
-      try {
-        // Try opening the document
-        document = await vscode.workspace.openTextDocument(uri);
-      } catch (err) {
-        // If not found, create a new one with the content
-        const dirPath = vscode.Uri.file(require("path").dirname(file.filePath));
-        await vscode.workspace.fs.createDirectory(dirPath);
-
-        const encoder = new TextEncoder();
-        const fileContent = encoder.encode(file.content);
-        await vscode.workspace.fs.writeFile(uri, fileContent);
-
-        document = await vscode.workspace.openTextDocument(uri);
+      if (error.response) {
+        errorMessage += ` Server responded with: ${error.response.status} - ${error.response.data}`;
+      } else if (error.request) {
+        errorMessage += " No response from the server. Is it running?";
+      } else {
+        errorMessage += ` ${error.message}`;
       }
 
-      const editor = await vscode.window.showTextDocument(document, { preview: false });
+      return [];
+    }
+  }
 
-      const fullRange = new vscode.Range(
-        document.positionAt(0),
-        document.positionAt(document.getText().length)
-      );
+  async showRefactoringSuggestions(mainFilePath: string): Promise<string> {
+    return "suggestions";
+  }
 
-      await editor.edit(editBuilder => {
-        editBuilder.replace(fullRange, file.content);
+  async undo(mainFilePath: string, projectPath: string): Promise<string> {
+    try {
+      const response = await axios.post("http://localhost:3000/refactor/undo", {
+        path: mainFilePath,
+        project: projectPath,
       });
 
-      await document.save();
+      const lastState = response.data.lastState;
+
+      if (!lastState || lastState.length === 0) {
+        vscode.window.showInformationMessage("No undo states found.");
+        return "No undo states found.";
+      }
+
+      for (const file of lastState) {
+        const uri = vscode.Uri.file(file.filePath);
+        let document: vscode.TextDocument;
+
+        try {
+          // Try opening the document
+          document = await vscode.workspace.openTextDocument(uri);
+        } catch (err) {
+          // If not found, create a new one with the content
+          const dirPath = vscode.Uri.file(
+            require("path").dirname(file.filePath)
+          );
+          await vscode.workspace.fs.createDirectory(dirPath);
+
+          const encoder = new TextEncoder();
+          const fileContent = encoder.encode(file.content);
+          await vscode.workspace.fs.writeFile(uri, fileContent);
+
+          document = await vscode.workspace.openTextDocument(uri);
+        }
+
+        const editor = await vscode.window.showTextDocument(document, {
+          preview: false,
+        });
+
+        const fullRange = new vscode.Range(
+          document.positionAt(0),
+          document.positionAt(document.getText().length)
+        );
+
+        await editor.edit((editBuilder) => {
+          editBuilder.replace(fullRange, file.content);
+        });
+
+        await document.save();
+      }
+
+      vscode.window.showInformationMessage("Undo completed for all files.");
+      return "Undo completed for all files.";
+    } catch (error) {
+      vscode.window.showErrorMessage(`Undo failed: ${error}`);
+      return `Undo failed: ${error instanceof Error ? error.message : error}`;
+    }
+  }
+
+  async showRefactorDiffs(
+    refactoredFiles: { filePath: string; fileContent: string }[]
+  ) {
+    if (!providerRegistered) {
+      const provider = new RefactorContentProvider();
+      vscode.workspace.registerTextDocumentContentProvider(scheme, provider);
+      providerRegistered = true;
     }
 
-    vscode.window.showInformationMessage("Undo completed for all files.");
-    return "Undo completed for all files.";
-  } catch (error) {
-    vscode.window.showErrorMessage(`Undo failed: ${error}`);
-    return `Undo failed: ${error instanceof Error ? error.message : error}`;
+    let columnIndex = 2;
+    console.log("response", refactoredFiles)
+
+    for (const { filePath, fileContent: newContent } of refactoredFiles) {
+      try {
+        const oldUri = vscode.Uri.file(filePath);
+        const oldContent = (
+          await vscode.workspace.fs.readFile(oldUri)
+        ).toString();
+
+        if (oldContent === newContent) continue;
+        const originalUri = vscode.Uri.parse(
+          `${scheme}://${filePath}.original`
+        );
+        const basePath = pathToFileURL(filePath).pathname;
+        const refactoredUri = vscode.Uri.parse(
+          `${scheme}:${basePath}.refactored`
+        );
+
+        contentMap.set(originalUri.toString(), oldContent);
+        contentMap.set(refactoredUri.toString(), newContent);
+
+        const diffTitle = `Refactor Diff: ${path.basename(filePath)}`;
+        const viewColumn =
+          columnIndex > 2 ? vscode.ViewColumn.Active : columnIndex;
+
+        await vscode.commands.executeCommand(
+          "vscode.diff",
+          originalUri,
+          refactoredUri,
+          diffTitle,
+          { viewColumn, preserveFocus: true, preview: false }
+        );
+
+        columnIndex++;
+      } catch (err) {
+        vscode.window.showErrorMessage(
+          `Error showing diff for ${filePath}: ${err}`
+        );
+      }
+    }
   }
-}
 
+  async applyAllRefactorings(
+    refactoredFiles: { filePath: string; fileContent: string }[]
+  ) {
+    try {
+      for (const { filePath, fileContent } of refactoredFiles) {
+        const uri = vscode.Uri.file(filePath);
+        await vscode.workspace.fs.writeFile(
+          uri,
+          Buffer.from(fileContent, "utf8")
+        );
+      }
 
-///////////////////////////////////////////////////////
+      vscode.window.showInformationMessage(
+        "All refactorings applied successfully!"
+      );
+      await vscode.commands.executeCommand("workbench.action.closeAllEditors");
+    } catch (err) {
+      vscode.window.showErrorMessage(
+        `Failed to apply all refactorings: ${err}`
+      );
+    }
+  }
 }
 export default InputHandler;

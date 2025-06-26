@@ -42,11 +42,13 @@ const vscode = __importStar(require("vscode"));
 const codeaidSidebarProvider_1 = __importDefault(require("./UI/codeaidSidebarProvider"));
 const inputHandler_1 = __importDefault(require("./inputHandler"));
 const responseSidebarProvider_1 = __importDefault(require("./UI/responseSidebarProvider"));
-// 1 remove //
 function activate(context) {
     const provider = new codeaidSidebarProvider_1.default(context.extensionUri);
     const secProvider = new responseSidebarProvider_1.default(context.extensionUri);
     const inputHandler = new inputHandler_1.default();
+    let fileRefactoringsSO;
+    let lastMainFileDetectionS;
+    let lastMainFileDetectionC;
     const workspacePath = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
     if (workspacePath) {
         console.log("workspace exist");
@@ -63,7 +65,8 @@ function activate(context) {
             title = " Solid Detection for Project";
         else
             title = "Solid Detection for File";
-        secProvider.updateContent(res, title);
+        lastMainFileDetectionS = res.path;
+        secProvider.updateContent(res.message, title);
     }), vscode.commands.registerCommand("extension.detectCoupling", async (arg) => {
         const contextLabel = arg === "file" ? "File" : "Project";
         let res = await inputHandler.detectCoupling(arg);
@@ -72,38 +75,32 @@ function activate(context) {
             title = " Coupling Smells Detection for Project";
         else
             title = "Coupling Smells Detection for File";
+        lastMainFileDetectionC = res;
         secProvider.updateContent(res, title);
     }), vscode.commands.registerCommand("extension.plotDiagram", async (arg) => {
         let res = await inputHandler.plotDiagram(arg);
-        secProvider.updateContent(res, `Plotting ${arg} Diagram`);
-    }), 
-    // vscode.commands.registerCommand("extension.displayRate", async () => {
-    //   let res = await inputHandler.displayRate();
-    //   secProvider.updateContent(res, "Displaying Complexity Rate");
-    // }),
-    vscode.commands.registerCommand("extension.displayRate", async () => {
+        secProvider.updateContent(res, "Plotting ${arg} Diagram");
+    }), vscode.commands.registerCommand("extension.displayRate", async () => {
         const res = await inputHandler.displayRate();
         // If the backend returns a warning string instead of complexity info
-        if (res === "No active editor found." || res === "The file is empty. Nothing to analyze." || res === "No class exceeded the complexity threshold.") {
+        if (res === "No active editor found." ||
+            res === "The file is empty. Nothing to analyze." ||
+            res === "No class exceeded the complexity threshold.") {
             secProvider.updateContent(res, "Complexity Check");
         }
         else {
             secProvider.updateContent(res, "Displaying Complexity Rate");
         }
-    }), 
-    /////////////remove /////////////////////
-    vscode.commands.registerCommand("extension.refactorCode", async (path, content) => {
-        let res = await inputHandler.refactorCode(path, content);
-        secProvider.updateContent(res, "Refactor Result");
-    }), vscode.commands.registerCommand("extension.undo", async (path) => {
-        let res = await inputHandler.undo(path);
-        secProvider.updateContent(res, "Undo Done");
-    }), vscode.commands.registerCommand("extension.refactorCouplingSmells", async () => {
-        let res = await inputHandler.refactorCouplingSmells();
-        secProvider.updateContent(res, "Refactor Result");
-    }), 
-    ///////////////////////////////////
-    vscode.window.registerWebviewViewProvider(codeaidSidebarProvider_1.default.viewType, provider), vscode.window.registerWebviewViewProvider(responseSidebarProvider_1.default.viewType, secProvider));
+    }), vscode.commands.registerCommand("extension.handleRefactorRequest", async () => {
+        fileRefactoringsSO = await inputHandler.refactorSOViolations(lastMainFileDetectionS);
+    }), vscode.commands.registerCommand("extension.applyRefactoring", async () => {
+        await inputHandler.applyAllRefactorings(fileRefactoringsSO);
+    }), vscode.commands.registerCommand("extension.undo", async () => {
+        const res = await inputHandler.undo(lastMainFileDetectionS, workspacePath);
+    }), vscode.commands.registerCommand("extension.showRefactoringSuggestions", async () => {
+        const res = await inputHandler.showRefactoringSuggestions(lastMainFileDetectionS);
+        secProvider.updateContent(res, "Coupling smells refactoring suggestions");
+    }), vscode.window.registerWebviewViewProvider(codeaidSidebarProvider_1.default.viewType, provider), vscode.window.registerWebviewViewProvider(responseSidebarProvider_1.default.viewType, secProvider));
 }
 function deactivate() { }
 //# sourceMappingURL=extension.js.map

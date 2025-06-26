@@ -2,6 +2,7 @@ import RefactorAction from "./refactorAction.js";
 import getFileWithDependenciesChunked from "../fileManager/filePrepare.js";
 import project from "../Models/ProjectModel.js";
 import { readFile } from "fs/promises";
+
 import path from "path";
 
 
@@ -9,7 +10,7 @@ class refactorSolidViolationsAction extends RefactorAction {
 
   async refactorMethod(req) {
 
-    console.log("refactor method-----------------------------------------------------------------------")
+    console.log("refactor method---------------------------------------------------------------------")
     const filePath = req?.body?.path;
     const rootDir = req?.body?.rootDir;
     console.log("filePath", filePath)
@@ -55,29 +56,40 @@ class refactorSolidViolationsAction extends RefactorAction {
     // const fileViolations = projectDoc.solidViolations?.find(
     //   (v) => v.mainFilePath === filePath
     // );
-    const fileDoc = projectDoc.solidViolations[0];
-    for(const entry in reqData)
-    {
-      entry.violations = fileDoc.violations;
-    }
+    // const fileDoc = projectDoc.solidViolations[0];
+    // for(const entry in reqData)
+    // {
+    //   entry.violations = fileDoc.violations;
+    // }
     //reqData.violations =fileDoc.violations || [];
     // if (!fileDoc || !fileDoc.violations.length) {
     //   throw new Error(`No SOLID violations found for file ${filePath}`);
     // }
-
-    console.log("file doc ", fileDoc)
+    // let dependencies = [];
+    // for (const dep of reqData) {
+    //   for (const depFile of dep.dependencies) {
+    //     if (depFile.depFilePath) {
+    //       dependencies.push({ depFilePath: depFile.depFilePath , depFileContent: depFile.depFileContent});
+    //     }
+    //   }
+    // }
+    // console.log("file doc ", fileDoc)
     // ✅ Add violations to reqData (to match the RefactoringRequestData schema)
     console.log("request again",reqData)
     // console.log("request data for file path",reqData.mainFilePath)
     // console.log("request data for file content",reqData.mainFileContent)
-
+    let sentData = {
+      data: reqData, 
+      violations: projectDoc.solidViolations[0].violations,
+    };
+    console.log(sentData)
     // ✅ Send API request to refactor endpoint
     const response = await fetch("http://localhost:8000/refactor-solid", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(reqData),
+      body: JSON.stringify(sentData),
     });
 
     if (!response.ok) {
@@ -87,7 +99,11 @@ class refactorSolidViolationsAction extends RefactorAction {
     const result = await response.json();
     console.log("Refactoring result:", result);
 
-    return result;
+    // return result;
+    let formattedFiles =
+      await this.codeFormatter.formatJavaWithGoogleFormat(result.refactored_files);
+    console.log(formattedFiles)
+    return formattedFiles;
   }
 }
 

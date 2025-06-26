@@ -274,7 +274,6 @@ async function getFileWithDependenciesChunked(
         depFilePath: path.normalize(depPath),
         depFileContent: depContent,
       };
-
       if (current_chunk_tokens + depTokens > MAX_TOKENS) {
         promptChunks.push(chunk);
         chunk_id++;

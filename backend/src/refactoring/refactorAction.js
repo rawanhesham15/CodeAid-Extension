@@ -3,6 +3,7 @@ import FileManager from "../fileManager/fileManager.js";
 import project from "../Models/ProjectModel.js";
 import { readFile, stat } from "fs/promises";
 import path from "path";
+import CodeFormatter from './codeFormatter.js';
 
 class RefactorAction {
     constructor(fileManager) {
@@ -10,6 +11,7 @@ class RefactorAction {
             throw new Error("Can't instantiate an abstract class directly");
         }
         this.fileManager = fileManager || new FileManager();
+        this.codeFormatter = new CodeFormatter()
     }
 
     /**

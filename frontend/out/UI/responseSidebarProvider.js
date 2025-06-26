@@ -40,8 +40,15 @@ class ResponseSidebarProvider {
     _view;
     responses = [];
     responseCounter = 0;
+    isLoading = false;
+    loadingMessage = "";
     constructor(_extensionUri) {
         this._extensionUri = _extensionUri;
+    }
+    updateWebview() {
+        if (this._view) {
+            this._view.webview.html = this.buildContent();
+        }
     }
     buildContent() {
         if (this.responses.length === 0) {
@@ -66,23 +73,46 @@ class ResponseSidebarProvider {
         </body>
         </html>`;
         }
-        const undoEligibleTypes = ["Refactor Result"];
-        const refactorEligibleTypes = ["Coupling Smells Detection for File", "Solid Detection for File"];
-        // const lastEligibleResponse = this.responses.find((res) =>
-        //   refactorEligibleTypes.includes(res.responseType)
-        // );
+        const buttonLabel = {
+            show: "Show Refactored Code",
+            apply: "Apply Refactoring",
+            undo: "Undo Refactoring",
+        };
         const lastEligibleMap = {};
-        [...this.responses].forEach((res) => {
-            if (refactorEligibleTypes.includes(res.responseType) &&
+        for (const res of this.responses) {
+            if (res.responseType === "Solid Detection for File" &&
                 !(res.responseType in lastEligibleMap)) {
                 lastEligibleMap[res.responseType] = res.id;
             }
-        });
+            if (res.responseType === "Coupling Smells Detection for File" &&
+                !(res.responseType in lastEligibleMap)) {
+                lastEligibleMap[res.responseType] = res.id;
+            }
+        }
         const responseContent = this.responses
             .map((res) => {
-            const showRefactor = refactorEligibleTypes.includes(res.responseType) &&
+            const showRefactor = res.responseType === "Solid Detection for File" &&
                 lastEligibleMap[res.responseType] === res.id;
-            const showUndo = undoEligibleTypes.includes(res.responseType);
+            let buttonHtml = "";
+            if (res.responseType === "Solid Detection for File" &&
+                showRefactor &&
+                res.refactorState) {
+                buttonHtml = `<button onclick="handleRefactor('${res.id}')"
+                style="cursor: ${res.buttonDisabled || this.isLoading
+                    ? "not-allowed"
+                    : "pointer"};"
+                ${res.buttonDisabled || this.isLoading ? "disabled" : ""}>
+                ${buttonLabel[res.refactorState]}
+              </button>`;
+            }
+            else if (res.responseType === "Coupling Smells Detection for File" &&
+                !res.suggestionsVisible &&
+                lastEligibleMap[res.responseType] === res.id) {
+                buttonHtml = `<button onclick="handleSuggestion('${res.id}')"
+                style="cursor: pointer;">
+                Show Suggested Refactorings
+              </button>`;
+            }
             return `
         <div id="response-${res.id}" style="
           background-color: rgb(30, 30, 30);
@@ -94,7 +124,7 @@ class ResponseSidebarProvider {
           font-size: 14px;
           align-items: center;">
             <div style="display: flex; justify-content: space-between; align-items: center;">
-              <p style="font-size: 17px; font-weight: 500;color: #007f89">${res.responseType}</p>
+              <p style="font-size: 17px; font-weight: 500;color: #178cad">${res.responseType}</p>
               <div>
                 <i onclick="deleteResponse(${res.id})" style="cursor: pointer;">
                   <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0,0,256,256">
@@ -107,30 +137,10 @@ class ResponseSidebarProvider {
             </div>
           <div style="margin-top:0px; padding-top:0px">
             <p>${res.content}</p>
-            <small style="color: gray;">${res.timestamp}</small>
-            ${showRefactor
-                ? `<button class="refactor-btn" onclick="refactorResponse()" style="
-                    margin-top: 10px;
-                    padding: 5px 10px;
-                    background-color: ${res.refactorDisabled ? '#6c757d' : '#007f89'};
-                    color: white;
-                    border: none;
-                    border-radius: 4px;
-                    cursor: ${res.refactorDisabled ? 'not-allowed' : 'pointer'};"
-                    ${res.refactorDisabled ? 'disabled' : ''}>${res.refactorDisabled ? 'Refactored' : 'Refactor'}</button>`
-                : ""}
-            ${showUndo
-                ? `<button class="undo-btn" onclick="undoResponse()" style="
-                    margin-top: 10px;
-                    margin-left: 10px;
-                    padding: 5px 10px;
-                    background-color: ${res.undoDisabled ? '#6c757d' : '#007f89'};
-                    color: white;
-                    border: none;
-                    border-radius: 4px;
-                    cursor: ${res.undoDisabled ? 'not-allowed' : 'pointer'};"
-                    ${res.undoDisabled ? 'disabled' : ''}>${res.undoDisabled ? 'Undone' : 'Undo'}</button>`
-                : ""}
+            <div style="display: flex;justify-content: space-between;">
+              <small style="color: gray;">${res.timestamp}</small>
+              ${buttonHtml}
+            </div>
           </div>   
         </div>`;
         })
@@ -148,11 +158,47 @@ class ResponseSidebarProvider {
             color: white;
             padding: 20px;
           }
+          button {
+            font-family: "Outfit", serif;
+            background-color: #178cad;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            cursor: pointer;
+            border-radius: 4px;
+            margin-top: 5px;
+            transition: 0.5s;
+          }
+          button:hover:enabled {
+            background-color: transparent;
+            border: 1px solid #178cad;
+            color: #178cad;
+            transition: 0.5s;
+          }
         </style>
       </head>
       <body>
         <h2 style="text-align: center;">CodeAid Responses Panel</h2>
         ${responseContent}
+
+        ${this.isLoading
+            ? `
+          <div id="loading-overlay" style="
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.75);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            color: white;
+            font-size: 18px;
+            font-weight: bold;">
+            ${this.loadingMessage}
+          </div>`
+            : ""}
+
         <script>
           const vscode = acquireVsCodeApi();
 
@@ -160,14 +206,13 @@ class ResponseSidebarProvider {
             vscode.postMessage({ command: 'deleteResponse', id: id });
           }
 
-          function refactorResponse() {
-            vscode.postMessage({ command: 'refactorResponse' });
+          function handleRefactor(id) {
+            vscode.postMessage({ command: 'handleRefactor', id: parseInt(id) });
           }
 
-          function undoResponse() {
-            vscode.postMessage({ command: 'undoResponse' });
+          function handleSuggestion(id) {
+            vscode.postMessage({ command: 'handleSuggestion', id: parseInt(id) });
           }
-
         </script>
       </body>
       </html>`;
@@ -177,82 +222,92 @@ class ResponseSidebarProvider {
         webviewView.webview.options = {
             enableScripts: true,
         };
-        webviewView.webview.html = this.buildContent();
-        // 🟢 Listen to messages from the webview
+        this.updateWebview();
         webviewView.webview.onDidReceiveMessage((message) => {
             if (message.command === "deleteResponse") {
                 this.deleteResponse(message.id);
             }
-            else if (message.command === "refactorResponse") {
-                const lastRefactorable = this.responses.find((r) => r.responseType === "Solid Detection for File" ||
-                    r.responseType === "Coupling Smells Detection for File");
-                if (lastRefactorable) {
-                    lastRefactorable.refactorDisabled = true;
-                    const editor = vscode.window.activeTextEditor;
-                    if (!editor) {
-                        vscode.window.showErrorMessage("No active editor found.");
-                        return;
-                    }
-                    const path = editor.document.uri.fsPath;
-                    const content = editor.document.getText();
-                    if (lastRefactorable.responseType === "Solid Detection for File") {
-                        vscode.commands.executeCommand("extension.refactorCode", path, content);
-                    }
-                    else if (lastRefactorable.responseType === "Coupling Smells Detection for File") {
-                        vscode.commands.executeCommand("extension.refactorCouplingSmells");
-                    }
-                    if (this._view) {
-                        this._view.webview.html = this.buildContent();
-                    }
-                }
-            }
-            else if (message.command === "undoResponse") {
-                const lastUndoable = this.responses.find((r) => r.responseType === "Refactor Result");
-                if (lastUndoable) {
-                    lastUndoable.undoDisabled = true;
-                }
-                const editor = vscode.window.activeTextEditor;
-                if (!editor) {
-                    vscode.window.showErrorMessage("No active editor found.");
+            else if (message.command === "handleRefactor") {
+                const res = this.responses.find((r) => r.id === message.id);
+                if (!res)
                     return;
+                this.isLoading = true;
+                if (res.refactorState === "show") {
+                    this.loadingMessage = "Preparing refactored files...";
+                    this.updateWebview();
+                    vscode.commands
+                        .executeCommand("extension.handleRefactorRequest")
+                        .then(() => {
+                        res.refactorState = "apply";
+                        this.responses.forEach((r) => {
+                            if (r.responseType === res.responseType) {
+                                r.buttonDisabled = r.id !== res.id;
+                            }
+                        });
+                        this.isLoading = false;
+                        this.updateWebview();
+                    });
                 }
-                const path = editor.document.uri.fsPath;
-                vscode.commands.executeCommand("extension.undo", path);
-                if (this._view) {
-                    this._view.webview.html = this.buildContent();
+                else if (res.refactorState === "apply") {
+                    this.loadingMessage = "Applying refactoring...";
+                    this.updateWebview();
+                    vscode.commands
+                        .executeCommand("extension.applyRefactoring")
+                        .then(() => {
+                        res.refactorState = "undo";
+                        this.isLoading = false;
+                        this.updateWebview();
+                    });
+                }
+                else if (res.refactorState === "undo") {
+                    this.loadingMessage = "Undoing changes...";
+                    this.updateWebview();
+                    vscode.commands.executeCommand("extension.undo").then(() => {
+                        res.refactorState = undefined;
+                        this.isLoading = false;
+                        this.updateWebview();
+                    });
                 }
             }
-        });
-        // 🟢 Listen for text changes and disable refactor
-        vscode.workspace.onDidChangeTextDocument((event) => {
-            const lastRefactorable = this.responses.find((r) => (r.responseType === "Solid Detection for File" ||
-                r.responseType === "Coupling Smells Detection for File") &&
-                !r.refactorDisabled);
-            if (lastRefactorable) {
-                lastRefactorable.refactorDisabled = true;
-                if (this._view) {
-                    this._view.webview.html = this.buildContent();
-                }
+            else if (message.command === "handleSuggestion") {
+                const res = this.responses.find((r) => r.id === message.id);
+                if (!res)
+                    return;
+                vscode.commands
+                    .executeCommand("extension.showRefactoringSuggestions")
+                    .then(() => {
+                    res.suggestionsVisible = true;
+                    this.isLoading = false;
+                    this.updateWebview();
+                });
             }
         });
     }
     updateContent(newContent, responseType) {
         const timestamp = new Date().toLocaleTimeString();
+        const ignoredMessages = [
+            "No workspace folder is open",
+            "No active editor found.",
+            "The file is empty. Nothing to analyze.",
+            "No design flaws found.",
+        ];
+        const hasValidContent = !ignoredMessages.includes(newContent.trim());
         this.responses.unshift({
             id: this.responseCounter++,
             content: newContent,
-            timestamp: timestamp,
-            responseType: responseType,
+            timestamp,
+            responseType,
+            refactorState: responseType === "Solid Detection for File" && hasValidContent
+                ? "show"
+                : undefined,
+            buttonDisabled: false,
+            suggestionsVisible: false,
         });
-        if (this._view) {
-            this._view.webview.html = this.buildContent();
-        }
+        this.updateWebview();
     }
     deleteResponse(id) {
         this.responses = this.responses.filter((res) => res.id !== id);
-        if (this._view) {
-            this._view.webview.html = this.buildContent();
-        }
+        this.updateWebview();
     }
 }
 exports.default = ResponseSidebarProvider;
