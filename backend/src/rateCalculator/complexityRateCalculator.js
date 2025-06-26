@@ -9,7 +9,8 @@ export const runPMDOnFile = (filePath) => {
     const fileListPath = path.join(process.cwd(), "temp-file-list.txt");
     fs.writeFileSync(fileListPath, filePath);
 
-    const command = `"E:/GitHub/CodeAid-Extension/backend/pmd-bin-7.10.0/bin/pmd.bat" check --file-list "${fileListPath}" -R category/java/design.xml/CyclomaticComplexity -f json -r "${outputPath}"`;
+    //const command = `"E:/GitHub/CodeAid-Extension/backend/pmd-bin-7.10.0/bin/pmd.bat" check --file-list "${fileListPath}" -R category/java/design.xml/CyclomaticComplexity -f json -r "${outputPath}"`;
+    const command = `"pmd-bin-7.10.0/bin/pmd.bat" check --file-list "${fileListPath}" -R category/java/design.xml/CyclomaticComplexity -f json -r "${outputPath}"`;
 
     try {
       execSync(command, { stdio: "inherit" });
