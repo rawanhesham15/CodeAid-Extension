@@ -3,12 +3,13 @@ import RefactorStorage from "../refactoring/refactorStorage.js"; // Capitalized,
 import path from "path";
 import fs from "fs/promises";
 import refactorSolidViolationsAction from "../refactoring/refactorSolidViolationsActoin.js";
+import FileRefactorCoupling from "../refactoring/refactorCouplingAction.js";
 const RefactorRouter = Router();
 
 // ✅ Instantiate the class
 const store = new RefactorStorage();
 const refactorSolid = new refactorSolidViolationsAction();
-
+const refactorCoupling = new FileRefactorCoupling();
 // RefactorRouter.post("/solid", async (req, res) => {
 //   const { path, content } = req.body;
 
@@ -53,57 +54,56 @@ RefactorRouter.post("/undo", async (req, res) => {
   }
 });
 
-function refactorCouplingCode(code) {
-  // Apply your coupling smell refactoring logic here
-  return code.replace(/System\.out\.println/g, "// Refactored println");
-}
+
 
 RefactorRouter.post("/couplingsmells", async (req, res) => {
-  const { projectRoot, files } = req.body;
+  const { rootDir } = req.body;
 
-  if (!projectRoot || !files) {
+  if (!rootDir) {
     return res.status(400).json({ error: "Missing projectRoot or files" });
   }
+    const response = await refactorCoupling.refactorMethod(req);
+    res.json({ message: "All project files saved before solid refactor", data: response });
 
-  try {
-    const refactoredFiles = {};
-    const processedPaths = new Set();
+  //try {
+    // const refactoredFiles = {};
+    // const processedPaths = new Set();
 
-    const filePaths = Object.keys(files);
-    console.log("Received file paths:", filePaths);
+    // const filePaths = Object.keys(files);
+    // console.log("Received file paths:", filePaths);
 
-    for (const [rawPath, content] of Object.entries(files)) {
-      // Normalize path
-      const relativePath = rawPath.replace(/\\/g, "/");
+    // for (const [rawPath, content] of Object.entries(files)) {
+    //   // Normalize path
+    //   const relativePath = rawPath.replace(/\\/g, "/");
 
-      // Avoid processing the same file twice
-      if (processedPaths.has(relativePath)) {
-        console.log(`Skipping duplicate file: ${relativePath}`);
-        continue;
-      }
-      processedPaths.add(relativePath);
+    //   // Avoid processing the same file twice
+    //   if (processedPaths.has(relativePath)) {
+    //     console.log(`Skipping duplicate file: ${relativePath}`);
+    //     continue;
+    //   }
+    //   processedPaths.add(relativePath);
 
-      console.log("Processing file:", relativePath);
+    //   console.log("Processing file:", relativePath);
 
-      // Placeholder for actual refactoring logic
-      const refactoredCode = content;
+    //   // Placeholder for actual refactoring logic
+    //   const refactoredCode = content;
 
-      const fullPath = path.join(projectRoot, relativePath);
-      console.log("Saving to:", fullPath);
+    //   const fullPath = path.join(projectRoot, relativePath);
+    //   console.log("Saving to:", fullPath);
 
-      // Save refactored code
-      await store.save(fullPath, refactoredCode);
-      refactoredFiles[relativePath] = refactoredCode;
-    }
+    //   // Save refactored code
+    //   await store.save(fullPath, refactoredCode);
+    //   refactoredFiles[relativePath] = refactoredCode;
+    //}
 
-    res.json({
-      message: "Coupling smells refactored and saved.",
-      refactoredFiles,
-    });
-  } catch (err) {
-    console.error("Error during coupling smell refactoring:", err);
-    res.status(500).json({ error: err.message });
-  }
+  //   res.json({
+  //     message: "Coupling smells refactored and saved.",
+  //     refactoredFiles,
+  //   });
+  // } catch (err) {
+  //   console.error("Error during coupling smell refactoring:", err);
+  //   res.status(500).json({ error: err.message });
+  // }
 });
 
 export default RefactorRouter;

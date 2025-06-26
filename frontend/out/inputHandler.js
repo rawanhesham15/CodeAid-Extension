@@ -312,7 +312,21 @@ class InputHandler {
         }
     }
     async showRefactoringSuggestions(mainFilePath) {
-        return "suggestions";
+        let response;
+        try {
+            response = await axios_1.default.post("http://localhost:3000/refactor/couplingsmells", {
+                rootDir: this.workspacePath
+            });
+            // Safely extract and convert the response to string
+            console.log("Response:", response);
+            const data = response?.data;
+            console.log("Response data:", data);
+            return typeof data === "string" ? data : JSON.stringify(data, null, 2);
+        }
+        catch (error) {
+            console.error("Error fetching suggestions:", error.message);
+            return "Error fetching refactoring suggestions.";
+        }
     }
     async undo(mainFilePath, projectPath) {
         try {
