@@ -119,12 +119,11 @@ class RefactorStorage {
         }
       }
 
-      // 🛠️ Restore saved content from lastState
       for (const file of lastState.filePathsLastState || []) {
         const uri = path.resolve(file.filePath);
         const dir = path.dirname(uri);
         try {
-          await fs.mkdir(dir, { recursive: true }); // Ensure directory exists
+          await fs.mkdir(dir, { recursive: true });
           await fs.writeFile(uri, file.content, "utf-8");
           console.log(`Restored file: ${uri}`);
         } catch (error) {

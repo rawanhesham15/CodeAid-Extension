@@ -67,7 +67,6 @@ class CodeAidSidebarProvider {
                 case "displayRate":
                     vscode.commands.executeCommand("extension.displayRate");
                     break;
-                // to remove // 
                 case "refactorCode": {
                     const editor = vscode.window.activeTextEditor;
                     if (!editor) {
@@ -79,21 +78,19 @@ class CodeAidSidebarProvider {
                     vscode.commands.executeCommand("extension.refactorCode", currentPath, currentContent);
                     break;
                 }
-                case "undo":
-                    {
-                        const editor = vscode.window.activeTextEditor;
-                        if (!editor) {
-                            vscode.window.showErrorMessage("No active editor found.");
-                            return;
-                        }
-                        const currentPath = editor.document.uri.fsPath;
-                        vscode.commands.executeCommand("extension.undo", currentPath);
-                        break;
+                case "undo": {
+                    const editor = vscode.window.activeTextEditor;
+                    if (!editor) {
+                        vscode.window.showErrorMessage("No active editor found.");
+                        return;
                     }
+                    const currentPath = editor.document.uri.fsPath;
+                    vscode.commands.executeCommand("extension.undo", currentPath);
+                    break;
+                }
                 case "refactorCouplingSmells":
                     vscode.commands.executeCommand("extension.refactorCouplingSmells");
             }
-            ///////////////////////////////////////////////
         });
     }
     _getHtmlForWebview() {
@@ -106,12 +103,10 @@ class CodeAidSidebarProvider {
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>CodeAid</title>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&display=swap" rel="stylesheet" />
         <style>
           body {
-            font-family: "Outfit", serif;
+            font-family: "Outfit", sans-serif;
             padding: 10px;
             background-color: rgb(18, 18, 18);
             color: #e1e1e6;
@@ -132,13 +127,9 @@ class CodeAidSidebarProvider {
             margin-bottom: 15px;
             margin-left: 35px;
           }
-          label {
-            margin-right: 10px;
-            color: #e1e1e6;
-          }
           button {
-            font-family: "Outfit", serif;
-            background-color: #178cad;
+            font-family: "Outfit", sans-serif;
+            background-color: #12738e;
             color: white;
             border: none;
             padding: 8px 16px;
@@ -150,13 +141,9 @@ class CodeAidSidebarProvider {
           }
           button:hover {
             background-color: transparent;
-            border: 1px solid #178cad;
-            color: #178cad;
+            border: 1px solid #12738e;
+            color: #12738e;
             transition: 0.5s;
-          }
-          #result {
-            margin-top: 10px;
-            font-weight: bold;
           }
           .btn-container {
             display: flex;
@@ -167,42 +154,44 @@ class CodeAidSidebarProvider {
             align-items: center;
             justify-content: space-between;
           }
-          .custom-select {
+
+          /* Custom dropdown */
+          .dropdown {
             position: relative;
-          }
-          .custom-select select {
-            font-family: "Outfit", sans-serif;
-            box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.5);
-            appearance: none;
             width: 130px;
-            font-size: 15px;
-            padding: 7px 10px;
-            border: 1px solid #393939;
-            border-radius: 0.25rem;
+            user-select: none;
+            font-family: "Outfit", sans-serif;
+          }
+
+          .dropdown-selected {
             background-color: #000;
+            border: 1px solid #393939;
+            color: #fff;
+            padding: 7px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.5);
+          }
+
+          .dropdown-options {
+            display: none;
+            position: absolute;
+            background-color: #000;
+            border: 1px solid #393939;
+            border-top: none;
+            width: 100%;
+            z-index: 10;
+            border-radius: 0 0 4px 4px;
+          }
+
+          .dropdown-option {
+            padding: 7px 10px;
             color: #fff;
             cursor: pointer;
           }
-          .custom-select::before,
-          .custom-select::after {
-            --size: 0.3rem;
-            position: absolute;
-            content: "";
-            right: 1rem;
-            pointer-events: none;
-          }
-          .custom-select::before {
-            border-left: var(--size) solid transparent;
-            border-right: var(--size) solid transparent;
-            border-bottom: var(--size) solid whitesmoke;
-            top: 28%;
-            margin-top: 2px;
-          }
-          .custom-select::after {
-            border-left: var(--size) solid transparent;
-            border-right: var(--size) solid transparent;
-            border-top: var(--size) solid whitesmoke;
-            top: 55%;
+
+          .dropdown-option:hover {
+            background-color: #12738e;
           }
         </style>
       </head>
@@ -215,11 +204,12 @@ class CodeAidSidebarProvider {
         <div class="section">
           <div class="flex-wrapper">
             <h3>SOLID Detection</h3>
-            <div class="custom-select">
-              <select id="solidSelect">
-                <option value="project">Project</option>
-                <option value="file">File</option>
-              </select>
+            <div class="dropdown" data-id="solidSelect">
+              <div class="dropdown-selected" data-value="project">Project</div>
+              <div class="dropdown-options">
+                <div class="dropdown-option" data-value="project">Project</div>
+                <div class="dropdown-option" data-value="file">File</div>
+              </div>
             </div>
           </div>
           <div class="btn-container">
@@ -229,12 +219,13 @@ class CodeAidSidebarProvider {
 
         <div class="section">
           <div class="flex-wrapper">
-          <h3>Coupling smells <br> Detection</h3>
-              <div class="custom-select">
-                <select id="couplingSelect">
-                  <option value="project">Project</option>
-                  <option value="file">File</option>
-                </select>
+            <h3>Coupling smells <br> Detection</h3>
+            <div class="dropdown" data-id="couplingSelect">
+              <div class="dropdown-selected" data-value="project">Project</div>
+              <div class="dropdown-options">
+                <div class="dropdown-option" data-value="project">Project</div>
+                <div class="dropdown-option" data-value="file">File</div>
+              </div>
             </div>
           </div>
           <div class="btn-container">
@@ -245,12 +236,13 @@ class CodeAidSidebarProvider {
         <div class="section">
           <div class="flex-wrapper">
             <h3>Plot Diagrams</h3>
-            <div class="custom-select">
-              <select id="diagramSelect">
-                <option value="class">Class</option>
-                <option value="dependency">Dependency</option>
-                <option value="component">Component</option>
-              </select>
+            <div class="dropdown" data-id="diagramSelect">
+              <div class="dropdown-selected" data-value="class">Class</div>
+              <div class="dropdown-options">
+                <div class="dropdown-option" data-value="class">Class</div>
+                <div class="dropdown-option" data-value="dependency">Dependency</div>
+                <div class="dropdown-option" data-value="component">Component</div>
+              </div>
             </div>
           </div>
           <div class="btn-container">
@@ -264,21 +256,53 @@ class CodeAidSidebarProvider {
             <button id="displayRateBtn">Display</button>
           </div>
         </div>
+
         <script>
           const vscode = acquireVsCodeApi();
 
+          function setupDropdowns() {
+            document.querySelectorAll(".dropdown").forEach(dropdown => {
+              const selected = dropdown.querySelector(".dropdown-selected");
+              const options = dropdown.querySelector(".dropdown-options");
+
+              selected.addEventListener("click", () => {
+                options.style.display = options.style.display === "block" ? "none" : "block";
+              });
+
+              options.querySelectorAll(".dropdown-option").forEach(option => {
+                option.addEventListener("click", () => {
+                  selected.textContent = option.textContent;
+                  selected.setAttribute("data-value", option.getAttribute("data-value"));
+                  options.style.display = "none";
+                });
+              });
+
+              window.addEventListener("click", (e) => {
+                if (!dropdown.contains(e.target)) {
+                  options.style.display = "none";
+                }
+              });
+            });
+          }
+
+          function getDropdownValue(id) {
+            return document.querySelector(\`.dropdown[data-id="\${id}"] .dropdown-selected\`).getAttribute("data-value");
+          }
+
+          setupDropdowns();
+
           document.getElementById("detectSolid").addEventListener("click", () => {
-            const solidContext = document.getElementById("solidSelect").value;
+            const solidContext = getDropdownValue("solidSelect");
             vscode.postMessage({ command: "detectSolid", context: solidContext });
           });
 
           document.getElementById("detectCoupling").addEventListener("click", () => {
-            const couplingContext = document.getElementById("couplingSelect").value;
+            const couplingContext = getDropdownValue("couplingSelect");
             vscode.postMessage({ command: "detectCoupling", context: couplingContext });
           });
 
           document.getElementById("plotDiagram").addEventListener("click", () => {
-            const diagram = document.getElementById("diagramSelect").value;
+            const diagram = getDropdownValue("diagramSelect");
             vscode.postMessage({ command: "plotDiagram", diagram });
           });
 

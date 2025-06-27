@@ -142,7 +142,7 @@ class ProjectCOUPLINGViolationDetection extends DetectionAction {
         continue;
       }
     }
-    return this.formatViolationsAsString(allViolations);
+    return allViolations;
   }
 
   // async saveViolations(violations, projectId) {

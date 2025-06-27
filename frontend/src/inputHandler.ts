@@ -2,6 +2,7 @@ import * as vscode from "vscode";
 import axios, { get } from "axios";
 import * as path from "path";
 import { pathToFileURL } from "url";
+import { read } from "fs";
 
 const scheme = "refactor";
 export const contentMap = new Map<string, string>();
@@ -38,7 +39,7 @@ class InputHandler {
 
   async detectSOLID(
     context: string
-  ): Promise<{ message: string; path: string }> {
+  ): Promise<{ message: any; path: string }> {
     let path: string = "";
     let rootDir: string = this.workspacePath;
 
@@ -46,7 +47,7 @@ class InputHandler {
     if (workspaceFolders && workspaceFolders.length > 0) {
       rootDir = workspaceFolders[0].uri.fsPath;
     }
-    
+
     if (context === "project") {
       if (!rootDir) return { message: "No workspace folder is open", path: "" };
       path = rootDir;
@@ -74,10 +75,9 @@ class InputHandler {
       if (responseData && responseData.message) {
         return { message: responseData.message, path: path };
       }
-      return { message: "", path: path };
+      return { message: "No response returned", path: path };
     } catch (error: any) {
       let errorMessage = "An error occurred while analyzing.";
-
       if (error.response) {
         errorMessage += ` Server responded with: ${error.response.status} - ${error.response.data}`;
       } else if (error.request) {
@@ -89,7 +89,7 @@ class InputHandler {
     }
   }
 
-  async detectCoupling(context: string): Promise<string> {
+  async detectCoupling(context: string): Promise<any> {
     let path: String = "";
     if (context === "project") {
       if (this.workspacePath === "") return "No workspace folder is open";
@@ -278,13 +278,13 @@ class InputHandler {
         "http://localhost:3000/refactor/solid",
         {
           path: mainFilePath,
-          rootDir: this.workspacePath
+          rootDir: this.workspacePath,
         }
       );
-      console.log(response)
+      console.log(response);
 
       const responseData = response.data.data;
-      console.log(responseData)
+      console.log(responseData);
       this.showRefactorDiffs(responseData);
 
       return responseData;
@@ -303,144 +303,136 @@ class InputHandler {
     }
   }
 
-async showRefactoringSuggestions(mainFilePath: string): Promise<string> {
-  let response;
+  async showRefactoringSuggestions(): Promise<any> {
+    let response;
 
-  try {
-    response = await axios.post("http://localhost:3000/refactor/couplingsmells", {
-      rootDir: this.workspacePath
-    });
-
-    // Safely extract and convert the response to string
-    console.log("Response:", response);
-    const data = response?.data;
-    console.log("Response data:", data);
-    return typeof data === "string" ? data : JSON.stringify(data, null, 2);
-  } catch (error: any) {
-    console.error("Error fetching suggestions:", error.message);
-    return "Error fetching refactoring suggestions.";
-  }
-}
-
-  async undo(mainFilePath: string, projectPath: string): Promise<string> {
     try {
-      const response = await axios.post("http://localhost:3000/refactor/undo", {
-        path: mainFilePath,
-        project: projectPath,
-      });
-
-      const lastState = response.data.lastState;
-
-      if (!lastState || lastState.length === 0) {
-        vscode.window.showInformationMessage("No undo states found.");
-        return "No undo states found.";
-      }
-
-      for (const file of lastState) {
-        const uri = vscode.Uri.file(file.filePath);
-        let document: vscode.TextDocument;
-
-        try {
-          // Try opening the document
-          document = await vscode.workspace.openTextDocument(uri);
-        } catch (err) {
-          // If not found, create a new one with the content
-          const dirPath = vscode.Uri.file(
-            require("path").dirname(file.filePath)
-          );
-          await vscode.workspace.fs.createDirectory(dirPath);
-
-          const encoder = new TextEncoder();
-          const fileContent = encoder.encode(file.content);
-          await vscode.workspace.fs.writeFile(uri, fileContent);
-
-          document = await vscode.workspace.openTextDocument(uri);
+      response = await axios.post(
+        "http://localhost:3000/refactor/couplingsmells",
+        {
+          rootDir: this.workspacePath,
         }
-
-        const editor = await vscode.window.showTextDocument(document, {
-          preview: false,
-        });
-
-        const fullRange = new vscode.Range(
-          document.positionAt(0),
-          document.positionAt(document.getText().length)
-        );
-
-        await editor.edit((editBuilder) => {
-          editBuilder.replace(fullRange, file.content);
-        });
-
-        await document.save();
-      }
-
-      vscode.window.showInformationMessage("Undo completed for all files.");
-      return "Undo completed for all files.";
-    } catch (error) {
-      vscode.window.showErrorMessage(`Undo failed: ${error}`);
-      return `Undo failed: ${error instanceof Error ? error.message : error}`;
-    }
-  }
-
-async showRefactorDiffs(
-  refactoredFiles: { filePath: string; fileContent: string }[]
-) {
-  if (!providerRegistered) {
-    const provider = new RefactorContentProvider();
-    vscode.workspace.registerTextDocumentContentProvider(scheme, provider);
-    providerRegistered = true;
-  }
-
-  let columnIndex = 2;
-  console.log("response", refactoredFiles);
-
-  for (const { filePath, fileContent: newContent } of refactoredFiles) {
-    try {
-      const oldUri = vscode.Uri.file(filePath);
-
-      // Try to read the old content; if file doesn't exist, create it empty
-      let oldContent: string;
-      try {
-        const buffer = await vscode.workspace.fs.readFile(oldUri);
-        oldContent = buffer.toString();
-      } catch (err: any) {
-        if (err.code === "FileNotFound" || err.name === "FileNotFound") {
-          // Create empty file
-          await vscode.workspace.fs.writeFile(oldUri, new Uint8Array());
-          oldContent = "";
-        } else {
-          throw err;
-        }
-      }
-
-      // Skip diff if no change
-      if (oldContent === newContent) continue;
-
-      // Build custom scheme URIs
-      const originalUri = vscode.Uri.parse(`${scheme}://${filePath}.original`);
-      const basePath = pathToFileURL(filePath).pathname;
-      const refactoredUri = vscode.Uri.parse(`${scheme}:${basePath}.refactored`);
-
-      // Register content
-      contentMap.set(originalUri.toString(), oldContent);
-      contentMap.set(refactoredUri.toString(), newContent);
-
-      const diffTitle = `Refactor Diff: ${path.basename(filePath)}`;
-      const viewColumn = columnIndex > 2 ? vscode.ViewColumn.Active : columnIndex;
-
-      await vscode.commands.executeCommand(
-        "vscode.diff",
-        originalUri,
-        refactoredUri,
-        diffTitle,
-        { viewColumn, preserveFocus: true, preview: false }
       );
 
-      columnIndex++;
-    } catch (err) {
-      vscode.window.showErrorMessage(`Error showing diff for ${filePath}: ${err}`);
+      console.log("Response:", response);
+      const data = response?.data?.data?.suggestions;
+      console.log("Response data:", data);
+      return data;
+    } catch (error: any) {
+      console.error("Error fetching suggestions:", error.message);
+      return "Error fetching refactoring suggestions.";
     }
   }
+
+  async undo(mainFilePath: string, projectPath: string): Promise<string> {
+  try {
+    const response = await axios.post("http://localhost:3000/refactor/undo", {
+      path: mainFilePath,
+      project: projectPath,
+    });
+
+    const lastState = response.data.lastState;
+
+    if (!lastState || lastState.length === 0) {
+      vscode.window.showInformationMessage("No undo states found.");
+      return "No undo states found.";
+    }
+
+    for (const file of lastState) {
+      const uri = vscode.Uri.file(file.filePath);
+
+      try {
+        // Ensure directory exists
+        const dirPath = vscode.Uri.file(require("path").dirname(file.filePath));
+        await vscode.workspace.fs.createDirectory(dirPath);
+
+        // Write new content directly
+        const encoder = new TextEncoder();
+        const contentBytes = encoder.encode(file.content);
+        await vscode.workspace.fs.writeFile(uri, contentBytes);
+
+      } catch (err) {
+        vscode.window.showWarningMessage(`Failed to write file: ${file.filePath}`);
+        console.error(`Error writing file ${file.filePath}`, err);
+      }
+    }
+
+    vscode.window.showInformationMessage("Undo completed for all files.");
+    return "Undo completed for all files.";
+  } catch (error) {
+    vscode.window.showErrorMessage(`Undo failed: ${error}`);
+    return `Undo failed: ${error instanceof Error ? error.message : error}`;
+  }
 }
+
+
+  async showRefactorDiffs(
+    refactoredFiles: { filePath: string; fileContent: string }[]
+  ) {
+    console.log("recieved", refactoredFiles)
+    if (!providerRegistered) {
+      const provider = new RefactorContentProvider();
+      vscode.workspace.registerTextDocumentContentProvider(scheme, provider);
+      providerRegistered = true;
+    }
+
+    let columnIndex = 2;
+
+    for (const { filePath, fileContent: newContent } of refactoredFiles) {
+      try {
+        const oldUri = vscode.Uri.file(filePath);
+
+        // Try to read the old content; if file doesn't exist, create it empty
+        let oldContent: string;
+        try {
+          const buffer = await vscode.workspace.fs.readFile(oldUri);
+          oldContent = buffer.toString();
+        } catch (err: any) {
+          if (err.code === "FileNotFound" || err.name === "FileNotFound") {
+            // Create empty file
+            await vscode.workspace.fs.writeFile(oldUri, new Uint8Array());
+            oldContent = "";
+          } else {
+            throw err;
+          }
+        }
+
+        // Skip diff if no change
+        if (oldContent === newContent) continue;
+
+        // Build custom scheme URIs
+        const originalUri = vscode.Uri.parse(
+          `${scheme}://${filePath}.original`
+        );
+        const basePath = pathToFileURL(filePath).pathname;
+        const refactoredUri = vscode.Uri.parse(
+          `${scheme}:${basePath}.refactored`
+        );
+
+        // Register content
+        contentMap.set(originalUri.toString(), oldContent);
+        contentMap.set(refactoredUri.toString(), newContent);
+
+        const diffTitle = `Refactor Diff: ${path.basename(filePath)}`;
+        const viewColumn =
+          columnIndex > 2 ? vscode.ViewColumn.Active : columnIndex;
+
+        await vscode.commands.executeCommand(
+          "vscode.diff",
+          originalUri,
+          refactoredUri,
+          diffTitle,
+          { viewColumn, preserveFocus: true, preview: false }
+        );
+
+        columnIndex++;
+      } catch (err) {
+        vscode.window.showErrorMessage(
+          `Error showing diff for ${filePath}: ${err}`
+        );
+      }
+    }
+  }
 
   async applyAllRefactorings(
     refactoredFiles: { filePath: string; fileContent: string }[]

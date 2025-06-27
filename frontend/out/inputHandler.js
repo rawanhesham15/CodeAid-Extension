@@ -103,7 +103,7 @@ class InputHandler {
             if (responseData && responseData.message) {
                 return { message: responseData.message, path: path };
             }
-            return { message: "", path: path };
+            return { message: "No response returned", path: path };
         }
         catch (error) {
             let errorMessage = "An error occurred while analyzing.";
@@ -289,7 +289,7 @@ class InputHandler {
         try {
             const response = await axios_1.default.post("http://localhost:3000/refactor/solid", {
                 path: mainFilePath,
-                rootDir: this.workspacePath
+                rootDir: this.workspacePath,
             });
             console.log(response);
             const responseData = response.data.data;
@@ -311,17 +311,16 @@ class InputHandler {
             return [];
         }
     }
-    async showRefactoringSuggestions(mainFilePath) {
+    async showRefactoringSuggestions() {
         let response;
         try {
             response = await axios_1.default.post("http://localhost:3000/refactor/couplingsmells", {
-                rootDir: this.workspacePath
+                rootDir: this.workspacePath,
             });
-            // Safely extract and convert the response to string
             console.log("Response:", response);
-            const data = response?.data;
+            const data = response?.data?.data?.suggestions;
             console.log("Response data:", data);
-            return typeof data === "string" ? data : JSON.stringify(data, null, 2);
+            return data;
         }
         catch (error) {
             console.error("Error fetching suggestions:", error.message);
@@ -341,28 +340,19 @@ class InputHandler {
             }
             for (const file of lastState) {
                 const uri = vscode.Uri.file(file.filePath);
-                let document;
                 try {
-                    // Try opening the document
-                    document = await vscode.workspace.openTextDocument(uri);
-                }
-                catch (err) {
-                    // If not found, create a new one with the content
+                    // Ensure directory exists
                     const dirPath = vscode.Uri.file(require("path").dirname(file.filePath));
                     await vscode.workspace.fs.createDirectory(dirPath);
+                    // Write new content directly
                     const encoder = new TextEncoder();
-                    const fileContent = encoder.encode(file.content);
-                    await vscode.workspace.fs.writeFile(uri, fileContent);
-                    document = await vscode.workspace.openTextDocument(uri);
+                    const contentBytes = encoder.encode(file.content);
+                    await vscode.workspace.fs.writeFile(uri, contentBytes);
                 }
-                const editor = await vscode.window.showTextDocument(document, {
-                    preview: false,
-                });
-                const fullRange = new vscode.Range(document.positionAt(0), document.positionAt(document.getText().length));
-                await editor.edit((editBuilder) => {
-                    editBuilder.replace(fullRange, file.content);
-                });
-                await document.save();
+                catch (err) {
+                    vscode.window.showWarningMessage(`Failed to write file: ${file.filePath}`);
+                    console.error(`Error writing file ${file.filePath}`, err);
+                }
             }
             vscode.window.showInformationMessage("Undo completed for all files.");
             return "Undo completed for all files.";
@@ -373,13 +363,13 @@ class InputHandler {
         }
     }
     async showRefactorDiffs(refactoredFiles) {
+        console.log("recieved", refactoredFiles);
         if (!providerRegistered) {
             const provider = new RefactorContentProvider();
             vscode.workspace.registerTextDocumentContentProvider(scheme, provider);
             providerRegistered = true;
         }
         let columnIndex = 2;
-        console.log("response", refactoredFiles);
         for (const { filePath, fileContent: newContent } of refactoredFiles) {
             try {
                 const oldUri = vscode.Uri.file(filePath);

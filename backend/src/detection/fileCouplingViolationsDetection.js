@@ -77,7 +77,7 @@ class fileCOUPLINGViolationDetection extends DetectionAction {
     let parsed = result;
     console.log("parsed ", parsed);
     await this.saveViolations(parsed, projectId);
-    return this.formatViolationsAsString(parsed);
+    return parsed;
   }
 
   // async saveViolations(violations, projectId) {

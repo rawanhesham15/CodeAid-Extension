@@ -42,9 +42,11 @@ const vscode = __importStar(require("vscode"));
 const codeaidSidebarProvider_1 = __importDefault(require("./UI/codeaidSidebarProvider"));
 const inputHandler_1 = __importDefault(require("./inputHandler"));
 const responseSidebarProvider_1 = __importDefault(require("./UI/responseSidebarProvider"));
+const responseFormatter_1 = __importDefault(require("./responseFormatter"));
 function activate(context) {
     const provider = new codeaidSidebarProvider_1.default(context.extensionUri);
     const secProvider = new responseSidebarProvider_1.default(context.extensionUri);
+    const responseFormatter = new responseFormatter_1.default();
     const inputHandler = new inputHandler_1.default();
     let fileRefactoringsSO;
     let lastMainFileDetectionS;
@@ -60,23 +62,32 @@ function activate(context) {
     context.subscriptions.push(vscode.commands.registerCommand("extension.detectSOLID", async (arg) => {
         const contextLabel = arg === "file" ? "File" : "Project";
         let res = await inputHandler.detectSOLID(arg);
-        let title = "";
-        if (contextLabel === "Project")
+        console.log("\n\n\nreturned", res.message);
+        let title = "", content = "";
+        if (contextLabel === "Project") {
             title = " Solid Detection for Project";
-        else
+            content = responseFormatter.formatSResponse(res.message);
+        }
+        else {
             title = "Solid Detection for File";
+            content = responseFormatter.formatSResponse(res.message);
+        }
         lastMainFileDetectionS = res.path;
-        secProvider.updateContent(res.message, title);
+        secProvider.updateContent(content, title);
     }), vscode.commands.registerCommand("extension.detectCoupling", async (arg) => {
         const contextLabel = arg === "file" ? "File" : "Project";
         let res = await inputHandler.detectCoupling(arg);
-        let title = "";
-        if (contextLabel === "Project")
+        let title = "", content = "";
+        if (contextLabel === "Project") {
             title = " Coupling Smells Detection for Project";
-        else
+            content = responseFormatter.formatCResponse(res);
+        }
+        else {
             title = "Coupling Smells Detection for File";
+            content = responseFormatter.formatCResponse(res);
+        }
         lastMainFileDetectionC = res;
-        secProvider.updateContent(res, title);
+        secProvider.updateContent(content, title);
     }), vscode.commands.registerCommand("extension.plotDiagram", async (arg) => {
         let res = await inputHandler.plotDiagram(arg);
         secProvider.updateContent(res, "Plotting ${arg} Diagram");
@@ -98,8 +109,9 @@ function activate(context) {
     }), vscode.commands.registerCommand("extension.undo", async () => {
         const res = await inputHandler.undo(lastMainFileDetectionS, workspacePath);
     }), vscode.commands.registerCommand("extension.showRefactoringSuggestions", async () => {
-        const res = await inputHandler.showRefactoringSuggestions(lastMainFileDetectionS);
-        secProvider.updateContent(res, "Coupling smells refactoring suggestions");
+        const res = await inputHandler.showRefactoringSuggestions();
+        const content = responseFormatter.formatSuggestionStepsResponse(res);
+        secProvider.updateContent(content, "Coupling smells refactoring suggestions");
     }), vscode.window.registerWebviewViewProvider(codeaidSidebarProvider_1.default.viewType, provider), vscode.window.registerWebviewViewProvider(responseSidebarProvider_1.default.viewType, secProvider));
 }
 function deactivate() { }

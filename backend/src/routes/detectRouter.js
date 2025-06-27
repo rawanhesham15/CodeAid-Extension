@@ -15,7 +15,6 @@ DetectRouter.post("/solid", async (req, res) => {
       SOLIDDetector = new ProjectSOLIDViolationDetection();
     }
     var returnedVal = await SOLIDDetector.detectionMethod(req);
-    console.log(returnedVal)
     res.json({ message: returnedVal, data: req.body });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -33,7 +32,6 @@ DetectRouter.post("/couplingsmells", async (req, res) => {
       couplingDetector = new ProjectCOUPLINGViolationDetection();
     }
     var returnedVal = await couplingDetector.detectionMethod(req);
-    console.log(returnedVal)
     res.json({ message: returnedVal, data: req.body });
   } catch (error) {
     res.status(500).json({ error: error.message });

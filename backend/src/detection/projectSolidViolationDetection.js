@@ -129,7 +129,7 @@ class ProjectSOLIDViolationDetection extends DetectionAction {
         continue;
       }
     }
-    return this.formatViolationsAsString(allViolations);
+    return allViolations;
   }
 
   async saveViolations(violations, projectId, dependencies) {

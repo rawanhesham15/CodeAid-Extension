@@ -18,7 +18,7 @@ class FileSOLIDViolationDetection extends DetectionAction {
 
     console.log("File path for SOLID detection:", filePath);
     console.log("Root directory for Java files:", req?.body?.rootDir);
-    
+
     // Read projectId from .codeaid-meta.json
     const metaFilePath = await this.findMetadataFile(filePath);
 
@@ -47,8 +47,7 @@ class FileSOLIDViolationDetection extends DetectionAction {
     ); // this is the file content with dependencies
 
     console.log("Request data for SOLID detection:", reqData);
-    
-    
+
     let dependencies = [];
     for (const dep of reqData) {
       for (const depFile of dep.dependencies) {
@@ -76,7 +75,7 @@ class FileSOLIDViolationDetection extends DetectionAction {
       if (!response.ok) {
         throw new Error(`API call failed with status ${response.status}`);
       }
-    console.log("received");
+      console.log("received");
 
       result = await response.json();
       console.log("SOLID Violations:", result);
@@ -96,13 +95,12 @@ class FileSOLIDViolationDetection extends DetectionAction {
     // console.log("violations-------- ", violations[0].violations);
     console.log("DEP before save", dependencies);
     await this.saveViolations(violations, projectId, dependencies);
-    return this.formatViolationsAsString(violations);
+    return violations;
   }
 
   getAllowedPrinciples() {
-  return ["Single Responsibility", "Open-Closed"];
-}
-
+    return ["Single Responsibility", "Open-Closed"];
+  }
 
   async saveViolations(violations, projectId, dependencies) {
     if (!projectId || typeof projectId !== "string") {
@@ -113,7 +111,6 @@ class FileSOLIDViolationDetection extends DetectionAction {
       throw new Error("Violations must be an array.");
     }
 
-    // const allowedPrinciples = ["Single Responsibility", "Open-Closed"];
     const allowedPrinciples = this.getAllowedPrinciples();
     const formattedViolations = [];
 
@@ -195,16 +192,16 @@ class FileSOLIDViolationDetection extends DetectionAction {
     }
   }
 
-formatViolationsAsString(violations) {
-  // const allowedPrinciples = ["Single Responsibility", "Open-Closed"];
-  const allowedPrinciples = this.getAllowedPrinciples();
+  formatViolationsAsString(violations) {
+    // const allowedPrinciples = ["Single Responsibility", "Open-Closed"];
+    const allowedPrinciples = this.getAllowedPrinciples();
 
-  let result = "";
+    let result = "";
 
-  for (const violation of violations) {
-    const entries = violation.violations || [];
+    for (const violation of violations) {
+      const entries = violation.violations || [];
 
-    // for (const entry of entries) {
+      // for (const entry of entries) {
       const filePath = entries[0].file_path || "unknown";
       const principles = entries[0].violatedPrinciples || [];
 
@@ -220,13 +217,12 @@ formatViolationsAsString(violations) {
         result += `- Principle: ${p.principle}\n  Justification: ${p.justification}\n`;
       }
       result += `\n`; // separate entries
-    // }
+      // }
+    }
+
+    console.log("Formatted violations string:\n", result);
+    return result.trim(); // remove trailing newline
   }
-
-  console.log("Formatted violations string:\n", result);
-  return result.trim(); // remove trailing newline
-}
-
 
   async clearViolationsForProject(projectId) {
     await project.updateOne(
