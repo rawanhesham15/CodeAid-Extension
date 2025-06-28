@@ -7,16 +7,37 @@ class DependenciesExtractor {
     parser.setLanguage(Java);
 
     const dependencies = new Map();
+    const projectClasses = new Set();
 
+    // First pass: collect all class names
     for (const file of projectJSON) {
       const { content } = file;
       const tree = parser.parse(content);
-      this.findClasses(tree.rootNode, dependencies);
+      this.collectClassNames(tree.rootNode, projectClasses);
     }
+
+    // Second pass: extract dependencies between project classes
+    for (const file of projectJSON) {
+      const { content } = file;
+      const tree = parser.parse(content);
+      this.findClasses(tree.rootNode, dependencies, projectClasses);
+    }
+
     return dependencies;
   }
 
-  findClasses(rootNode, dependencies) {
+  collectClassNames(rootNode, classSet) {
+    for (const node of rootNode.children) {
+      if (node.type === "class_declaration") {
+        const classNameNode = node.childForFieldName("name");
+        if (classNameNode) {
+          classSet.add(classNameNode.text);
+        }
+      }
+    }
+  }
+
+  findClasses(rootNode, dependencies, projectClasses) {
     for (const node of rootNode.children) {
       if (node.type === "class_declaration") {
         const classNameNode = node.childForFieldName("name");
@@ -25,42 +46,22 @@ class DependenciesExtractor {
           if (!dependencies.has(className)) {
             dependencies.set(className, new Set());
           }
-          this.findDependencies(node, className, dependencies);
+          this.findDependencies(node, className, dependencies, projectClasses);
         }
       }
     }
   }
 
-  findDependencies(classNode, className, dependencies) {
-    const builtInClasses = new Set([
-      "String",
-      "Integer",
-      "Double",
-      "Float",
-      "Long",
-      "Boolean",
-      "Character",
-      "Object",
-      "List",
-      "ArrayList",
-      "HashMap",
-      "Random",
-      "Date",
-      "Iterator",
-      "Map",
-      "Set",
-    ]);
-
+  findDependencies(classNode, className, dependencies, projectClasses) {
     function traverse(node) {
-      if (node.type === "type_identifier") {
-        const dependencyName = node.text;
-        if (
-          !builtInClasses.has(dependencyName) &&
-          dependencyName !== className
-        ) {
-          dependencies.get(className).add(dependencyName);
-        }
+      if (
+        node.type === "type_identifier" &&
+        projectClasses.has(node.text) &&
+        node.text !== className
+      ) {
+        dependencies.get(className).add(node.text);
       }
+
       for (const child of node.children) {
         traverse(child);
       }
@@ -71,4 +72,3 @@ class DependenciesExtractor {
 }
 
 export default DependenciesExtractor;
-

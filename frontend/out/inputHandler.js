@@ -284,6 +284,7 @@ class InputHandler {
         }
     }
     async refactorSOViolations(mainFilePath) {
+        console.log("I am in");
         if (!path)
             return [];
         try {
@@ -373,7 +374,6 @@ class InputHandler {
         for (const { filePath, fileContent: newContent } of refactoredFiles) {
             try {
                 const oldUri = vscode.Uri.file(filePath);
-                // Try to read the old content; if file doesn't exist, create it empty
                 let oldContent;
                 try {
                     const buffer = await vscode.workspace.fs.readFile(oldUri);
@@ -381,7 +381,6 @@ class InputHandler {
                 }
                 catch (err) {
                     if (err.code === "FileNotFound" || err.name === "FileNotFound") {
-                        // Create empty file
                         await vscode.workspace.fs.writeFile(oldUri, new Uint8Array());
                         oldContent = "";
                     }

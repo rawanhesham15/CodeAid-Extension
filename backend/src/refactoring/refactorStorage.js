@@ -8,15 +8,31 @@ class RefactorStorage {
 
   // Locate .codeaid-meta.json and extract the projectId
   async extractProjectId(startPath) {
-    let currentDir = path.normalize(startPath);
+    const metaPath = await this.findMetaPath(startPath);
+    const metaContent = await fs.readFile(metaPath, "utf-8");
+    const metaData = JSON.parse(metaContent);
+    const projectId = metaData.projectId;
 
+    if (!projectId) {
+      throw new Error("projectId not found in metadata.");
+    }
+
+    console.log("Extracted projectId:", projectId);
+    return projectId;
+  }
+
+  // Find the path of the .codeaid-meta.json file
+  async findMetaPath(startPath) {
+    let currentDir = path.normalize(startPath);
     try {
       const stats = await stat(currentDir);
       if (stats.isFile()) {
         currentDir = path.dirname(currentDir);
       }
     } catch (error) {
-      throw new Error(`Invalid starting path: ${startPath}. Error: ${error.message}`);
+      throw new Error(
+        `Invalid starting path: ${startPath}. Error: ${error.message}`
+      );
     }
 
     const maxDepth = 10;
@@ -26,16 +42,7 @@ class RefactorStorage {
       const metaPath = path.join(currentDir, ".codeaid-meta.json");
       try {
         await stat(metaPath); // file exists
-        const metaContent = await fs.readFile(metaPath, "utf-8");
-        const metaData = JSON.parse(metaContent);
-        const projectId = metaData.projectId;
-
-        if (!projectId) {
-          throw new Error("projectId not found in metadata.");
-        }
-
-        console.log("Extracted projectId:", projectId);
-        return projectId;
+        return metaPath;
       } catch (error) {
         const parentDir = path.dirname(currentDir);
         if (parentDir === currentDir) break;
@@ -44,40 +51,74 @@ class RefactorStorage {
       }
     }
 
-    throw new Error(`.codeaid-meta.json not found within ${maxDepth} levels from ${startPath}`);
+    throw new Error(
+      `.codeaid-meta.json not found within ${maxDepth} levels from ${startPath}`
+    );
+  }
+
+  // Merge file states, keeping the latest version per filePath
+  mergeLastState(existing, incoming) {
+    const fileMap = new Map();
+
+    for (const entry of existing) {
+      fileMap.set(path.normalize(entry.filePath), entry);
+    }
+
+    for (const entry of incoming) {
+      fileMap.set(path.normalize(entry.filePath), entry); // Overwrite or insert
+    }
+
+    return Array.from(fileMap.values());
   }
 
   // Save {filePath, content} to the lastState of the corresponding project
   async save(filePath, content) {
     try {
       const projectId = await this.extractProjectId(filePath);
+      const metaPath = await this.findMetaPath(filePath);
+      const projectRoot = path.dirname(metaPath);
+
+      const allFiles = await this.getAllJavaFiles(projectRoot);
+
+      const fileStates = await Promise.all(
+        allFiles.map(async (file) => {
+          const fileContent = await fs.readFile(file, "utf-8");
+          return { filePath: path.resolve(file), content: fileContent };
+        })
+      );
+
+      const projectData = await project.findById(projectId);
+      const existingLastState =
+        projectData?.lastState?.filePathsLastState || [];
+
+      const mergedFileStates = this.mergeLastState(
+        existingLastState,
+        fileStates
+      );
 
       const update = {
-        $addToSet: { "lastState.allFilePaths": filePath }, // Avoid duplicates
-        $push: {
-          "lastState.filePathsLastState": {
-            filePath,
-            content,
-          },
+        $set: {
+          "lastState.allFilePaths": allFiles.map((f) => path.resolve(f)),
+          "lastState.filePathsLastState": mergedFileStates,
         },
       };
 
-      // console.log(`Saving file to lastState for projectId: ${projectId}`, { filePath, content });
-
-      const result = await project.findByIdAndUpdate(projectId, update, { new: true });
+      const result = await project.findByIdAndUpdate(projectId, update, {
+        new: true,
+      });
 
       if (!result) {
         throw new Error(`Project with ID ${projectId} not found`);
       }
 
-      console.log(`Saved file to lastState: ${filePath}`);
+      console.log(
+        `Saved entire project state. Total files: ${allFiles.length}`
+      );
     } catch (error) {
       console.error("Error saving to lastState:", error.message);
       throw error;
     }
   }
-
-
 
   async clearLastState(projectId) {
     await project.updateOne(
@@ -86,12 +127,14 @@ class RefactorStorage {
         $set: {
           lastState: {
             allFilePaths: [],
-            filePathsLastState: []
-          }
-        }
+            filePathsLastState: [],
+          },
+        },
       }
     );
   }
+
+  // Undo refactoring by restoring saved file states
   async undo(filePath) {
     try {
       const projectId = await this.extractProjectId(filePath);
@@ -111,7 +154,9 @@ class RefactorStorage {
         const filesInDir = await this.getAllJavaFiles(workspaceDir);
         for (const file of filesInDir) {
           const normalizedPath = path.normalize(file);
-          const isSaved = allSavedPaths.some(savedPath => path.normalize(savedPath) === normalizedPath);
+          const isSaved = allSavedPaths.some(
+            (savedPath) => path.normalize(savedPath) === normalizedPath
+          );
           if (!isSaved) {
             await fs.unlink(file);
             console.log(`Deleted unsaved file: ${file}`);
@@ -141,13 +186,16 @@ class RefactorStorage {
     }
   }
 
+  // Recursively get all .java files from a directory
   async getAllJavaFiles(dirPath) {
     const entries = await fs.readdir(dirPath, { withFileTypes: true });
-    const files = await Promise.all(entries.map(entry => {
-      const res = path.resolve(dirPath, entry.name);
-      return entry.isDirectory() ? this.getAllJavaFiles(res) : res;
-    }));
-    return files.flat().filter(file => file.endsWith('.java'));
+    const files = await Promise.all(
+      entries.map((entry) => {
+        const res = path.resolve(dirPath, entry.name);
+        return entry.isDirectory() ? this.getAllJavaFiles(res) : res;
+      })
+    );
+    return files.flat().filter((file) => file.endsWith(".java"));
   }
 }
 

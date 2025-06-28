@@ -24,60 +24,118 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand(
       "extension.detectSOLID",
       async (arg: string) => {
-        const contextLabel = arg === "file" ? "File" : "Project";
-        let res = await inputHandler.detectSOLID(arg);
-        console.log("\n\n\nreturned", res.message);
-        let title = "",
-          content = "";
-        if (contextLabel === "Project") {
-          title = " Solid Detection for Project";
-          content = responseFormatter.formatSResponse(res.message);
-        } else {
-          title = "Solid Detection for File";
-          content = responseFormatter.formatSResponse(res.message);
-        }
-        lastMainFileDetectionS = res.path;
-        secProvider.updateContent(content, title);
+        await vscode.window.withProgress(
+          {
+            location: vscode.ProgressLocation.Notification,
+            title: "Detecting SOLID Violations",
+            cancellable: false,
+          },
+          async (progress) => {
+            const contextLabel = arg === "file" ? "File" : "Project";
+            progress.report({ message: `${contextLabel} Scope` });
+    
+            let res = await inputHandler.detectSOLID(arg);
+            console.log(res)
+            console.log(res.message)
+            let title = "";
+            let content = "";
+    
+            if (contextLabel === "Project") {
+              title = "Solid Detection for Project";
+            } else {
+              title = "Solid Detection for File";
+            }
+            if (Array.isArray(res.message)){
+              content = responseFormatter.formatSResponse(res.message);
+            }
+            else content = res.message;
+            lastMainFileDetectionS = res.path;
+            secProvider.updateContent(content, title);
+          }
+        );
       }
     ),
-
+    
     vscode.commands.registerCommand(
       "extension.detectCoupling",
       async (arg: string) => {
-        const contextLabel = arg === "file" ? "File" : "Project";
-        let res = await inputHandler.detectCoupling(arg);
-        let title = "",
-          content = "";
-        if (contextLabel === "Project") {
-          title = " Coupling Smells Detection for Project";
-          content = responseFormatter.formatCResponse(res);
-        } else {
-          title = "Coupling Smells Detection for File";
-          content = responseFormatter.formatCResponse(res);
-        }
-        lastMainFileDetectionC = res;
-        secProvider.updateContent(content, title);
+        await vscode.window.withProgress(
+          {
+            location: vscode.ProgressLocation.Notification,
+            title: "Detecting Coupling Smells",
+            cancellable: false,
+          },
+          async (progress) => {
+            const contextLabel = arg === "file" ? "File" : "Project";
+            progress.report({message: `${contextLabel} Scope` });
+    
+            let res = await inputHandler.detectCoupling(arg);
+    
+            let title = "";
+            let content = "";
+    
+            if (contextLabel === "Project") {
+              title = "Coupling Smells Detection for Project";
+            } else {
+              title = "Coupling Smells Detection for File";
+            }
+            if (res.message.violations.length === 0) {
+              content = "No coupling smells found";
+            } else content = responseFormatter.formatSResponse(res.message);
+    
+            lastMainFileDetectionC = res;
+            secProvider.updateContent(content, title);
+          }
+        );
       }
     ),
-
-    vscode.commands.registerCommand("extension.plotDiagram", async (arg) => {
-      let res = await inputHandler.plotDiagram(arg);
-      secProvider.updateContent(res, "Plotting ${arg} Diagram");
-    }),
-
-    vscode.commands.registerCommand("extension.displayRate", async () => {
-      const res = await inputHandler.displayRate();
-      // If the backend returns a warning string instead of complexity info
-      if (
-        res === "No active editor found." ||
-        res === "The file is empty. Nothing to analyze." ||
-        res === "No class exceeded the complexity threshold."
-      ) {
-        secProvider.updateContent(res, "Complexity Check");
-      } else {
-        secProvider.updateContent(res, "Displaying Complexity Rate");
+    
+    vscode.commands.registerCommand(
+      "extension.plotDiagram",
+      async (arg) => {
+        await vscode.window.withProgress(
+          {
+            location: vscode.ProgressLocation.Notification,
+            title: `Plotting ${arg} Diagram...`,
+            cancellable: false,
+          },
+          async (progress) => {
+            progress.report({ message: "" });
+            let res = await inputHandler.plotDiagram(arg);
+            secProvider.updateContent(res, `Plotting ${arg} Diagram`);
+          }
+        );
       }
-    }),
+    ),
+    
+    vscode.commands.registerCommand(
+      "extension.displayRate",
+      async () => {
+        await vscode.window.withProgress(
+          {
+            location: vscode.ProgressLocation.Notification,
+            title: "Calculating Complexity Rate...",
+            cancellable: false,
+          },
+          async (progress) => {
+            progress.report({message: "" });
+            const res = await inputHandler.displayRate();
+    
+            let title = "Complexity Check";
+            if (
+              res === "No active editor found." ||
+              res === "The file is empty. Nothing to analyze." ||
+              res === "No class exceeded the complexity threshold."
+            ) {
+              secProvider.updateContent(res, title);
+            } else {
+              title = "Displaying Complexity Rate";
+              secProvider.updateContent(res, title);
+            }
+          }
+        );
+      }
+    ),    
 
     vscode.commands.registerCommand(
       "extension.handleRefactorRequest",

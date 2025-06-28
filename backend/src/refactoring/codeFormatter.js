@@ -5,17 +5,23 @@ import { exec } from "child_process";
 import { fileURLToPath } from "url";
 
 const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
+const __dirname = path.dirname(__filename);
 class CodeFormatter {
   async formatJavaWithGoogleFormat(files) {
-    const jarPath = path.join(__dirname, "../../libs/google-java-format-1.27.0-all-deps.jar");
+    console.log("in");
+    const jarPath = path.join(
+      __dirname,
+      "../../libs/google-java-format-1.27.0-all-deps.jar"
+    );
 
     const formattedFiles = [];
 
     for (const file of files) {
       const tmpFile = path.join(os.tmpdir(), `temp-${Date.now()}.java`);
-      fs.writeFileSync(tmpFile, file.fileContent);
+      const decodedContent = this._decodeEscapes(file.fileContent);
+      console.log("dec", decodedContent)
+      fs.writeFileSync(tmpFile, decodedContent);
 
       const cmd = `java -jar "${jarPath}" "${tmpFile}"`;
 
@@ -35,9 +41,21 @@ class CodeFormatter {
         fileContent: formattedContent,
       });
     }
+    console.log(formattedFiles);
 
     return formattedFiles;
   }
-}
 
+  _decodeEscapes(str) {
+    return str
+      .replace(/\\n/g, "\n")
+      .replace(/\\t/g, "\t")
+      .replace(/\\r/g, "\r")
+      .replace(/\\f/g, "\f")
+      .replace(/\\b/g, "\b")
+      .replace(/\\'/g, "'")
+      .replace(/\\"/g, '"')
+      .replace(/\\\\/g, "\\");
+  }
+}
 export default CodeFormatter;

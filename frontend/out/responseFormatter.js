@@ -6,6 +6,9 @@ class ResponseFormatter {
         return `${parts[parts.length - 2]}/${parts[parts.length - 1]}`;
     }
     formatSResponse(response) {
+        if (response.length === 0) {
+            return "<div>No SOLID Violations Found</div>";
+        }
         const fileHeaderStyle = `
     font-weight: 500;
     color: #c8c8c8;
@@ -34,23 +37,24 @@ class ResponseFormatter {
             return `${parts[parts.length - 2]}/${parts[parts.length - 1]}`;
         }
         let html = `<div>`;
-        response.forEach(({ mainFilePath, violations }) => {
-            violations.forEach(({ file_path, violatedPrinciples }) => {
-                html += `<div style="${fileHeaderStyle}">📄 ${getShortPath(file_path)}</div>`;
-                violatedPrinciples.forEach(({ principle, justification }) => {
-                    html += `
+        response.forEach(({ file_path, violatedPrinciples }) => {
+            html += `<div style="${fileHeaderStyle}">📄 ${getShortPath(file_path)}</div>`;
+            violatedPrinciples.forEach(({ principle, justification }) => {
+                html += `
           <div style="${boxStyle}">
             <div style="${titleStyle}"> ${principle}</div>
             <div style="${justificationStyle}"> ${justification}</div>
           </div>
         `;
-                });
             });
         });
         html += `</div>`;
         return html;
     }
     formatCResponse(response) {
+        if (response[0].couplingSmells.length == 0) {
+            return "<div>No Coupling Smells Found</div>";
+        }
         const smellBoxStyle = `
       background-color: #2a2d2e;
       border: 1px solid #555;
@@ -86,7 +90,9 @@ class ResponseFormatter {
             <div style="${smellTitleStyle}"> ${smell}</div>
             <div style="${fileListStyle}">📄 Affected Files:
               <ul style="margin: 4px 0 0 20px; padding: 0;">
-                ${filesPaths.map(fp => `<li>${getShortPath(fp)}</li>`).join('')}
+                ${filesPaths
+                        .map((fp) => `<li>${getShortPath(fp)}</li>`)
+                        .join("")}
               </ul>
             </div>
             <div style="${justificationStyle}"> ${justification}</div>
@@ -127,12 +133,12 @@ class ResponseFormatter {
         <div style="${smellTitleStyle}"> ${smell}</div>
         <div style="${fileListStyle}">📄 Files Involved:
           <ul style="margin: 4px 0 0 20px; padding: 0;">
-            ${files_involved.map(file => `<li>${file}</li>`).join('')}
+            ${files_involved.map((file) => `<li>${file}</li>`).join("")}
           </ul>
         </div>
         <div style="${stepsStyle}"> Suggested Steps:
           <ol style="margin-top: 4px;">
-            ${suggested_steps.map(step => `<li>${step}</li>`).join('')}
+            ${suggested_steps.map((step) => `<li>${step}</li>`).join("")}
           </ol>
         </div>
       </div>`;

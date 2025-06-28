@@ -108,7 +108,6 @@ class FileRefactorCoupling extends RefactorAction {
     }
 
     const result = await response.json();
-    console.log("Refactoring result:", result);
     return result;
   }
 }

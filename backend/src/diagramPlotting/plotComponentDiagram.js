@@ -14,7 +14,7 @@ class PlotComponentDiagram extends PlottingAction {
     if (!parsedProject || parsedProject.trim() === "graph TD;") {
       throw new Error("Empty or invalid Mermaid syntax");
     }
-    const fileName = "Component_Diagram.png";
+    const fileName = "Component_Diagram.svg";
     const outputPath = path.join(path.resolve(projectPath), fileName);
     console.log("Output path:", outputPath);
     await this.diagramGenerator.generateDiagram(
@@ -25,7 +25,7 @@ class PlotComponentDiagram extends PlottingAction {
     if (!fs.existsSync(outputPath)) {
       throw new Error("Diagram file was not created");
     }
-    return outputPath;
+    // return outputPath;
   }
 
   guessRole(filename, content, filePath) {

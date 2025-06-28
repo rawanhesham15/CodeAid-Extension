@@ -53,9 +53,9 @@ class refactorSolidViolationsAction extends RefactorAction {
     }
 
     const result = await response.json();
-    let formattedFiles =
-      await this.codeFormatter.formatJavaWithGoogleFormat(result.refactored_files);
-    console.log(formattedFiles)
+    let formattedFiles = await this.codeFormatter.formatJavaWithGoogleFormat(
+      result.refactored_files
+    );
     return formattedFiles;
   }
 }

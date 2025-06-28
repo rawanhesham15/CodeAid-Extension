@@ -20,7 +20,7 @@ class PlotDependencyDiagram extends PlottingAction {
     await this.diagramGenerator.generateDiagram(
       parsedProject,
       projectPath,
-      "Dep_Diagram.png"
+      "Dep_Diagram.svg"
     );
   }
 }

@@ -271,6 +271,7 @@ class InputHandler {
   async refactorSOViolations(
     mainFilePath: string
   ): Promise<{ filePath: string; fileContent: string }[]> {
+    console.log("I am in")
     if (!path) return [];
 
     try {
@@ -382,14 +383,12 @@ class InputHandler {
       try {
         const oldUri = vscode.Uri.file(filePath);
 
-        // Try to read the old content; if file doesn't exist, create it empty
         let oldContent: string;
         try {
           const buffer = await vscode.workspace.fs.readFile(oldUri);
           oldContent = buffer.toString();
         } catch (err: any) {
           if (err.code === "FileNotFound" || err.name === "FileNotFound") {
-            // Create empty file
             await vscode.workspace.fs.writeFile(oldUri, new Uint8Array());
             oldContent = "";
           } else {
