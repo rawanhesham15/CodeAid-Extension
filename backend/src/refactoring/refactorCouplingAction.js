@@ -4,7 +4,6 @@ import path from "path";
 import project from "../Models/ProjectModel.js";
 import { readFile } from "fs/promises";
 import fetch from "node-fetch"; // if using Node.js without native fetch
-import RefactorStorage from "../refactoring/refactorStorage.js";
 import dbManager from "../dbManager/dbManager.js";
 class FileRefactorCoupling extends RefactorAction {
   /**
@@ -59,7 +58,6 @@ class FileRefactorCoupling extends RefactorAction {
   }
 
   async refactorMethod(req) {
-    const  store = new RefactorStorage();
     const db = new dbManager();
    // const filePath = req?.body?.filePath;
     const rootDir = req?.body?.rootDir;

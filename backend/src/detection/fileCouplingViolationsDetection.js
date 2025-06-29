@@ -1,14 +1,12 @@
 import DetectionAction from "./detectionAction.js";
 import path from "path";
 import getFileWithDependenciesChunked from "./../fileManager/filePrepare.js";
-import RefactorStorage from "../refactoring/refactorStorage.js";
 import dbManager from "../dbManager/dbManager.js";
 
 
 
 class fileCOUPLINGViolationDetection extends DetectionAction {
   async detectionMethod(req) {
-    const  store = new RefactorStorage();
     const db = new dbManager
     const filePath = req?.body?.path;
     if (!filePath || typeof filePath !== "string") {

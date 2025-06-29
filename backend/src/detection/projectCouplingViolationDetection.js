@@ -1,7 +1,6 @@
 import DetectionAction from "./detectionAction.js";
 import path from "path";
 import getFileWithDependenciesChunked from "../fileManager/filePrepare.js";
-import RefactorStorage from "../refactoring/refactorStorage.js";
 import FileManager from "../fileManager/fileManager.js";
 import dbManager from "../dbManager/dbManager.js";
 
@@ -15,7 +14,6 @@ class ProjectCOUPLINGViolationDetection extends DetectionAction {
   // }
 
   async detectionMethod(req) {
-    const store = new RefactorStorage();
     const db = new dbManager();
     const fm = new FileManager();
     const projectPath = req?.body?.path;

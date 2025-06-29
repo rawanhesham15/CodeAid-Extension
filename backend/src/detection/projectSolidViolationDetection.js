@@ -1,7 +1,6 @@
 import DetectionAction from "./detectionAction.js";
 import getFileWithDependenciesChunked from "../fileManager/filePrepare.js";
 import path from "path";
-import RefactorStorage from "../refactoring/refactorStorage.js";
 import fileManager from "../fileManager/fileManager.js";
 import dbManager from "../dbManager/dbManager.js";
 class ProjectSOLIDViolationDetection extends DetectionAction {
@@ -20,7 +19,6 @@ class ProjectSOLIDViolationDetection extends DetectionAction {
   // }
 
   async detectionMethod(req) {
-    const store = new RefactorStorage();
     const db = new dbManager();
     const fm = new fileManager();
     const projectPath = req?.body?.path;

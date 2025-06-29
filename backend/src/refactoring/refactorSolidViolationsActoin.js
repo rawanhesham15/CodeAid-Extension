@@ -3,13 +3,11 @@ import getFileWithDependenciesChunked from "../fileManager/filePrepare.js";
 import project from "../Models/ProjectModel.js";
 import { readFile } from "fs/promises";
 import path from "path";
-import RefactorStorage from "../refactoring/refactorStorage.js";
 import dbManager from "../dbManager/dbManager.js";
 
 class refactorSolidViolationsAction extends RefactorAction {
 
   async refactorMethod(req) {
-    const  store = new RefactorStorage();
     const db = new dbManager();
     const filePath = req?.body?.path;
     const rootDir = req?.body?.rootDir;
