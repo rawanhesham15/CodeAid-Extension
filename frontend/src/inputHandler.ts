@@ -143,12 +143,11 @@ class InputHandler {
       const response = await axios.post(`http://localhost:3000/plot/${type}`, {
         path: workspacePath,
       });
-
       const responseData = response.data;
       if (responseData && responseData.path) {
         return `Diagram generated at ${responseData.path}`;
       }
-      return "";
+      return responseData.message;
     } catch (error: any) {
       let errorMessage = "An error occurred while generating the diagram.";
 

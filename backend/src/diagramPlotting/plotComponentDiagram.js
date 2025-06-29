@@ -11,8 +11,11 @@ class PlotComponentDiagram extends PlottingAction {
 
   async generateDiagram(parsedProject, projectPath) {
     console.log("Generating component diagram with Mermaid syntax:\n", parsedProject);
+    if(parsedProject.includes("Invalid structure")) {
+      return parsedProject;
+    }
     if (!parsedProject || parsedProject.trim() === "graph TD;") {
-      throw new Error("Empty or invalid Mermaid syntax");
+      return "graph TD;\n  Error[Empty or invalid Mermaid syntax]";
     }
     const fileName = "Component_Diagram.svg";
     const outputPath = path.join(path.resolve(projectPath), fileName);
@@ -23,7 +26,7 @@ class PlotComponentDiagram extends PlottingAction {
       fileName
     );
     if (!fs.existsSync(outputPath)) {
-      throw new Error("Diagram file was not created");
+      return "graph TD;\n  Error[Diagram file was not created]";
     }
     // return outputPath;
   }
@@ -103,12 +106,12 @@ class PlotComponentDiagram extends PlottingAction {
   toMermaidBox(name, role) {
     const displayName = `${name}.java`;
     if (role === "Database") {
-      return `${name}[(${displayName})]`; // Cylinder for Database
+      return `${name}[(${displayName})]`;
     }
     if (role === "Test") {
-      return `${name}[${displayName}]`; // Simple rectangle for Tests (changed from hexagon)
+      return `${name}[${displayName}]`;
     }
-    return `${name}[[${displayName}]]`; // Rectangle for all other roles
+    return `${name}[[${displayName}]]`;
   }
 
   toEdge(from, to) {
@@ -172,6 +175,15 @@ class PlotComponentDiagram extends PlottingAction {
         componentsByPackage.set(packageName, []);
       }
       componentsByPackage.get(packageName).push(fileName);
+    }
+
+    // Check for naming conflicts between subgraph and components
+    for (const [packageName, components] of componentsByPackage) {
+      const safePackageName = packageName.replace(/\./g, "_");
+      if (components.includes(safePackageName)) {
+        return `Invalid structure: Subgraph "${packageName}" contains a component with the same name "${safePackageName}". Subgraph and component names must be unique to avoid cycles.`;
+        // return 'cycle found';
+      }
     }
 
     // Phase 2: Add edges from dependencies
