@@ -11,6 +11,8 @@ class ResponseSidebarProvider implements vscode.WebviewViewProvider {
     refactorState?: "show" | "apply" | "undo";
     buttonDisabled?: boolean;
     suggestionsVisible?: boolean;
+    isSuggestionEligible?: boolean;
+    isRefactorEligible?: boolean;
   }[] = [];
   private responseCounter: number = 0;
   private isLoading: boolean = false;
@@ -55,19 +57,23 @@ class ResponseSidebarProvider implements vscode.WebviewViewProvider {
     };
 
     const lastEligibleMap: Record<string, number> = {};
-    for (const res of this.responses) {
-      if (
-        res.responseType === "Solid Detection for File" &&
-        !(res.responseType in lastEligibleMap)
-      ) {
-        lastEligibleMap[res.responseType] = res.id;
-      }
-      if (
-        res.responseType === "Coupling Smells Detection for File" &&
-        !(res.responseType in lastEligibleMap)
-      ) {
-        lastEligibleMap[res.responseType] = res.id;
-      }
+
+    const eligibleSolid = this.responses.find(
+      (r) =>
+        r.responseType === "Solid Detection for File" &&
+        r.isRefactorEligible
+    );
+    if (eligibleSolid) {
+      lastEligibleMap["Solid Detection for File"] = eligibleSolid.id;
+    }
+
+    const eligibleCoupling = this.responses.find(
+      (r) =>
+        r.responseType === "Coupling Smells Detection for File" &&
+        r.isSuggestionEligible
+    );
+    if (eligibleCoupling) {
+      lastEligibleMap["Coupling Smells Detection for File"] = eligibleCoupling.id;
     }
 
     const responseContent = this.responses
@@ -85,9 +91,7 @@ class ResponseSidebarProvider implements vscode.WebviewViewProvider {
         ) {
           buttonHtml = `<button onclick="handleRefactor('${res.id}')"
                 style="cursor: ${
-                  res.buttonDisabled || this.isLoading
-                    ? "not-allowed"
-                    : "pointer"
+                  res.buttonDisabled || this.isLoading ? "not-allowed" : "pointer"
                 };"
                 ${res.buttonDisabled || this.isLoading ? "disabled" : ""}>
                 ${buttonLabel[res.refactorState]}
@@ -95,7 +99,7 @@ class ResponseSidebarProvider implements vscode.WebviewViewProvider {
         } else if (
           res.responseType === "Coupling Smells Detection for File" &&
           !res.suggestionsVisible &&
-          lastEligibleMap[res.responseType] === res.id
+          res.isSuggestionEligible
         ) {
           buttonHtml = `<button onclick="handleSuggestion('${res.id}')"
                 style="cursor: pointer;">
@@ -174,35 +178,31 @@ class ResponseSidebarProvider implements vscode.WebviewViewProvider {
 
         ${
           this.isLoading
-            ? `
-          <div id="loading-overlay" style="
-            position: fixed;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            background-color: rgba(0, 0, 0, 0.75);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 9999;
-            color: white;
-            font-size: 18px;
-            font-weight: bold;">
-            ${this.loadingMessage}
-          </div>`
+            ? `<div id="loading-overlay" style="
+                position: fixed;
+                top: 0; left: 0;
+                width: 100%; height: 100%;
+                background-color: rgba(0, 0, 0, 0.75);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 9999;
+                color: white;
+                font-size: 18px;
+                font-weight: bold;">
+                ${this.loadingMessage}
+              </div>`
             : ""
         }
 
         <script>
           const vscode = acquireVsCodeApi();
-
           function deleteResponse(id) {
             vscode.postMessage({ command: 'deleteResponse', id: id });
           }
-
           function handleRefactor(id) {
             vscode.postMessage({ command: 'handleRefactor', id: parseInt(id) });
           }
-
           function handleSuggestion(id) {
             vscode.postMessage({ command: 'handleSuggestion', id: parseInt(id) });
           }
@@ -232,29 +232,25 @@ class ResponseSidebarProvider implements vscode.WebviewViewProvider {
           this.loadingMessage = "Preparing refactored files...";
           this.updateWebview();
 
-          vscode.commands
-            .executeCommand("extension.handleRefactorRequest")
-            .then(() => {
-              res.refactorState = "apply";
-              this.responses.forEach((r) => {
-                if (r.responseType === res.responseType) {
-                  r.buttonDisabled = r.id !== res.id;
-                }
-              });
-              this.isLoading = false;
-              this.updateWebview();
+          vscode.commands.executeCommand("extension.handleRefactorRequest").then(() => {
+            res.refactorState = "apply";
+            this.responses.forEach((r) => {
+              if (r.responseType === res.responseType) {
+                r.buttonDisabled = r.id !== res.id;
+              }
             });
+            this.isLoading = false;
+            this.updateWebview();
+          });
         } else if (res.refactorState === "apply") {
           this.loadingMessage = "Applying refactoring...";
           this.updateWebview();
 
-          vscode.commands
-            .executeCommand("extension.applyRefactoring")
-            .then(() => {
-              res.refactorState = "undo";
-              this.isLoading = false;
-              this.updateWebview();
-            });
+          vscode.commands.executeCommand("extension.applyRefactoring").then(() => {
+            res.refactorState = "undo";
+            this.isLoading = false;
+            this.updateWebview();
+          });
         } else if (res.refactorState === "undo") {
           this.loadingMessage = "Undoing changes...";
           this.updateWebview();
@@ -268,13 +264,11 @@ class ResponseSidebarProvider implements vscode.WebviewViewProvider {
       } else if (message.command === "handleSuggestion") {
         const res = this.responses.find((r) => r.id === message.id);
         if (!res) return;
-        vscode.commands
-          .executeCommand("extension.showRefactoringSuggestions")
-          .then(() => {
-            res.suggestionsVisible = true;
-            this.isLoading = false;
-            this.updateWebview();
-          });
+        vscode.commands.executeCommand("extension.showRefactoringSuggestions").then(() => {
+          res.suggestionsVisible = true;
+          this.isLoading = false;
+          this.updateWebview();
+        });
       }
     });
   }
@@ -290,8 +284,26 @@ class ResponseSidebarProvider implements vscode.WebviewViewProvider {
 
     const hasValidContent = !ignoredMessages.includes(newContent.trim());
 
+    const newId = this.responseCounter++;
+
+    if (responseType === "Coupling Smells Detection for File") {
+      this.responses.forEach((r) => {
+        if (r.responseType === "Coupling Smells Detection for File") {
+          r.isSuggestionEligible = false;
+        }
+      });
+    }
+
+    if (responseType === "Solid Detection for File") {
+      this.responses.forEach((r) => {
+        if (r.responseType === "Solid Detection for File") {
+          r.isRefactorEligible = false;
+        }
+      });
+    }
+
     this.responses.unshift({
-      id: this.responseCounter++,
+      id: newId,
       content: newContent,
       timestamp,
       responseType,
@@ -301,6 +313,10 @@ class ResponseSidebarProvider implements vscode.WebviewViewProvider {
           : undefined,
       buttonDisabled: false,
       suggestionsVisible: false,
+      isSuggestionEligible:
+        responseType === "Coupling Smells Detection for File" && hasValidContent,
+      isRefactorEligible:
+        responseType === "Solid Detection for File" && hasValidContent,
     });
 
     this.updateWebview();
