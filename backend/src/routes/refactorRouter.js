@@ -2,11 +2,12 @@ import { Router } from "express";
 import RefactorStorage from "../refactoring/refactorStorage.js"; // Capitalized, not refactorStorage
 import refactorSolidViolationsAction from "../refactoring/refactorSolidViolationsActoin.js";
 import FileRefactorCoupling from "../refactoring/refactorCouplingAction.js";
+import dbManager from "../dbManager/dbManager.js";
 const RefactorRouter = Router();
-
 
 // Instantiate the class
 const store = new RefactorStorage();
+const db = new dbManager();
 const refactorSolid = new refactorSolidViolationsAction();
 const refactorCoupling = new FileRefactorCoupling();
 
@@ -22,7 +23,7 @@ RefactorRouter.post("/solid", async (req, res) => {
     //   await store.save(file, fileContent);
     // }
 
-    await store.storeAllBeforeRefactor(filePath);
+    await db.storeAllBeforeRefactor(filePath);
 
     const response = await refactorSolid.refactorMethod(req)
 
@@ -37,7 +38,7 @@ RefactorRouter.post("/undo", async (req, res) => {
 
   try {
     console.log("Undoing changes for path:", path);
-    const lastState = await store.undo(path);
+    const lastState = await db.undo(path);
     // You can return lastState if needed
     res.json({ message: "Undo last state fetched", lastState });
   } catch (error) {

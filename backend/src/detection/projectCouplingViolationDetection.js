@@ -3,7 +3,7 @@ import path from "path";
 import getFileWithDependenciesChunked from "../fileManager/filePrepare.js";
 import RefactorStorage from "../refactoring/refactorStorage.js";
 import FileManager from "../fileManager/fileManager.js";
-
+import dbManager from "../dbManager/dbManager.js";
 
 class ProjectCOUPLINGViolationDetection extends DetectionAction {
   // async getAllJavaFiles(rootDir) {
@@ -16,6 +16,7 @@ class ProjectCOUPLINGViolationDetection extends DetectionAction {
 
   async detectionMethod(req) {
     const store = new RefactorStorage();
+    const db = new dbManager();
     const fm = new FileManager();
     const projectPath = req?.body?.path;
     console.log(projectPath)
@@ -25,7 +26,7 @@ class ProjectCOUPLINGViolationDetection extends DetectionAction {
 
     console.log("Project path:", projectPath);
 
-    const projectId = await store.extractProjectId(projectPath);
+    const projectId = await db.extractProjectId(projectPath);
 
     if (!projectId) {
       throw new Error("projectId not found in metadata.");

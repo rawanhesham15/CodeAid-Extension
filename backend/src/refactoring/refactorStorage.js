@@ -198,8 +198,6 @@ class RefactorStorage {
   getAllowedPrinciples() {
     return ["Single Responsibility", "Open-Closed"];
   }
-
-
   async saveSolidViolations(violations, projectId, dependencies) {
     if (!projectId || typeof projectId !== "string") {
       throw new Error("Invalid project ID");
@@ -289,8 +287,6 @@ class RefactorStorage {
       throw error;
     }
   }
-
-
   async saveCouplingViolations(violations, projectId) {
     if (!projectId || typeof projectId !== "string") {
       throw new Error("Invalid project ID");
@@ -356,8 +352,6 @@ class RefactorStorage {
       { $set: { couplingViolations: [] } }
     );
   }
-
-
   async getProjectDocument(projectId) {
     const projectDoc = await project.findById(projectId).lean();
     if (!projectDoc) {
@@ -365,7 +359,6 @@ class RefactorStorage {
     }
     return projectDoc;
   }
-
 
   
 // having the current filePath, get all Java files in the project and save them in db 
@@ -378,7 +371,6 @@ class RefactorStorage {
       await this.save(file, fileContent);
     }
   }
-
 
 }
 

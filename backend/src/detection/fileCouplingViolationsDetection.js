@@ -2,12 +2,14 @@ import DetectionAction from "./detectionAction.js";
 import path from "path";
 import getFileWithDependenciesChunked from "./../fileManager/filePrepare.js";
 import RefactorStorage from "../refactoring/refactorStorage.js";
+import dbManager from "../dbManager/dbManager.js";
 
 
 
 class fileCOUPLINGViolationDetection extends DetectionAction {
   async detectionMethod(req) {
     const  store = new RefactorStorage();
+    const db = new dbManager
     const filePath = req?.body?.path;
     if (!filePath || typeof filePath !== "string") {
       throw new Error("Invalid or missing project path.");
@@ -16,12 +18,12 @@ class fileCOUPLINGViolationDetection extends DetectionAction {
     console.log("Project path:", filePath);
 
     let rootDir = req?.body?.rootDir || path.dirname(filePath);
-    const projectId = await store.extractProjectId(rootDir);
+    const projectId = await db.extractProjectId(rootDir);
     if (!projectId) {
       throw new Error("projectId not found in metadata.");
     }
 
-    await store.clearCouplingViolationsForProject(projectId);
+    await db.clearCouplingViolationsForProject(projectId);
 
     console.log("Extracted projectId:", projectId);
     const reqData = await getFileWithDependenciesChunked(
@@ -67,7 +69,7 @@ class fileCOUPLINGViolationDetection extends DetectionAction {
 
     let parsed = result;
     console.log("parsed ", parsed);
-    await store.saveCouplingViolations(parsed, projectId);
+    await db.saveCouplingViolations(parsed, projectId);
     return parsed;
   }
 

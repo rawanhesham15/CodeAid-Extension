@@ -3,6 +3,7 @@ import getFileWithDependenciesChunked from "../fileManager/filePrepare.js";
 import path from "path";
 import RefactorStorage from "../refactoring/refactorStorage.js";
 import fileManager from "../fileManager/fileManager.js";
+import dbManager from "../dbManager/dbManager.js";
 class ProjectSOLIDViolationDetection extends DetectionAction {
   // async getAllJavaFiles(rootDir) {
   //   try {
@@ -20,6 +21,7 @@ class ProjectSOLIDViolationDetection extends DetectionAction {
 
   async detectionMethod(req) {
     const store = new RefactorStorage();
+    const db = new dbManager();
     const fm = new fileManager();
     const projectPath = req?.body?.path;
     if (!projectPath || typeof projectPath !== "string") {
@@ -28,7 +30,7 @@ class ProjectSOLIDViolationDetection extends DetectionAction {
 
     console.log("Project path:", projectPath);
 
-    const projectId = await store.extractProjectId(projectPath);
+    const projectId = await db.extractProjectId(projectPath);
 
     if (!projectId) {
       throw new Error("projectId not found in metadata.");

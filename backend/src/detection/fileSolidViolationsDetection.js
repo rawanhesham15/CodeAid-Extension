@@ -1,7 +1,7 @@
 import getFileWithDependenciesChunked from "./../fileManager/filePrepare.js";
 import DetectionAction from "./detectionAction.js";
 import RefactorStorage from "../refactoring/refactorStorage.js";
-
+import dbManager from "../dbManager/dbManager.js";
 class FileSOLIDViolationDetection extends DetectionAction {
   constructor(fileManager) {
     super(fileManager);
@@ -9,6 +9,7 @@ class FileSOLIDViolationDetection extends DetectionAction {
 
   async detectionMethod(req) {
     const  store = new RefactorStorage();
+    const db = new dbManager();
     const filePath = req?.body?.path;
     if (!filePath || typeof filePath !== "string") {
       throw new Error("Invalid or missing project path.");
@@ -18,7 +19,7 @@ class FileSOLIDViolationDetection extends DetectionAction {
     console.log("Root directory for Java files:", req?.body?.rootDir);
 
     // Read projectId from .codeaid-meta.json
-    const projectId = await store.extractProjectId(req?.body?.rootDir);
+    const projectId = await db.extractProjectId(req?.body?.rootDir);
 
 
     if (!projectId) {
@@ -27,7 +28,7 @@ class FileSOLIDViolationDetection extends DetectionAction {
 
     console.log("Extracted projectId:", projectId);
 
-    await store.clearSolidViolationsForProject(projectId);
+    await db.clearSolidViolationsForProject(projectId);
 
     const reqData = await getFileWithDependenciesChunked(
       filePath,
@@ -83,8 +84,7 @@ class FileSOLIDViolationDetection extends DetectionAction {
     console.log("Extracted violations:", violations);
     // console.log("violations-------- ", violations[0].violations);
     console.log("DEP before save", dependencies);
-    await store.saveSolidViolations(violations, projectId, dependencies);
-    console.log("tttttttttttttttttttttttttttttttttttttttttttt")
+    await db.saveSolidViolations(violations, projectId, dependencies);
     return this.extractMainFileViolations(violations);
   }
 

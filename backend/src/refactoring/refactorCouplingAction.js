@@ -5,7 +5,7 @@ import project from "../Models/ProjectModel.js";
 import { readFile } from "fs/promises";
 import fetch from "node-fetch"; // if using Node.js without native fetch
 import RefactorStorage from "../refactoring/refactorStorage.js";
-
+import dbManager from "../dbManager/dbManager.js";
 class FileRefactorCoupling extends RefactorAction {
   /**
    * Builds an object compatible with the Python class `couplingSuggestionIn`
@@ -60,18 +60,19 @@ class FileRefactorCoupling extends RefactorAction {
 
   async refactorMethod(req) {
     const  store = new RefactorStorage();
+    const db = new dbManager();
    // const filePath = req?.body?.filePath;
     const rootDir = req?.body?.rootDir;
 
     if ( !rootDir) {
       throw new Error("Missing filePath or projectPath in request.");
     }
-    const projectId = await store.extractProjectId(rootDir);
+    const projectId = await db.extractProjectId(rootDir);
     if (!projectId) {
       throw new Error("projectId not found in metadata.");
     }
 
-    const projectDoc = await store.getProjectDocument(projectId);
+    const projectDoc = await db.getProjectDocument(projectId);
 
 
     console.log("project doc", projectDoc);
