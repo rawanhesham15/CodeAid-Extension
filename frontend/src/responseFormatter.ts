@@ -48,6 +48,7 @@ class ResponseFormatter {
       return `${parts[parts.length - 2]}/${parts[parts.length - 1]}`;
     }
 
+
     let html = `<div>`;
 
     response.forEach(({ file_path, violatedPrinciples }) => {
@@ -79,7 +80,13 @@ class ResponseFormatter {
       }[];
     }[]
   ): string {
-    if (response[0].couplingSmells.length == 0) {
+  if (
+    !response ||
+    response.length === 0 ||
+    !response[0].couplingSmells ||
+    response[0].couplingSmells.length === 0 ||
+    response[0].couplingSmells.every(cs => cs.smells.length === 0)
+  ) {
       return "<div>No Coupling Smells Found</div>";
     }
     const smellBoxStyle = `
@@ -124,8 +131,8 @@ class ResponseFormatter {
             <div style="${fileListStyle}">📄 Affected Files:
               <ul style="margin: 4px 0 0 20px; padding: 0;">
                 ${filesPaths
-                  .map((fp) => `<li>${getShortPath(fp)}</li>`)
-                  .join("")}
+              .map((fp) => `<li>${getShortPath(fp)}</li>`)
+              .join("")}
               </ul>
             </div>
             <div style="${justificationStyle}"> ${justification}</div>

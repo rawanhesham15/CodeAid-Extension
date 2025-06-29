@@ -87,7 +87,8 @@ class ResponseSidebarProvider implements vscode.WebviewViewProvider {
         if (
           res.responseType === "Solid Detection for File" &&
           showRefactor &&
-          res.refactorState
+          res.refactorState &&
+          !res.content.includes("No SOLID Violations Found")
         ) {
           buttonHtml = `<button onclick="handleRefactor('${res.id}')"
                 style="cursor: ${
@@ -99,7 +100,8 @@ class ResponseSidebarProvider implements vscode.WebviewViewProvider {
         } else if (
           res.responseType === "Coupling Smells Detection for File" &&
           !res.suggestionsVisible &&
-          res.isSuggestionEligible
+          res.isSuggestionEligible &&
+          !res.content.includes("No Coupling Smells Found")
         ) {
           buttonHtml = `<button onclick="handleSuggestion('${res.id}')"
                 style="cursor: pointer;">
@@ -280,6 +282,7 @@ class ResponseSidebarProvider implements vscode.WebviewViewProvider {
       "No active editor found.",
       "The file is empty. Nothing to analyze.",
       "No design flaws found.",
+      "No SOLID Violations Found"
     ];
 
     const hasValidContent = !ignoredMessages.includes(newContent.trim());
