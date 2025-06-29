@@ -12,7 +12,7 @@ class ProjectSOLIDViolationDetection extends DetectionAction {
       const files = await fg("**/*.java", {
         cwd: rootDir,
         absolute: true,
-        ignore: ["**/build/**", "**/node_modules/**"],
+        ignore: ["**/build/**", "**/node_modules/**"],  // "**/out/**"
       });
       return files;
     } catch (error) {
@@ -85,7 +85,6 @@ class ProjectSOLIDViolationDetection extends DetectionAction {
         }
 
         let dependencies = [];
-        let res = "";
         for (const dep of reqData) {
           for (const depFile of dep.dependencies) {
             if (depFile.depFilePath) {
@@ -121,8 +120,9 @@ class ProjectSOLIDViolationDetection extends DetectionAction {
         }
 
         const violations = result;
-        allViolations.push(...violations);
-
+        // allViolations.push(...violations);
+        allViolations.push(...this.extractMainFileViolations(violations))
+        console.log("all violation", allViolations)
         await this.saveViolations(violations, projectId, dependencies);
       } catch (error) {
         console.error(`Failed for ${filePath}:`, error.message);
@@ -130,6 +130,34 @@ class ProjectSOLIDViolationDetection extends DetectionAction {
       }
     }
     return allViolations;
+  }
+
+
+  extractMainFileViolations(violations) {
+    let filteredV = []
+    for (const v of violations) {
+      const mainFilePath = v.mainFilePath || "unknown";
+      const entries = v.violations || [];
+
+      const matchedEntry = entries.find(
+        (entry) => entry.file_path === mainFilePath
+      );
+      if (!matchedEntry) {
+        console.warn(
+          `No violation entry found for main file path: ${mainFilePath}`
+        );
+        continue;
+      }
+      if (matchedEntry.violatedPrinciples.length === 0) {
+        continue;
+      }
+
+      filteredV.push({
+        file_path: mainFilePath,
+        violatedPrinciples: matchedEntry.violatedPrinciples
+      });
+    }
+    return filteredV;
   }
 
   async saveViolations(violations, projectId, dependencies) {
