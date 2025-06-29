@@ -2,7 +2,7 @@ import DetectionAction from "./detectionAction.js";
 import path from "path";
 import getFileWithDependenciesChunked from "../fileManager/filePrepare.js";
 import RefactorStorage from "../refactoring/refactorStorage.js";
-
+import FileManager from "../fileManager/fileManager.js";
 
 
 class ProjectCOUPLINGViolationDetection extends DetectionAction {
@@ -16,7 +16,7 @@ class ProjectCOUPLINGViolationDetection extends DetectionAction {
 
   async detectionMethod(req) {
     const store = new RefactorStorage();
-
+    const fm = new FileManager();
     const projectPath = req?.body?.path;
     console.log(projectPath)
     if (!projectPath || typeof projectPath !== "string") {
@@ -32,7 +32,7 @@ class ProjectCOUPLINGViolationDetection extends DetectionAction {
     }
 
 
-    const javaFiles = await store.getAllJavaFiles(projectPath);
+    const javaFiles = await fm.getAllJavaFiles(projectPath);
     console.log("Found Java files:", javaFiles);
     let allViolations = [];
     for (const filePath of javaFiles) {

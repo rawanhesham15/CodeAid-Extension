@@ -2,7 +2,7 @@ import fs from "fs/promises";
 import path from "path";
 import { stat } from "fs/promises";
 import project from "../Models/ProjectModel.js";
-
+import FileManager from "../fileManager/fileManager.js";
 class RefactorStorage {
   constructor() { }
 
@@ -80,12 +80,13 @@ class RefactorStorage {
 
   // Save {filePath, content} to the lastState of the corresponding project
   async save(filePath, content) {
+    const fm = new FileManager();
     try {
       const projectId = await this.extractProjectId(filePath);
       const metaPath = await this.findMetaPath(filePath);
       const projectRoot = path.dirname(metaPath);
 
-      const allFiles = await this.getAllJavaFiles(projectRoot);
+      const allFiles = await fm.getAllJavaFiles(projectRoot);
 
       const fileStates = await Promise.all(
         allFiles.map(async (file) => {
@@ -143,6 +144,7 @@ class RefactorStorage {
 
   // Undo refactoring by restoring saved file states
   async undo(filePath) {
+    const fm = new FileManager();
     try {
       const projectId = await this.extractProjectId(filePath);
       const projectData = await project.findById(projectId);
@@ -158,7 +160,7 @@ class RefactorStorage {
       if (allSavedPaths.length === 0) {
         console.log("No saved paths in lastState. Skipping file deletion.");
       } else {
-        const filesInDir = await this.getAllJavaFiles(workspaceDir);
+        const filesInDir = await fm.getAllJavaFiles(workspaceDir);
         for (const file of filesInDir) {
           const normalizedPath = path.normalize(file);
           const isSaved = allSavedPaths.some(
@@ -195,17 +197,6 @@ class RefactorStorage {
 
   getAllowedPrinciples() {
     return ["Single Responsibility", "Open-Closed"];
-  }
-  // Recursively get all .java files from a directory
-  async getAllJavaFiles(dirPath) {
-    const entries = await fs.readdir(dirPath, { withFileTypes: true });
-    const files = await Promise.all(
-      entries.map((entry) => {
-        const res = path.resolve(dirPath, entry.name);
-        return entry.isDirectory() ? this.getAllJavaFiles(res) : res;
-      })
-    );
-    return files.flat().filter((file) => file.endsWith(".java"));
   }
 
 
@@ -379,8 +370,9 @@ class RefactorStorage {
   
 // having the current filePath, get all Java files in the project and save them in db 
   async storeAllBeforeRefactor(filePath) {
+    const fm = new FileManager();
     const projectDir = path.dirname(filePath);
-    const allJavaFiles = await this.getAllJavaFiles(projectDir);
+    const allJavaFiles = await fm.getAllJavaFiles(projectDir);
     for (const file of allJavaFiles) {
       const fileContent = await fs.readFile(file, "utf-8");
       await this.save(file, fileContent);

@@ -73,6 +73,7 @@ class InputHandler {
 
       const responseData = response.data;
       if (responseData && responseData.message) {
+        console.log(responseData.message);
         return { message: responseData.message, path: path };
       }
       return { message: "No response returned", path: path };
@@ -85,6 +86,7 @@ class InputHandler {
       } else {
         errorMessage += ` ${error.message}`;
       }
+
       return { message: errorMessage, path: path };
     }
   }

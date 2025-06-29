@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-
+import { readdir } from "fs/promises";
 class FileManager {
   createFile(dirPath, fileName) {
     const filePath = path.join(dirPath, fileName);
@@ -79,6 +79,18 @@ class FileManager {
       console.error(`Error deleting file: ${error.message}`);
     }
   }
+    // Recursively get all .java files from a directory
+  async getAllJavaFiles(dirPath) {
+    const entries = await readdir(dirPath, { withFileTypes: true });
+    const files = await Promise.all(
+      entries.map((entry) => {
+        const res = path.resolve(dirPath, entry.name);
+        return entry.isDirectory() ? this.getAllJavaFiles(res) : res;
+      })
+    );
+    return files.flat().filter((file) => file.endsWith(".java"));
+  }
+
 }
 
 export default FileManager;

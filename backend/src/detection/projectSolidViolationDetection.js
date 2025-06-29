@@ -2,7 +2,7 @@ import DetectionAction from "./detectionAction.js";
 import getFileWithDependenciesChunked from "../fileManager/filePrepare.js";
 import path from "path";
 import RefactorStorage from "../refactoring/refactorStorage.js";
-
+import fileManager from "../fileManager/fileManager.js";
 class ProjectSOLIDViolationDetection extends DetectionAction {
   // async getAllJavaFiles(rootDir) {
   //   try {
@@ -20,7 +20,7 @@ class ProjectSOLIDViolationDetection extends DetectionAction {
 
   async detectionMethod(req) {
     const store = new RefactorStorage();
-
+    const fm = new fileManager();
     const projectPath = req?.body?.path;
     if (!projectPath || typeof projectPath !== "string") {
       throw new Error("Invalid or missing project path.");
@@ -34,7 +34,7 @@ class ProjectSOLIDViolationDetection extends DetectionAction {
       throw new Error("projectId not found in metadata.");
     }
 
-    const javaFiles = await store.getAllJavaFiles(projectPath);
+    const javaFiles = await fm.getAllJavaFiles(projectPath);
     console.log("Found Java files:", javaFiles);
     let allViolations = [];
     for (const filePath of javaFiles) {
