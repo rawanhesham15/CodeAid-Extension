@@ -80,13 +80,7 @@ class ResponseFormatter {
       }[];
     }[]
   ): string {
-  if (
-    !response ||
-    response.length === 0 ||
-    !response[0].couplingSmells ||
-    response[0].couplingSmells.length === 0 ||
-    response[0].couplingSmells.every(cs => cs.smells.length === 0)
-  ) {
+    if (response[0].couplingSmells[0].smells.length === 0) {
       return "<div>No Coupling Smells Found</div>";
     }
     const smellBoxStyle = `

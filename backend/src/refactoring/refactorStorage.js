@@ -4,14 +4,21 @@ import { stat } from "fs/promises";
 import project from "../Models/ProjectModel.js";
 
 class RefactorStorage {
-  constructor() {}
+  constructor() { }
 
   // Locate .codeaid-meta.json and extract the projectId
   async extractProjectId(startPath) {
     const metaPath = await this.findMetaPath(startPath);
+    console.log("metaPath", metaPath)
     const metaContent = await fs.readFile(metaPath, "utf-8");
+    console.log("metaContent", metaContent)
+
     const metaData = JSON.parse(metaContent);
+    console.log("metaData", metaData)
+
     const projectId = metaData.projectId;
+    console.log("projectId", projectId)
+
 
     if (!projectId) {
       throw new Error("projectId not found in metadata.");
@@ -186,6 +193,9 @@ class RefactorStorage {
     }
   }
 
+  getAllowedPrinciples() {
+    return ["Single Responsibility", "Open-Closed"];
+  }
   // Recursively get all .java files from a directory
   async getAllJavaFiles(dirPath) {
     const entries = await fs.readdir(dirPath, { withFileTypes: true });
@@ -197,6 +207,165 @@ class RefactorStorage {
     );
     return files.flat().filter((file) => file.endsWith(".java"));
   }
+
+
+  async saveSolidViolations(violations, projectId, dependencies) {
+    if (!projectId || typeof projectId !== "string") {
+      throw new Error("Invalid project ID");
+    }
+
+    if (!Array.isArray(violations)) {
+      throw new Error("Violations must be an array.");
+    }
+
+    const allowedPrinciples = this.getAllowedPrinciples();
+    const formattedViolations = [];
+
+    for (const v of violations) {
+      const mainFilePath = v.mainFilePath || "unknown";
+      const entries = v.violations || [];
+
+      // Find the entry that matches the main file
+      const matchedEntry = entries.find(
+        (entry) => entry.file_path === mainFilePath
+      );
+      if (!matchedEntry) {
+        console.warn(
+          `No violation entry found for main file path: ${mainFilePath}`
+        );
+        continue;
+      }
+
+      const filteredPrinciples = (matchedEntry.violatedPrinciples || []).filter(
+        (p) => allowedPrinciples.includes(p.principle)
+      );
+
+      if (filteredPrinciples.length === 0) {
+        continue; // Skip if no allowed principles found
+      }
+
+      formattedViolations.push({
+        mainFilePath,
+        dependenciesFilePaths: dependencies,
+        violations: filteredPrinciples.map((p) => ({
+          principle: p.principle,
+          justification: p.justification,
+        })),
+      });
+    }
+
+    try {
+      const projectDoc = await project.findById(projectId).lean();
+      if (!projectDoc)
+        throw new Error(`Project with ID ${projectId} not found`);
+
+      const existingViolations = projectDoc.solidViolations || [];
+
+      for (const newEntry of formattedViolations) {
+        const existingIndex = existingViolations.findIndex(
+          (v) => v.mainFilePath === newEntry.mainFilePath
+        );
+
+        if (existingIndex !== -1) {
+          const existing = existingViolations[existingIndex];
+          const existingPrinciples = new Set(
+            existing.violations.map((v) => v.principle)
+          );
+
+          for (const newV of newEntry.violations) {
+            if (!existingPrinciples.has(newV.principle)) {
+              existing.violations.push(newV);
+            }
+          }
+        } else {
+          existingViolations.push(newEntry);
+        }
+      }
+
+      const updated = await project.findByIdAndUpdate(
+        projectId,
+        { $set: { solidViolations: existingViolations } },
+        { new: true }
+      );
+
+      console.log(
+        "Saved merged violations:",
+        JSON.stringify(existingViolations, null, 2)
+      );
+      if (!updated) throw new Error("Failed to update project document");
+    } catch (error) {
+      console.error("Error saving violations:", error.message);
+      throw error;
+    }
+  }
+
+
+  async saveCouplingViolations(violations, projectId) {
+    if (!projectId || typeof projectId !== "string") {
+      throw new Error("Invalid project ID");
+    }
+
+    for (const v of violations) {
+      // const filePaths = v.filesPaths || [];
+
+      for (const smellGroup of v.couplingSmells || []) {
+        const smellFilePaths = smellGroup.filesPaths || [];
+        const smells = smellGroup.smells || [];
+
+        const formatted = {
+          FilePaths: smellFilePaths,
+          couplingSmells: smells.map((s) => ({
+            smell: s.smell,
+            justification: s.justification,
+          })),
+        };
+
+        console.log(
+          "Formatted coupling violation for saving:",
+          JSON.stringify(formatted, null, 2)
+        );
+
+        try {
+          const updatedProject = await project.findByIdAndUpdate(
+            projectId,
+            { $push: { couplingViolations: formatted } },
+            { new: true }
+          );
+
+          if (!updatedProject) {
+            throw new Error(`Project with ID ${projectId} not found`);
+          }
+
+          console.log("Updated project successfully:", updatedProject._id);
+        } catch (error) {
+          console.error(
+            `Error saving violations for project ${projectId}: ${error.message}`,
+            {
+              projectId,
+              violations,
+              stack: error.stack,
+            }
+          );
+          throw error;
+        }
+      }
+    }
+  }
+
+  async clearSolidViolationsForProject(projectId) {
+    await project.updateOne(
+      { _id: projectId },
+      { $set: { solidViolations: [] } }
+    );
+  }
+
+    async clearCouplingViolationsForProject(projectId) {
+      await project.updateOne(
+        { _id: projectId },
+        { $set: { couplingViolations: [] } }
+      );
+    }
+
 }
 
 export default RefactorStorage;

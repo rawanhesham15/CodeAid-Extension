@@ -52,7 +52,7 @@ class ResponseFormatter {
         return html;
     }
     formatCResponse(response) {
-        if (response[0].couplingSmells.length == 0) {
+        if (response[0].couplingSmells[0].smells.length === 0) {
             return "<div>No Coupling Smells Found</div>";
         }
         const smellBoxStyle = `

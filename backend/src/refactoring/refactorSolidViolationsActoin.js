@@ -3,28 +3,21 @@ import getFileWithDependenciesChunked from "../fileManager/filePrepare.js";
 import project from "../Models/ProjectModel.js";
 import { readFile } from "fs/promises";
 import path from "path";
+import RefactorStorage from "../refactoring/refactorStorage.js";
 
 
 class refactorSolidViolationsAction extends RefactorAction {
 
   async refactorMethod(req) {
+    const  store = new RefactorStorage();
+
     const filePath = req?.body?.path;
     const rootDir = req?.body?.rootDir;
     if (!filePath) {
       throw new Error("Missing filePath or projectPath in request.");
     }
 
-  const metaFilePath = await this.findMetadataFile(rootDir);
-    let metaData;
-    try {
-      metaData = JSON.parse(await readFile(metaFilePath, "utf-8"));
-    } catch (error) {
-      throw new Error(
-        `Failed to read or parse metadata file at ${metaFilePath}: ${error.message}`
-      );
-    }
-
-    const projectId = metaData.projectId;
+    const projectId = await store.extractProjectId(rootDir);
     if (!projectId) {
       throw new Error("projectId not found in metadata.");
     }

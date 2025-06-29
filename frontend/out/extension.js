@@ -103,11 +103,11 @@ function activate(context) {
             else {
                 title = "Coupling Smells Detection for File";
             }
-            if (res.message.violations.length === 0) {
+            if (res[0].couplingSmells.length === 0) {
                 content = "No coupling smells found";
             }
             else
-                content = responseFormatter.formatSResponse(res.message);
+                content = responseFormatter.formatCResponse(res);
             lastMainFileDetectionC = res;
             secProvider.updateContent(content, title);
         });

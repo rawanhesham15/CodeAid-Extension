@@ -4,6 +4,7 @@ import path from "path";
 import project from "../Models/ProjectModel.js";
 import { readFile } from "fs/promises";
 import fetch from "node-fetch"; // if using Node.js without native fetch
+import RefactorStorage from "../refactoring/refactorStorage.js";
 
 class FileRefactorCoupling extends RefactorAction {
   /**
@@ -58,24 +59,14 @@ class FileRefactorCoupling extends RefactorAction {
   }
 
   async refactorMethod(req) {
+    const  store = new RefactorStorage();
    // const filePath = req?.body?.filePath;
     const rootDir = req?.body?.rootDir;
 
     if ( !rootDir) {
       throw new Error("Missing filePath or projectPath in request.");
     }
-
-    const metaFilePath = await this.findMetadataFile(rootDir);
-    let metaData;
-    try {
-      metaData = JSON.parse(await readFile(metaFilePath, "utf-8"));
-    } catch (error) {
-      throw new Error(
-        `Failed to read or parse metadata file at ${metaFilePath}: ${error.message}`
-      );
-    }
-
-    const projectId = metaData.projectId;
+    const projectId = await store.extractProjectId(rootDir);
     if (!projectId) {
       throw new Error("projectId not found in metadata.");
     }
