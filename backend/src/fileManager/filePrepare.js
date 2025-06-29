@@ -2,25 +2,8 @@ import fg from "fast-glob";
 import fs from "fs/promises";
 import { parse } from "java-parser";
 import path from "path";
+import FileManager from './fileManager.js'
 
-// Temporary FileManager
-class FileManager {
-  async getFileContent(filePath) {
-    try {
-      const content = await fs.readFile(filePath, "utf8");
-      return {
-        filePath: path.normalize(filePath),
-        content,
-      };
-    } catch (error) {
-      console.error(
-        `FileManager.getFileContent failed for ${filePath}:`,
-        error.message
-      );
-      return null;
-    }
-  }
-}
 
 async function findJavaFiles(root) {
   try {
@@ -237,7 +220,7 @@ async function getFileWithDependenciesChunked(
   projectId
 ) {
   const fileManager = new FileManager();
-  const mainFile = await fileManager.getFileContent(srcPath);
+  const mainFile = fileManager.getFileContent(srcPath);
   if (!mainFile) throw new Error(`Failed to read file: ${srcPath}`);
 
   let depPaths = await resolveDepsForFile(projectRootDir, srcPath);

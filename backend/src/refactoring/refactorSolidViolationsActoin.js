@@ -24,10 +24,7 @@ class refactorSolidViolationsAction extends RefactorAction {
 
     const reqData = await getFileWithDependenciesChunked(filePath, rootDir, projectId);
 
-    const projectDoc = await project.findById(projectId).lean();
-    if (!projectDoc) {
-      throw new Error(`Project with ID ${projectId} not found`);
-    }
+    const projectDoc = await store.getProjectDocument(projectId);
 
     let sentData = {
       data: reqData, 

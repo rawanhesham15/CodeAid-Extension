@@ -84,6 +84,7 @@ class FileSOLIDViolationDetection extends DetectionAction {
     // console.log("violations-------- ", violations[0].violations);
     console.log("DEP before save", dependencies);
     await store.saveSolidViolations(violations, projectId, dependencies);
+    console.log("tttttttttttttttttttttttttttttttttttttttttttt")
     return this.extractMainFileViolations(violations);
   }
 

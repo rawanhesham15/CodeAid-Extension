@@ -1,12 +1,11 @@
 import { Router } from "express";
 import RefactorStorage from "../refactoring/refactorStorage.js"; // Capitalized, not refactorStorage
-import path from "path";
-import fs from "fs/promises";
 import refactorSolidViolationsAction from "../refactoring/refactorSolidViolationsActoin.js";
 import FileRefactorCoupling from "../refactoring/refactorCouplingAction.js";
 const RefactorRouter = Router();
 
-// ✅ Instantiate the class
+
+// Instantiate the class
 const store = new RefactorStorage();
 const refactorSolid = new refactorSolidViolationsAction();
 const refactorCoupling = new FileRefactorCoupling();
@@ -15,13 +14,15 @@ RefactorRouter.post("/solid", async (req, res) => {
   const { path: filePath, content } = req.body;
 
   try {
-    const projectDir = path.dirname(filePath);
-    const allJavaFiles = await store.getAllJavaFiles(projectDir);
+    // const projectDir = path.dirname(filePath);
+    // const allJavaFiles = await store.getAllJavaFiles(projectDir);
 
-    for (const file of allJavaFiles) {
-      const fileContent = await fs.readFile(file, "utf-8");
-      await store.save(file, fileContent);
-    }
+    // for (const file of allJavaFiles) {
+    //   const fileContent = await fs.readFile(file, "utf-8");
+    //   await store.save(file, fileContent);
+    // }
+
+    await store.storeAllBeforeRefactor(filePath);
 
     const response = await refactorSolid.refactorMethod(req)
 

@@ -359,12 +359,34 @@ class RefactorStorage {
     );
   }
 
-    async clearCouplingViolationsForProject(projectId) {
-      await project.updateOne(
-        { _id: projectId },
-        { $set: { couplingViolations: [] } }
-      );
+  async clearCouplingViolationsForProject(projectId) {
+    await project.updateOne(
+      { _id: projectId },
+      { $set: { couplingViolations: [] } }
+    );
+  }
+
+
+  async getProjectDocument(projectId) {
+    const projectDoc = await project.findById(projectId).lean();
+    if (!projectDoc) {
+      throw new Error(`Project with ID ${projectId} not found`);
     }
+    return projectDoc;
+  }
+
+
+  
+// having the current filePath, get all Java files in the project and save them in db 
+  async storeAllBeforeRefactor(filePath) {
+    const projectDir = path.dirname(filePath);
+    const allJavaFiles = await this.getAllJavaFiles(projectDir);
+    for (const file of allJavaFiles) {
+      const fileContent = await fs.readFile(file, "utf-8");
+      await this.save(file, fileContent);
+    }
+  }
+
 
 }
 

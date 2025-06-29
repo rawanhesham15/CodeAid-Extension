@@ -176,7 +176,7 @@ class InputHandler {
             if (responseData && responseData.path) {
                 return `Diagram generated at ${responseData.path}`;
             }
-            return "";
+            return responseData.message;
         }
         catch (error) {
             let errorMessage = "An error occurred while generating the diagram.";
