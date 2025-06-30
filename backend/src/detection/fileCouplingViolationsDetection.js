@@ -6,6 +6,9 @@ import dbManager from "../dbManager/dbManager.js";
 
 
 class fileCOUPLINGViolationDetection extends DetectionAction {
+    constructor(fileManager) {
+    super(fileManager);
+  }
   async detectionMethod(req) {
     const db = new dbManager
     const filePath = req?.body?.path;

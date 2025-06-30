@@ -1,6 +1,9 @@
 import getFileWithDependenciesChunked from "./../fileManager/filePrepare.js";
 import DetectionAction from "./detectionAction.js";
 import dbManager from "../dbManager/dbManager.js";
+
+
+
 class FileSOLIDViolationDetection extends DetectionAction {
   constructor(fileManager) {
     super(fileManager);
@@ -15,16 +18,25 @@ class FileSOLIDViolationDetection extends DetectionAction {
 
     console.log("File path for SOLID detection:", filePath);
     console.log("Root directory for Java files:", req?.body?.rootDir);
+    // try {
+    //   const isValidSyntax = await this.fileManager.checkJavaSyntax(filePath);
+    //   if (!isValidSyntax) {
+    //     return "Java syntax error in the provided file."
+    //   }
+    // } catch (error) {
+    //   return "Java syntax error in the provided file."
+    // }
 
     // Read projectId from .codeaid-meta.json
     const projectId = await db.extractProjectId(req?.body?.rootDir);
-
 
     if (!projectId) {
       throw new Error("projectId not found in metadata.");
     }
 
     console.log("Extracted projectId:", projectId);
+
+
 
     await db.clearSolidViolationsForProject(projectId);
 
@@ -87,7 +99,7 @@ class FileSOLIDViolationDetection extends DetectionAction {
   }
 
 
-  extractMainFileViolations(violations){
+  extractMainFileViolations(violations) {
     let filteredV = []
     for (const v of violations) {
       const mainFilePath = v.mainFilePath || "unknown";

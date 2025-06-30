@@ -12,18 +12,14 @@ class dbManager {
     console.log("metaPath", metaPath)
     const metaContent = await fs.readFile(metaPath, "utf-8");
     console.log("metaContent", metaContent)
-
     const metaData = JSON.parse(metaContent);
     console.log("metaData", metaData)
 
     const projectId = metaData.projectId;
     console.log("projectId", projectId)
-
-
     if (!projectId) {
       throw new Error("projectId not found in metadata.");
     }
-
     console.log("Extracted projectId:", projectId);
     return projectId;
   }
@@ -188,7 +184,7 @@ class dbManager {
       console.log("Last state before clearing:", lastState);
 
       await this.clearLastState(projectId);
-      return lastState.filePathsLastState;
+      return lastState;
     } catch (error) {
       console.error("Error during undo:", error.message);
       throw error;

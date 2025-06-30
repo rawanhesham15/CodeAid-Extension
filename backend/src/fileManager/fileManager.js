@@ -1,7 +1,12 @@
 import fs from "fs";
 import path from "path";
 import { readdir } from "fs/promises";
+import { exec } from "child_process";
+import dbManager from "../dbManager/dbManager.js";
+
+
 class FileManager {
+
   createFile(dirPath, fileName) {
     const filePath = path.join(dirPath, fileName);
     try {
@@ -79,7 +84,7 @@ class FileManager {
       console.error(`Error deleting file: ${error.message}`);
     }
   }
-    // Recursively get all .java files from a directory
+  // Recursively get all .java files from a directory
   async getAllJavaFiles(dirPath) {
     const entries = await readdir(dirPath, { withFileTypes: true });
     const files = await Promise.all(
@@ -91,6 +96,60 @@ class FileManager {
     return files.flat().filter((file) => file.endsWith(".java"));
   }
 
+
+  async undo(path,projectPath) {
+    const db = new dbManager();
+    const lastState = await db.undo(path);
+    const paths = await this.getAllJavaFiles(projectPath)
+    for (const file of paths) {
+      if(!lastState.allFilePaths.includes(file)) {
+        try {
+          await vscode.workspace.fs.delete(vscode.Uri.file(file));
+        } catch (err) {
+          vscode.window.showWarningMessage(`Failed to delete file: ${file}`);
+          console.error(`Error deleting file ${file}`, err);
+        }
+      }
+    }
+    for (const file of lastState.filePathsLastState) {
+      const uri = vscode.Uri.file(file.filePath);
+      try {
+        // Ensure directory exists
+        const dirPath = vscode.Uri.file(require("path").dirname(file.filePath));
+        await vscode.workspace.fs.createDirectory(dirPath);
+
+        // Write new content directly
+        const encoder = new TextEncoder();
+        const contentBytes = encoder.encode(file.content);
+        await vscode.workspace.fs.writeFile(uri, contentBytes);
+
+      } catch (err) {
+        vscode.window.showWarningMessage(`Failed to write file: ${file.filePath}`);
+        console.error(`Error writing file ${file.filePath}`, err);
+      }
+    }
+  }
+
+  checkJavaSyntax(filePath) {
+    return new Promise((resolve) => {
+      exec(`javac "${filePath}"`, (error) => {
+        resolve(!error); // true if no error, false if error
+      });
+    });
+  }
+
+
+
+  async checkProjectSyntax(dirPath) {
+    const javaFiles = await this.getAllJavaFiles(dirPath);
+    const results = await Promise.all(
+      javaFiles.map(async (file) => {
+        const error = await this.checkJavaSyntax(file);
+        return error ? { filePath: file, error } : { filePath: file };
+      })
+    );
+    return results;
+  }
 }
 
 export default FileManager;

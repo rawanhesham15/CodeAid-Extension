@@ -2,12 +2,19 @@ import { Router } from "express";
 import refactorSolidViolationsAction from "../refactoring/refactorSolidViolationsActoin.js";
 import FileRefactorCoupling from "../refactoring/refactorCouplingAction.js";
 import dbManager from "../dbManager/dbManager.js";
+import FileManager from '../fileManager/fileManager.js';
+
+
+
 const RefactorRouter = Router();
+
 
 // Instantiate the class
 const db = new dbManager();
 const refactorSolid = new refactorSolidViolationsAction();
 const refactorCoupling = new FileRefactorCoupling();
+const fm = new FileManager();
+
 
 RefactorRouter.post("/solid", async (req, res) => {
   const { path: filePath, content } = req.body;
@@ -24,13 +31,12 @@ RefactorRouter.post("/solid", async (req, res) => {
 });
 
 RefactorRouter.post("/undo", async (req, res) => {
-  const { path } = req.body;
-
+  const { path, projectPath } = req.body;
   try {
     console.log("Undoing changes for path:", path);
-    const lastState = await db.undo(path);
     // You can return lastState if needed
-    res.json({ message: "Undo last state fetched", lastState });
+     await fm.undo(path,projectPath);
+    res.json({ message: "Undo last state fetched" });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -44,8 +50,8 @@ RefactorRouter.post("/couplingsmells", async (req, res) => {
   if (!rootDir) {
     return res.status(400).json({ error: "Missing projectRoot or files" });
   }
-    const response = await refactorCoupling.refactorMethod(req);
-    res.json({ message: "All project files saved before solid refactor", data: response });
+  const response = await refactorCoupling.refactorMethod(req);
+  res.json({ message: "All project files saved before solid refactor", data: response });
 });
 
 export default RefactorRouter;
