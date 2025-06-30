@@ -335,27 +335,6 @@ class InputHandler {
                 path: mainFilePath,
                 project: projectPath,
             });
-            const lastState = response.data.lastState;
-            if (!lastState || lastState.length === 0) {
-                vscode.window.showInformationMessage("No undo states found.");
-                return "No undo states found.";
-            }
-            for (const file of lastState) {
-                const uri = vscode.Uri.file(file.filePath);
-                try {
-                    // Ensure directory exists
-                    const dirPath = vscode.Uri.file(require("path").dirname(file.filePath));
-                    await vscode.workspace.fs.createDirectory(dirPath);
-                    // Write new content directly
-                    const encoder = new TextEncoder();
-                    const contentBytes = encoder.encode(file.content);
-                    await vscode.workspace.fs.writeFile(uri, contentBytes);
-                }
-                catch (err) {
-                    vscode.window.showWarningMessage(`Failed to write file: ${file.filePath}`);
-                    console.error(`Error writing file ${file.filePath}`, err);
-                }
-            }
             vscode.window.showInformationMessage("Undo completed for all files.");
             return "Undo completed for all files.";
         }

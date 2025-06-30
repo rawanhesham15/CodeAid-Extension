@@ -1,4 +1,4 @@
-import getFileWithDependenciesChunked from "./../fileManager/filePrepare.js";
+import FilePrepare from "./../fileManager/filePrepare.js";
 import DetectionAction from "./detectionAction.js";
 import dbManager from "../dbManager/dbManager.js";
 
@@ -11,6 +11,8 @@ class FileSOLIDViolationDetection extends DetectionAction {
 
   async detectionMethod(req) {
     const db = new dbManager();
+        const fPrepare = new FilePrepare();
+
     const filePath = req?.body?.path;
     if (!filePath || typeof filePath !== "string") {
       throw new Error("Invalid or missing project path.");
@@ -42,7 +44,7 @@ class FileSOLIDViolationDetection extends DetectionAction {
 
     await db.clearSolidViolationsForProject(projectId);
 
-    const reqData = await getFileWithDependenciesChunked(
+    const reqData = await fPrepare.getFileWithDependenciesChunked(
       filePath,
       req?.body?.rootDir,
       projectId

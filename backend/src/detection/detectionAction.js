@@ -19,15 +19,7 @@ class DetectionAction {
     throw new Error("detectionMethod must be implemented by subclass.");
   }
 
-  async saveViolations(violations, projectId) {
-    throw new Error("saveViolations must be implemented by subclass.");
-  }
 
-  formatViolationsAsString(violations) {
-    throw new Error(
-      "formatViolationsAsString must be implemented by subclass."
-    );
-  }
 }
 
 export default DetectionAction;

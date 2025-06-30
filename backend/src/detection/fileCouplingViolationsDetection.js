@@ -1,6 +1,6 @@
 import DetectionAction from "./detectionAction.js";
 import path from "path";
-import getFileWithDependenciesChunked from "./../fileManager/filePrepare.js";
+import FilePrepare from "./../fileManager/filePrepare.js";
 import dbManager from "../dbManager/dbManager.js";
 
 
@@ -10,6 +10,8 @@ class fileCOUPLINGViolationDetection extends DetectionAction {
     super(fileManager);
   }
   async detectionMethod(req) {
+
+    const fPrepare = new FilePrepare();
     const db = new dbManager
     const filePath = req?.body?.path;
     if (!filePath || typeof filePath !== "string") {
@@ -39,7 +41,7 @@ class fileCOUPLINGViolationDetection extends DetectionAction {
     await db.clearCouplingViolationsForProject(projectId);
 
     console.log("Extracted projectId:", projectId);
-    const reqData = await getFileWithDependenciesChunked(
+    const reqData = await fPrepare.getFileWithDependenciesChunked(
       filePath,
       rootDir,
       projectId
@@ -85,34 +87,6 @@ class fileCOUPLINGViolationDetection extends DetectionAction {
     console.log("parsed ", parsed);
     await db.saveCouplingViolations(parsed, projectId);
     return parsed;
-  }
-
-
-  formatViolationsAsString(parsed) {
-    let allFormattedViolations = [];
-
-    for (const entry of parsed) {
-      // const mainFilePaths = entry.filesPaths || [];
-      const couplingSmells = entry.couplingSmells || [];
-
-      for (const smellGroup of couplingSmells) {
-        const smellFilePaths = smellGroup.filesPaths || [];
-        const smells = smellGroup.smells || [];
-
-        for (const smellObj of smells) {
-          const { smell, justification } = smellObj;
-
-          allFormattedViolations.push(
-            // `Main File(s): ${mainFilePaths.join(", ")}\n` +
-            `Affected File(s): ${smellFilePaths.join(", ")}\n` +
-            `Smell: ${smell}\n` +
-            `Justification: ${justification}`
-          );
-        }
-      }
-    }
-
-    return allFormattedViolations.join("\n---\n");
   }
 
 }

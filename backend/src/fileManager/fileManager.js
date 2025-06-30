@@ -18,6 +18,7 @@ class FileManager {
       console.error(`Error creating file: ${error.message}`);
     }
   }
+
   gatherCode(path) {
     const stats = fs.statSync(path);
     try {
@@ -56,6 +57,7 @@ class FileManager {
       return [];
     }
   }
+
   getFileContent(filePath) {
     try {
       const content = fs.readFileSync(filePath, "utf8");
@@ -65,6 +67,7 @@ class FileManager {
       return null;
     }
   }
+
   updateFileContent(filePath, content) {
     try {
       fs.writeFileSync(filePath, content, "utf8");
@@ -72,6 +75,7 @@ class FileManager {
       console.error(`Error updating file: ${error.message}`);
     }
   }
+
   deleteFile(filePath) {
     try {
       if (fs.existsSync(filePath)) {
@@ -84,6 +88,7 @@ class FileManager {
       console.error(`Error deleting file: ${error.message}`);
     }
   }
+  
   // Recursively get all .java files from a directory
   async getAllJavaFiles(dirPath) {
     const entries = await readdir(dirPath, { withFileTypes: true });
@@ -95,7 +100,6 @@ class FileManager {
     );
     return files.flat().filter((file) => file.endsWith(".java"));
   }
-
 
   async undo(path,projectPath) {
     const db = new dbManager();
@@ -129,50 +133,14 @@ class FileManager {
       }
     }
   }
-/**
-   * Check if a Java file and its dependencies are syntactically valid.
-   * @param {string} mainFilePath - Path to the main Java file.
-   * @param {string[]} dependencyPaths - Array of file paths that the main file depends on.
-   * @returns {Promise<{ isValid: boolean, errorMessage?: string }>}
-   */
-  // async checkJavaSyntaxWithDependencies(mainFilePath, dependencyPaths) {
-  //   return new Promise((resolve) => {
-  //     const allFiles = [mainFilePath, ...dependencyPaths].map(f => `"${f}"`).join(" ");
-  //     const compileCommand = `javac ${allFiles}`;
 
-  //     exec(compileCommand, (error, stdout, stderr) => {
-  //       if (error) {
-  //         resolve({ isValid: false, errorMessage: stderr });
-  //       } else {
-  //         resolve({ isValid: true , errorMessage: ""});
-  //       }
-  //     });
-  //   });
-  // }
-
-
-//   async checkJavaSyntax(filePath) {
-//   return new Promise((resolve) => {
-//     exec(`javac "${filePath}"`, (error, stdout, stderr) => {
-//       if (error) {
-//         resolve({ isValid: false, errorMessage: stderr });
-//       } else {
-//         resolve({ isValid: true, errorMessage: "" });
-//       }
-//     });
-//   });
-// }
-
-
-async checkProjectJavaSyntax(allJavaFiles) {
+  async checkProjectJavaSyntax(allJavaFiles) {
   return new Promise((resolve) => {
     // Include the main file and all dependencies
     const allFiles = allJavaFiles
       .filter(Boolean)                     // remove null/undefined
       .map(f => `"${f}"`)                  // wrap each path in quotes
       .join(" ");                          // space-separated list
-
-      console.log("ttttttttttttttttttttttttttttt" ,allFiles);
     const compileCommand = `javac ${allFiles}`;
 
     exec(compileCommand, (error, stdout, stderr) => {
@@ -183,18 +151,7 @@ async checkProjectJavaSyntax(allJavaFiles) {
       }
     });
   });
-}
-
-  // async checkProjectSyntax(dirPath) {
-  //   const javaFiles = await this.getAllJavaFiles(dirPath);
-  //   const results = await Promise.all(
-  //     javaFiles.map(async (file) => {
-  //       const error = await this.checkJavaSyntax(file);
-  //       return error ? { filePath: file, error } : { filePath: file };
-  //     })
-  //   );
-  //   return results;
-  // }
+  }
 }
 
 export default FileManager;

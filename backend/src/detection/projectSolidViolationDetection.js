@@ -1,5 +1,5 @@
 import DetectionAction from "./detectionAction.js";
-import getFileWithDependenciesChunked from "../fileManager/filePrepare.js";
+import FilePrepare from "../fileManager/filePrepare.js";
 import path from "path";
 import fileManager from "../fileManager/fileManager.js";
 import dbManager from "../dbManager/dbManager.js";
@@ -25,6 +25,8 @@ class ProjectSOLIDViolationDetection extends DetectionAction {
   async detectionMethod(req) {
     const db = new dbManager();
     const fm = new fileManager();
+        const fPrepare = new FilePrepare();
+
     const projectPath = req?.body?.path;
     if (!projectPath || typeof projectPath !== "string") {
       throw new Error("Invalid or missing project path.");
@@ -53,7 +55,7 @@ class ProjectSOLIDViolationDetection extends DetectionAction {
     let allViolations = [];
     for (const filePath of javaFiles) {
       try {
-        const reqData = await getFileWithDependenciesChunked(
+        const reqData = await fPrepare.getFileWithDependenciesChunked(
           filePath,
           projectPath,
           projectId
@@ -151,39 +153,6 @@ class ProjectSOLIDViolationDetection extends DetectionAction {
       });
     }
     return filteredV;
-  }
-
-
-
-  formatViolationsAsString(violations) {
-    const allowedPrinciples = ["Single Responsibility", "Open-Closed"];
-
-    let result = "";
-
-    for (const violation of violations) {
-      const entries = violation.violations || [];
-
-      for (const entry of entries) {
-        const filePath = entry.file_path || "unknown";
-        const principles = entry.violatedPrinciples || [];
-
-        // Filter allowed principles only
-        const filtered = principles.filter((p) =>
-          allowedPrinciples.includes(p.principle)
-        );
-
-        if (filtered.length === 0) continue;
-
-        result += `File: ${filePath}\n`;
-        for (const p of filtered) {
-          result += `- Principle: ${p.principle}\n  Justification: ${p.justification}\n`;
-        }
-        result += `\n`; // separate entries
-      }
-    }
-
-    console.log("Formatted violations string:\n", result);
-    return result.trim(); // remove trailing newline
   }
 
 }

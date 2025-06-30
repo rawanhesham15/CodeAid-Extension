@@ -1,5 +1,5 @@
 import RefactorAction from "./refactorAction.js";
-import getFileWithDependenciesChunked from "../fileManager/filePrepare.js";
+import FilePrepare from "../fileManager/filePrepare.js";
 import project from "../Models/ProjectModel.js";
 import { readFile } from "fs/promises";
 import path from "path";
@@ -9,6 +9,8 @@ class refactorSolidViolationsAction extends RefactorAction {
 
   async refactorMethod(req) {
     const db = new dbManager();
+        const fPrepare = new FilePrepare();
+    
     const filePath = req?.body?.path;
     const rootDir = req?.body?.rootDir;
     if (!filePath) {
@@ -20,7 +22,7 @@ class refactorSolidViolationsAction extends RefactorAction {
       throw new Error("projectId not found in metadata.");
     }
 
-    const reqData = await getFileWithDependenciesChunked(filePath, rootDir, projectId);
+    const reqData = await fPrepare.getFileWithDependenciesChunked(filePath, rootDir, projectId);
 
     const projectDoc = await db.getProjectDocument(projectId);
 

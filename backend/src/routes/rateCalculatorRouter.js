@@ -1,10 +1,11 @@
 import { Router } from "express";
 import fs from "fs";
-import { extractClassesAndComplexity } from "../rateCalculator/complexityRateCalculator.js";
+import complexityRateCalculator from "../rateCalculator/complexityRateCalculator.js";
 
 const RateCalculatorRouter = Router();
 
 RateCalculatorRouter.post("/complexity", (req, res) => {
+
   const filePath = req.body.path;
 
   if (!fs.existsSync(filePath) || !filePath.endsWith(".java")) {
@@ -12,7 +13,8 @@ RateCalculatorRouter.post("/complexity", (req, res) => {
   }
 
   try {
-    const classes = extractClassesAndComplexity(filePath);
+    const calc = new complexityRateCalculator();
+    const classes = calc.extractClassesAndComplexity(filePath);
 
     if (classes.length === 0) {
       return res.json({

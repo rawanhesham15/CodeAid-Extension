@@ -1,10 +1,7 @@
 import RefactorAction from "./refactorAction.js";
-import getFileWithDependenciesChunked from "../fileManager/filePrepare.js";
-import path from "path";
-import project from "../Models/ProjectModel.js";
-import { readFile } from "fs/promises";
-import fetch from "node-fetch"; // if using Node.js without native fetch
+import fetch from "node-fetch";
 import dbManager from "../dbManager/dbManager.js";
+
 class FileRefactorCoupling extends RefactorAction {
   /**
    * Builds an object compatible with the Python class `couplingSuggestionIn`
@@ -17,7 +14,7 @@ class FileRefactorCoupling extends RefactorAction {
     };
 
     for (const violation of couplingViolations) {
-      const filePromises = violation.FilePaths.map(this.getFileContent);
+      const filePromises = violation.FilePaths.map(this.fileManager.getFileContent);
       const fileContents = await Promise.all(filePromises);
 
       const validFiles = fileContents
@@ -39,22 +36,6 @@ class FileRefactorCoupling extends RefactorAction {
     }
 
     return result;
-  }
-
-  /**
-   * Reads file content and returns normalized filePath + content
-   */
-  async getFileContent(filePath) {
-    try {
-      const content = await readFile(filePath, "utf8");
-      return {
-        filePath: path.normalize(filePath),
-        content: content,
-      };
-    } catch (error) {
-      console.error(`Failed to read ${filePath}:`, error.message);
-      return null;
-    }
   }
 
   async refactorMethod(req) {

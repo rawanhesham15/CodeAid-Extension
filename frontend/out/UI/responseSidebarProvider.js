@@ -97,7 +97,8 @@ class ResponseSidebarProvider {
             if (res.responseType === "Solid Detection for File" &&
                 showRefactor &&
                 res.refactorState &&
-                !res.content.includes("No SOLID Violations Found")) {
+                (!res.content.includes("No SOLID Violations Found") &&
+                    !res.content.includes("Java syntax error in the provided file"))) {
                 buttonHtml = `<button onclick="handleRefactor('${res.id}')"
                 style="cursor: ${res.buttonDisabled || this.isLoading ? "not-allowed" : "pointer"};"
                 ${res.buttonDisabled || this.isLoading ? "disabled" : ""}>
@@ -107,7 +108,7 @@ class ResponseSidebarProvider {
             else if (res.responseType === "Coupling Smells Detection for File" &&
                 !res.suggestionsVisible &&
                 res.isSuggestionEligible &&
-                !res.content.includes("No Coupling Smells Found")) {
+                (!res.content.includes("No Coupling Smells Found") && !res.content.includes("Java syntax error in the provided file"))) {
                 buttonHtml = `<button onclick="handleSuggestion('${res.id}')"
                 style="cursor: pointer;">
                 Show Suggested Refactorings
@@ -124,7 +125,7 @@ class ResponseSidebarProvider {
           font-size: 14px;
           align-items: center;">
             <div style="display: flex; justify-content: space-between; align-items: center;">
-              <p style="font-size: 17px; font-weight: 500;color: #178cad">${res.responseType}</p>
+              <p style="font-size: 17px; font-weight: 500;color: #c8c8c8">${res.responseType}</p>
               <div>
                 <i onclick="deleteResponse(${res.id})" style="cursor: pointer;">
                   <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0,0,256,256">

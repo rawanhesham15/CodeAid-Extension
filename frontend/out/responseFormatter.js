@@ -5,6 +5,10 @@ class ResponseFormatter {
         const parts = path.split(/[\\/]/);
         return `${parts[parts.length - 2]}/${parts[parts.length - 1]}`;
     }
+    getShortPath(p) {
+        const parts = p.split(/[\\/]/);
+        return `${parts[parts.length - 2]}/${parts[parts.length - 1]}`;
+    }
     formatSResponse(response) {
         if (response.length === 0) {
             return "<div>No SOLID Violations Found</div>";
@@ -21,6 +25,9 @@ class ResponseFormatter {
     border-radius: 8px;
     padding: 8px 12px;
     margin-bottom: 8px;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    white-space: normal;
   `;
         const titleStyle = `
     color: #12738e;
@@ -61,6 +68,9 @@ class ResponseFormatter {
       border-radius: 8px;
       padding: 10px 12px;
       margin-bottom: 12px;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+      white-space: normal;
     `;
         const smellTitleStyle = `
       color: #12738e;
@@ -78,10 +88,6 @@ class ResponseFormatter {
       margin-top: 5px;
       color: #c8c8c8;
     `;
-        function getShortPath(p) {
-            const parts = p.split(/[\\/]/);
-            return `${parts[parts.length - 2]}/${parts[parts.length - 1]}`;
-        }
         let html = `<div>`;
         response.forEach(({ couplingSmells }) => {
             couplingSmells.forEach(({ filesPaths, smells }) => {
@@ -91,7 +97,7 @@ class ResponseFormatter {
             <div style="${fileListStyle}">📄 Affected Files:
               <ul style="margin: 4px 0 0 20px; padding: 0;">
                 ${filesPaths
-                        .map((fp) => `<li>${getShortPath(fp)}</li>`)
+                        .map((fp) => `<li>${this.getShortPath(fp)}</li>`)
                         .join("")}
               </ul>
             </div>
@@ -133,7 +139,9 @@ class ResponseFormatter {
         <div style="${smellTitleStyle}"> ${smell}</div>
         <div style="${fileListStyle}">📄 Files Involved:
           <ul style="margin: 4px 0 0 20px; padding: 0;">
-            ${files_involved.map((file) => `<li>${file}</li>`).join("")}
+            ${files_involved
+                .map((file) => `<li>${this.getShortPath(file)}</li>`)
+                .join("")}
           </ul>
         </div>
         <div style="${stepsStyle}"> Suggested Steps:

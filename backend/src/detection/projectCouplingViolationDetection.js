@@ -1,6 +1,6 @@
 import DetectionAction from "./detectionAction.js";
 import path from "path";
-import getFileWithDependenciesChunked from "../fileManager/filePrepare.js";
+import FilePrepare from "../fileManager/filePrepare.js";
 import FileManager from "../fileManager/fileManager.js";
 import dbManager from "../dbManager/dbManager.js";
 
@@ -16,6 +16,8 @@ class ProjectCOUPLINGViolationDetection extends DetectionAction {
   async detectionMethod(req) {
     const db = new dbManager();
     const fm = new FileManager();
+        const fPrepare = new FilePrepare();
+
     const projectPath = req?.body?.path;
     console.log(projectPath)
     if (!projectPath || typeof projectPath !== "string") {
@@ -47,7 +49,7 @@ class ProjectCOUPLINGViolationDetection extends DetectionAction {
     let allViolations = [];
     for (const filePath of javaFiles) {
       try {
-        const reqData = await getFileWithDependenciesChunked(filePath, projectPath, projectId);
+        const reqData = await fPrepare.getFileWithDependenciesChunked(filePath, projectPath, projectId);
         const normalizedFilePath = path.normalize(filePath);
         const mainChunk = reqData.find(chunk => path.normalize(chunk.mainFilePath) === normalizedFilePath);
 
@@ -103,35 +105,6 @@ class ProjectCOUPLINGViolationDetection extends DetectionAction {
       }
     }
     return allViolations;
-  }
-
-
-
-  formatViolationsAsString(parsed) {
-    let allFormattedViolations = [];
-
-    for (const entry of parsed) {
-      // const mainFilePaths = entry.filesPaths || [];
-      const couplingSmells = entry.couplingSmells || [];
-
-      for (const smellGroup of couplingSmells) {
-        const smellFilePaths = smellGroup.filesPaths || [];
-        const smells = smellGroup.smells || [];
-
-        for (const smellObj of smells) {
-          const { smell, justification } = smellObj;
-
-          allFormattedViolations.push(
-            // `Main File(s): ${mainFilePaths.join(", ")}\n` +
-            `Affected File(s): ${smellFilePaths.join(", ")}\n` +
-            `Smell: ${smell}\n` +
-            `Justification: ${justification}`
-          );
-        }
-      }
-    }
-
-    return allFormattedViolations.join("\n---\n");
   }
 
 

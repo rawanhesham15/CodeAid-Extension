@@ -3,13 +3,16 @@ import fs from "fs";
 import path from "path";
 import { execSync } from "child_process";
 
-export const runPMDOnFile = (filePath) => {
+
+class complexityRateCalculator{
+
+
+runPMDOnFile = (filePath) => {
   try {
     const outputPath = path.join(process.cwd(), "pmd-output.json");
     const fileListPath = path.join(process.cwd(), "temp-file-list.txt");
     fs.writeFileSync(fileListPath, filePath);
 
-    //const command = `"E:/GitHub/CodeAid-Extension/backend/pmd-bin-7.10.0/bin/pmd.bat" check --file-list "${fileListPath}" -R category/java/design.xml/CyclomaticComplexity -f json -r "${outputPath}"`;
     const command = `"pmd-bin-7.10.0/bin/pmd.bat" check --file-list "${fileListPath}" -R category/java/design.xml/CyclomaticComplexity -f json -r "${outputPath}"`;
 
     try {
@@ -37,9 +40,9 @@ export const runPMDOnFile = (filePath) => {
   }
 };
 
-export const extractClassesAndComplexity = (filePath) => {
+extractClassesAndComplexity = (filePath) => {
   try {
-    const pmdResult = runPMDOnFile(filePath);
+    const pmdResult = this.runPMDOnFile(filePath);
     if (!pmdResult || !pmdResult.files || pmdResult.files.length === 0) return [];
 
     const violations = pmdResult.files[0].violations || [];
@@ -94,4 +97,7 @@ export const extractClassesAndComplexity = (filePath) => {
     console.error(`Error reading or modifying file ${filePath}:`, error.message);
     return [];
   }
-};
+}
+}
+
+export default complexityRateCalculator;
