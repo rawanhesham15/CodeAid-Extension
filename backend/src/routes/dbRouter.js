@@ -7,9 +7,9 @@ const DBRouter = new Router();
 const db = new dbManager();
 
 DBRouter.post('/init', async (req, res) => {
-  const { workspacePath, threshold } = req.body;
+  const { workspacePath } = req.body;
   try {
-    const result = await db.initProject(workspacePath, threshold);
+    const result = await db.initProject(workspacePath);
     res.json(result);
   } catch (err) {
     console.error("Error handling project init:", err);

@@ -369,7 +369,7 @@ class dbManager {
     }
   }
 
-  async initProject(workspacePath, threshold) {
+  async initProject(workspacePath) {
     if (!workspacePath) {
       throw new Error("workspacePath is required");
     }
@@ -387,7 +387,7 @@ class dbManager {
         }
       }
       // Create new project
-      const newProject = new project({ threshold, projectPath: workspacePath });
+      const newProject = new project({ projectPath: workspacePath });
       await newProject.save();
 
       // Save meta file

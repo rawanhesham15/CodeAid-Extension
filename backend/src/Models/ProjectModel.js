@@ -2,7 +2,6 @@ import mongoose from "mongoose";
 
 const projectSchema = new mongoose.Schema(
   {
-    threshold: { type: Number, required: true },
     projectPath: { type: String, required: true },
     lastState: {
       allFilePaths: [String],

@@ -275,7 +275,7 @@ class InputHandler {
             const response = await fetch("http://localhost:3000/db/init", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ workspacePath, threshold: 80 }),
+                body: JSON.stringify({ workspacePath }),
             });
             const data = await response.json();
             return `Project initialized: ${JSON.stringify(data)}`;
