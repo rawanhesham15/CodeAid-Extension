@@ -129,27 +129,72 @@ class FileManager {
       }
     }
   }
+/**
+   * Check if a Java file and its dependencies are syntactically valid.
+   * @param {string} mainFilePath - Path to the main Java file.
+   * @param {string[]} dependencyPaths - Array of file paths that the main file depends on.
+   * @returns {Promise<{ isValid: boolean, errorMessage?: string }>}
+   */
+  // async checkJavaSyntaxWithDependencies(mainFilePath, dependencyPaths) {
+  //   return new Promise((resolve) => {
+  //     const allFiles = [mainFilePath, ...dependencyPaths].map(f => `"${f}"`).join(" ");
+  //     const compileCommand = `javac ${allFiles}`;
 
-  checkJavaSyntax(filePath) {
-    return new Promise((resolve) => {
-      exec(`javac "${filePath}"`, (error) => {
-        resolve(!error); // true if no error, false if error
-      });
+  //     exec(compileCommand, (error, stdout, stderr) => {
+  //       if (error) {
+  //         resolve({ isValid: false, errorMessage: stderr });
+  //       } else {
+  //         resolve({ isValid: true , errorMessage: ""});
+  //       }
+  //     });
+  //   });
+  // }
+
+
+//   async checkJavaSyntax(filePath) {
+//   return new Promise((resolve) => {
+//     exec(`javac "${filePath}"`, (error, stdout, stderr) => {
+//       if (error) {
+//         resolve({ isValid: false, errorMessage: stderr });
+//       } else {
+//         resolve({ isValid: true, errorMessage: "" });
+//       }
+//     });
+//   });
+// }
+
+
+async checkProjectJavaSyntax(allJavaFiles) {
+  return new Promise((resolve) => {
+    // Include the main file and all dependencies
+    const allFiles = allJavaFiles
+      .filter(Boolean)                     // remove null/undefined
+      .map(f => `"${f}"`)                  // wrap each path in quotes
+      .join(" ");                          // space-separated list
+
+      console.log("ttttttttttttttttttttttttttttt" ,allFiles);
+    const compileCommand = `javac ${allFiles}`;
+
+    exec(compileCommand, (error, stdout, stderr) => {
+      if (error) {
+        resolve({ isValid: false, errorMessage: stderr });
+      } else {
+        resolve({ isValid: true, errorMessage: "" });
+      }
     });
-  }
+  });
+}
 
-
-
-  async checkProjectSyntax(dirPath) {
-    const javaFiles = await this.getAllJavaFiles(dirPath);
-    const results = await Promise.all(
-      javaFiles.map(async (file) => {
-        const error = await this.checkJavaSyntax(file);
-        return error ? { filePath: file, error } : { filePath: file };
-      })
-    );
-    return results;
-  }
+  // async checkProjectSyntax(dirPath) {
+  //   const javaFiles = await this.getAllJavaFiles(dirPath);
+  //   const results = await Promise.all(
+  //     javaFiles.map(async (file) => {
+  //       const error = await this.checkJavaSyntax(file);
+  //       return error ? { filePath: file, error } : { filePath: file };
+  //     })
+  //   );
+  //   return results;
+  // }
 }
 
 export default FileManager;

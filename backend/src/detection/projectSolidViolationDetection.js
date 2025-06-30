@@ -3,7 +3,11 @@ import getFileWithDependenciesChunked from "../fileManager/filePrepare.js";
 import path from "path";
 import fileManager from "../fileManager/fileManager.js";
 import dbManager from "../dbManager/dbManager.js";
+
+
+
 class ProjectSOLIDViolationDetection extends DetectionAction {
+
   // async getAllJavaFiles(rootDir) {
   //   try {
   //     const files = await fg("**/*.java", {
@@ -36,6 +40,16 @@ class ProjectSOLIDViolationDetection extends DetectionAction {
 
     const javaFiles = await fm.getAllJavaFiles(projectPath);
     console.log("Found Java files:", javaFiles);
+    const { isValid, errorMessage } = await fm.checkProjectJavaSyntax(
+      javaFiles
+    );
+
+    if (!isValid) {
+      console.error("❌ Java syntax error:\n", errorMessage);
+      // return a clean string instead of throwing
+      return "Java syntax error in the provided file";
+    }
+
     let allViolations = [];
     for (const filePath of javaFiles) {
       try {

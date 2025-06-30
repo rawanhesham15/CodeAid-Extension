@@ -80,9 +80,14 @@ export function activate(context: vscode.ExtensionContext) {
             } else {
               title = "Coupling Smells Detection for File";
             }
-            if (res[0].couplingSmells.length === 0) {
-              content = "No coupling smells found";
-            } else content = responseFormatter.formatCResponse(res);
+
+            if (Array.isArray(res)){
+              content = responseFormatter.formatCResponse(res);
+            }
+            else content = res;
+            // if (res[0].couplingSmells.length === 0) {
+            //   content = "No coupling smells found";
+            // } else content = responseFormatter.formatCResponse(res);
     
             lastMainFileDetectionC = res;
             secProvider.updateContent(content, title);

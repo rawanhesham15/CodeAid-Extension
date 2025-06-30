@@ -6,7 +6,7 @@ import dbManager from "../dbManager/dbManager.js";
 
 
 class fileCOUPLINGViolationDetection extends DetectionAction {
-    constructor(fileManager) {
+  constructor(fileManager) {
     super(fileManager);
   }
   async detectionMethod(req) {
@@ -23,6 +23,18 @@ class fileCOUPLINGViolationDetection extends DetectionAction {
     if (!projectId) {
       throw new Error("projectId not found in metadata.");
     }
+
+    const javaFiles = await this.fileManager.getAllJavaFiles(rootDir);
+    const { isValid, errorMessage } = await this.fileManager.checkProjectJavaSyntax(
+      javaFiles
+    );
+
+    if (!isValid) {
+      console.error("❌ Java syntax error:\n", errorMessage);
+      // return a clean string instead of throwing
+      return "Java syntax error in the provided file";
+    }
+
 
     await db.clearCouplingViolationsForProject(projectId);
 
@@ -41,6 +53,7 @@ class fileCOUPLINGViolationDetection extends DetectionAction {
         }
       }
     }
+
     console.log("Dependencies found:", dependencies);
     // console.log("Request data for SOLID detection:", reqData);
 
@@ -56,7 +69,7 @@ class fileCOUPLINGViolationDetection extends DetectionAction {
         body: JSON.stringify(apiData),
       });
 
-      
+
       if (!response.ok) {
         throw new Error(`API call failed with status ${response.status}`);
       }

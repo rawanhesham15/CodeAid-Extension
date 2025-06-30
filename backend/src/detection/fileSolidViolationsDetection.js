@@ -18,14 +18,6 @@ class FileSOLIDViolationDetection extends DetectionAction {
 
     console.log("File path for SOLID detection:", filePath);
     console.log("Root directory for Java files:", req?.body?.rootDir);
-    // try {
-    //   const isValidSyntax = await this.fileManager.checkJavaSyntax(filePath);
-    //   if (!isValidSyntax) {
-    //     return "Java syntax error in the provided file."
-    //   }
-    // } catch (error) {
-    //   return "Java syntax error in the provided file."
-    // }
 
     // Read projectId from .codeaid-meta.json
     const projectId = await db.extractProjectId(req?.body?.rootDir);
@@ -36,6 +28,16 @@ class FileSOLIDViolationDetection extends DetectionAction {
 
     console.log("Extracted projectId:", projectId);
 
+    const javaFiles = await this.fileManager.getAllJavaFiles(req?.body?.rootDir);
+    const { isValid, errorMessage } = await this.fileManager.checkProjectJavaSyntax(
+      javaFiles
+    );
+
+    if (!isValid) {
+      console.error("❌ Java syntax error:\n", errorMessage);
+      // return a clean string instead of throwing
+      return "Java syntax error in the provided file";
+    }
 
 
     await db.clearSolidViolationsForProject(projectId);
