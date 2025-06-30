@@ -64,6 +64,7 @@ class FileSOLIDViolationDetection extends DetectionAction {
     console.log("Dependencies found:", dependencies);
     console.log("Request data for SOLID detection:", reqData);
 
+    
     const apiData = reqData;
     console.log("sent");
     let result;

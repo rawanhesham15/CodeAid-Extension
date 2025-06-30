@@ -1,10 +1,9 @@
 import fs from "fs/promises";
 import path from "path";
 import { stat } from "fs/promises";
+import fsSync from "fs"; 
 import project from "../Models/ProjectModel.js";
 import FileManager from "../fileManager/fileManager.js";
-
-
 
 class dbManager {
   constructor() { }
@@ -367,6 +366,37 @@ class dbManager {
     for (const file of allJavaFiles) {
       const fileContent = await fs.readFile(file, "utf-8");
       await this.save(file, fileContent);
+    }
+  }
+
+  async initProject(workspacePath, threshold) {
+    if (!workspacePath) {
+      throw new Error("workspacePath is required");
+    }
+
+    const metaFile = path.join(workspacePath, ".codeaid-meta.json");
+
+    try {
+      // Check if meta file exists
+      if (fsSync.existsSync(metaFile)) {
+        console.log("Meta file exists:", metaFile);
+        const { projectId } = JSON.parse(fsSync.readFileSync(metaFile, "utf-8"));
+        const existingProject = await project.findById(projectId);
+        if (existingProject) {
+          return { project: existingProject, fromMeta: true };
+        }
+      }
+      // Create new project
+      const newProject = new project({ threshold, projectPath: workspacePath });
+      await newProject.save();
+
+      // Save meta file
+      fsSync.writeFileSync(metaFile, JSON.stringify({ projectId: newProject._id }), "utf-8");
+
+      return { project: newProject, created: true };
+    } catch (err) {
+      console.error("Error initializing project:", err);
+      throw err;
     }
   }
 
