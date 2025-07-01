@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 import complexityRateCalculator from "./complexityRateCalculator.js";
-
+import FileManager from "../filesManagement/fileManager.js";
 
 class rateCalculator {
 

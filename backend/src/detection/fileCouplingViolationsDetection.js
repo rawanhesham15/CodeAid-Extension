@@ -1,8 +1,8 @@
 import DetectionAction from "./detectionAction.js";
 import path from "path";
-import FilePrepare from "./../fileManager/filePrepare.js";
+import FilePrepare from "../filesManagement/promptfilePrepare.js";
 import dbManager from "../dbManager/dbManager.js";
-import ProjectManager  from "../fileManager/projectManager.js";
+import ProjectManager  from "../filesManagement/projectManager.js";
 
 class fileCOUPLINGViolationDetection extends DetectionAction {
   constructor(fileManager) {

@@ -4,7 +4,7 @@ import { stat } from "fs/promises";
 import fsSync from "fs";
 import { exec } from "child_process";
 import { readdir } from "fs/promises";
-import FileManager from "../fileManager/fileManager.js";
+import FileManager from "./fileManager.js";
 import dbManager from "../dbManager/dbManager.js";
 class ProjectManager {
   constructor() {}

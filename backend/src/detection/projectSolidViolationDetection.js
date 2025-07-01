@@ -1,9 +1,9 @@
 import DetectionAction from "./detectionAction.js";
-import FilePrepare from "../fileManager/filePrepare.js";
+import FilePrepare from "../filesManagement/promptfilePrepare.js";
 import path from "path";
-import fileManager from "../fileManager/fileManager.js";
+import fileManager from "../filesManagement/fileManager.js";
 import dbManager from "../dbManager/dbManager.js";
-import ProjectManager from "../fileManager/projectManager.js";
+import ProjectManager from "../filesManagement/projectManager.js";
 
 
 

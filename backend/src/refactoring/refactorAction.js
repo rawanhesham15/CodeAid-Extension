@@ -1,4 +1,4 @@
-import FileManager from "../fileManager/fileManager.js";
+import FileManager from "../filesManagement/fileManager.js";
 import project from "../Models/ProjectModel.js";
 import { readFile, stat } from "fs/promises";
 import path from "path";

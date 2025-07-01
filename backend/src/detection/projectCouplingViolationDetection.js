@@ -1,9 +1,9 @@
 import DetectionAction from "./detectionAction.js";
 import path from "path";
-import FilePrepare from "../fileManager/filePrepare.js";
-import FileManager from "../fileManager/fileManager.js";
+import FilePrepare from "../filesManagement/promptfilePrepare.js";
+import FileManager from "../filesManagement/fileManager.js";
 import dbManager from "../dbManager/dbManager.js";
-import ProjectManager from "../fileManager/projectManager.js";
+import ProjectManager from "../filesManagement/projectManager.js";
 class ProjectCOUPLINGViolationDetection extends DetectionAction {
   // async getAllJavaFilePaths(rootDir) {
   //   return await fg("**/*.java", {

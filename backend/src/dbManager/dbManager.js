@@ -3,8 +3,8 @@ import path from "path";
 import { stat } from "fs/promises";
 import fsSync from "fs"; 
 import project from "../Models/ProjectModel.js";
-import FileManager from "../fileManager/fileManager.js";
-import ProjectManager from "../fileManager/projectManager.js";
+import FileManager from "../filesManagement/fileManager.js";
+import ProjectManager from "../filesManagement/projectManager.js";
 
 
 class dbManager {

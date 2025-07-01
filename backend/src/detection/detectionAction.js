@@ -1,4 +1,4 @@
-import FileManager from "./../fileManager/fileManager.js";
+import FileManager from "./../filesManagement/fileManager.js";
 
 class DetectionAction {
   constructor(fileManager) {

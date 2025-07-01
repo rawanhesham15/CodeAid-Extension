@@ -1,7 +1,7 @@
 import RefactorAction from "./refactorAction.js";
 import fetch from "node-fetch";
 import dbManager from "../dbManager/dbManager.js";
-import ProjectManager from "../fileManager/projectManager.js";
+import ProjectManager from "../filesManagement/projectManager.js";
 
 class FileRefactorCoupling extends RefactorAction {
   /**

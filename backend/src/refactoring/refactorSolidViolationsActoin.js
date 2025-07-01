@@ -1,10 +1,10 @@
 import RefactorAction from "./refactorAction.js";
-import FilePrepare from "../fileManager/filePrepare.js";
+import FilePrepare from "../filesManagement/promptfilePrepare.js";
 import project from "../Models/ProjectModel.js";
 import { readFile } from "fs/promises";
 import path from "path";
 import dbManager from "../dbManager/dbManager.js";
-import ProjectManager from "../fileManager/projectManager.js";
+import ProjectManager from "../filesManagement/projectManager.js";
 class refactorSolidViolationsAction extends RefactorAction {
 
   async refactorMethod(req) {

@@ -1,5 +1,5 @@
 import DiagramGenerator from "./diagramGenerator.js";
-import FileManager from "./../fileManager/fileManager.js";
+import FileManager from "../filesManagement/fileManager.js";
 class PlottingAction {
   constructor() {
     this.diagramGenerator = new DiagramGenerator();

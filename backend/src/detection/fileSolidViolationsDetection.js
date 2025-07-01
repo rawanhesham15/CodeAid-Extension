@@ -1,7 +1,7 @@
-import FilePrepare from "./../fileManager/filePrepare.js";
+import FilePrepare from "../filesManagement/promptfilePrepare.js";
 import DetectionAction from "./detectionAction.js";
 import dbManager from "../dbManager/dbManager.js";
-import ProjectManager from "../fileManager/projectManager.js";
+import ProjectManager from "../filesManagement/projectManager.js";
 class FileSOLIDViolationDetection extends DetectionAction {
   constructor(fileManager) {
     super(fileManager);

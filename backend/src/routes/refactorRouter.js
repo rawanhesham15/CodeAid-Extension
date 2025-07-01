@@ -1,7 +1,7 @@
 import { Router } from "express";
 import refactorSolidViolationsAction from "../refactoring/refactorSolidViolationsActoin.js";
 import FileRefactorCoupling from "../refactoring/refactorCouplingAction.js";
-import ProjectManager from "../fileManager/projectManager.js";
+import ProjectManager from "../filesManagement/projectManager.js";
 const RefactorRouter = Router();
 // Instantiate the class
 const refactorSolid = new refactorSolidViolationsAction();
