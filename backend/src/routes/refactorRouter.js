@@ -1,25 +1,15 @@
 import { Router } from "express";
 import refactorSolidViolationsAction from "../refactoring/refactorSolidViolationsActoin.js";
 import FileRefactorCoupling from "../refactoring/refactorCouplingAction.js";
-import dbManager from "../dbManager/dbManager.js";
-import FileManager from '../fileManager/fileManager.js';
 import ProjectManager from "../fileManager/projectManager.js";
-
 const RefactorRouter = Router();
-
-
 // Instantiate the class
-const db = new dbManager();
 const refactorSolid = new refactorSolidViolationsAction();
 const refactorCoupling = new FileRefactorCoupling();
-const fm = new FileManager();
 const projectManager = new ProjectManager();
 RefactorRouter.post("/solid", async (req, res) => {
   const { path: filePath, content } = req.body;
-
   try {
-    await db.setLastState(filePath);
-
     const response = await refactorSolid.refactorMethod(req)
 
     res.json({ message: "All project files saved before solid refactor", data: response });
