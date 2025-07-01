@@ -285,6 +285,112 @@ class FilePrepare {
     promptChunks.push(chunk);
     return promptChunks;
   }
+    async resolveDependentsForFile(projectDir, targetFile) {
+    const normalizedTarget = path.normalize(targetFile);
+    console.log("NT", normalizedTarget);
+    const dependencyList = [];
+    const fileManager = new FileManager();
+
+    const allJavaFiles = await fileManager.getAllJavaFiles(projectDir);
+
+    // Step 2: Build dependency list using your resolveDepsForFile
+    for (const file of allJavaFiles) {
+      try {
+        const deps = await this.resolveDepsForFile(projectDir, file);
+        dependencyList.push({
+          main_file: path.normalize(file),
+          deps: deps.map((d) => path.normalize(d)),
+        });
+        console.log(dependencyList);
+      } catch (err) {
+        console.warn(`Skipping ${file} due to error: ${err.message}`);
+      }
+    }
+
+    // Step 3: Invert to get dependents of `targetFile`
+    const dependents = [];
+    for (const { main_file, deps } of dependencyList) {
+      if (deps.includes(normalizedTarget)) {
+        dependents.push(main_file);
+      }
+    }
+    console.log("Dependents", dependents);
+
+    return dependents;
+  }
+
+  async getFileWithDependentsChunked(srcPath, projectRootDir, projectId) {
+    const MAX_TOKENS = 5000;
+    const fileManager = new FileManager();
+    const mainFile = fileManager.getFileContent(srcPath);
+    if (!mainFile) throw new Error(`Failed to read file: ${srcPath}`);
+
+    // Replace dependency resolution with dependent resolution
+    let dependentPaths = await this.resolveDependentsForFile(
+      projectRootDir,
+      srcPath
+    );
+    const normalizedRoot = path.normalize(projectRootDir);
+    dependentPaths = dependentPaths.filter((p) => {
+      const normalizedPath = path.normalize(p);
+      return (
+        normalizedPath !== path.normalize(srcPath) &&
+        normalizedPath.startsWith(normalizedRoot)
+      );
+    });
+
+    const mainFilePath = path.normalize(mainFile.filePath);
+    const mainFileContent = this.escape_newlines(mainFile.content);
+    const mainFileTokens = this.count_tokens(mainFileContent);
+
+    const promptChunks = [];
+    let current_chunk_tokens = mainFileTokens;
+    let chunk_id = 0;
+    let chunk = {
+      project_id: projectId,
+      chunk_id: chunk_id,
+      mainFilePath: mainFilePath,
+      mainFileContent: mainFileContent,
+      dependents: [], // rename to 'dependents'
+    };
+
+    for (const depPath of dependentPaths) {
+      try {
+        await fs.access(depPath);
+        const depContent = this.escape_newlines(
+          await fs.readFile(depPath, "utf8")
+        );
+        const depTokens = this.count_tokens(depContent);
+        const dependent = {
+          depFilePath: path.normalize(depPath),
+          depFileContent: depContent,
+        };
+        if (current_chunk_tokens + depTokens > MAX_TOKENS) {
+          promptChunks.push(chunk);
+          chunk_id++;
+          chunk = {
+            project_id: projectId,
+            chunk_id: chunk_id,
+            mainFilePath: mainFilePath,
+            mainFileContent: mainFileContent,
+            dependents: [dependent],
+          };
+          current_chunk_tokens = mainFileTokens + depTokens;
+        } else {
+          chunk.dependents.push(dependent);
+          current_chunk_tokens += depTokens;
+        }
+      } catch (error) {
+        console.error(
+          `Failed to read dependent file ${depPath}:`,
+          error.message
+        );
+      }
+    }
+
+    promptChunks.push(chunk);
+    return promptChunks;
+  }
 }
 
 export default FilePrepare;
