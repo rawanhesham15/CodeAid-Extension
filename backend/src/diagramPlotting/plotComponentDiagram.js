@@ -10,13 +10,14 @@ class PlotComponentDiagram extends PlottingAction {
   }
 
   async generateDiagram(parsedProject, projectPath) {
-    console.log("Generating component diagram with Mermaid syntax:\n", parsedProject);
-    if(parsedProject.includes("Invalid structure")) {
+    if(parsedProject.includes("Invalid structure")) { // if the project is in invalid structure, return the error to the frontend to display it to the user
       return parsedProject;
     }
+
     if (!parsedProject || parsedProject.trim() === "graph TD;") {
       return "graph TD;\n  Error[Empty or invalid Mermaid syntax]";
     }
+    
     const fileName = "Component_Diagram.svg";
     const outputPath = path.join(path.resolve(projectPath), fileName);
     console.log("Output path:", outputPath);
@@ -28,28 +29,11 @@ class PlotComponentDiagram extends PlottingAction {
     if (!fs.existsSync(outputPath)) {
       return "graph TD;\n  Error[Diagram file was not created]";
     }
-    // return outputPath;
   }
 
   guessRole(filename, content, filePath) {
     const lowerPath = filePath.toLowerCase();
     const lowerFilename = filename.toLowerCase();
-    if (
-      lowerPath.includes("/controller") ||
-      lowerPath.includes("\\controller") ||
-      lowerFilename.includes("controller") ||
-      content.includes("@Controller")
-    ) {
-      return "Controller";
-    }
-    if (
-      lowerPath.includes("/service") ||
-      lowerPath.includes("\\service") ||
-      lowerFilename.includes("service") ||
-      content.includes("@Service")
-    ) {
-      return "Service";
-    }
     if (
       lowerPath.includes("/repository") ||
       lowerPath.includes("\\repository") ||
@@ -65,53 +49,15 @@ class PlotComponentDiagram extends PlottingAction {
     ) {
       return "DAO";
     }
-    if (
-      lowerPath.includes("/model") ||
-      lowerPath.includes("\\model") ||
-      lowerFilename.includes("entity") ||
-      lowerFilename.includes("model") ||
-      content.includes("@Entity")
-    ) {
-      return "Database";
-    }
-    if (
-      lowerPath.includes("/util") ||
-      lowerPath.includes("\\util") ||
-      lowerFilename.includes("util")
-    ) {
-      return "Helper";
-    }
-    if (
-      lowerPath.includes("/test") ||
-      lowerPath.includes("\\test") ||
-      lowerFilename.includes("test") ||
-      content.includes("@Test")
-    ) {
-      return "Test";
-    }
-    if (
-      lowerPath.includes("/configuration") ||
-      lowerPath.includes("\\configuration") ||
-      lowerFilename.includes("config") ||
-      content.includes("@Configuration")
-    ) {
-      return "Configuration";
-    }
-    if (lowerFilename.includes("application")) {
-      return "Application";
-    }
-    return "Helper";
+    return "Normal";
   }
 
   toMermaidBox(name, role) {
     const displayName = `${name}.java`;
-    if (role === "Database") {
-      return `${name}[(${displayName})]`;
+    if (role === "DAO" || role === "Repository") {
+      return `${name}[(${displayName})]`; // if repository or dao will be displayed as a db
     }
-    if (role === "Test") {
-      return `${name}[${displayName}]`;
-    }
-    return `${name}[[${displayName}]]`;
+    return `${name}[[${displayName}]]`; // if normal role will be displayed as a box
   }
 
   toEdge(from, to) {
@@ -140,13 +86,8 @@ class PlotComponentDiagram extends PlottingAction {
       return "graph TD;\n  NoFiles[No Java files found]";
     }
 
-    console.log(
-      "Found .java files:",
-      javaFiles.map((f) => f.filePath)
-    );
-
-    const nodes = new Map();
-    const componentsByPackage = new Map();
+    const nodes = new Map(); // Map to hold nodes with their roles and file paths
+    const componentsByPackage = new Map(); // Map to hold components grouped by package
 
     // Transform projectJSON for DependenciesExtractor
     const extractorJSON = javaFiles.map((file) => ({
@@ -161,12 +102,12 @@ class PlotComponentDiagram extends PlottingAction {
     for (const file of javaFiles) {
       const filePath = file.filePath;
       const content = file.content;
-      const fileName = path.basename(filePath, ".java");
+      const fileName = path.basename(filePath, ".java"); // extract the file name without .java part
       const role = this.guessRole(fileName, content, filePath);
       nodes.set(fileName, { role, filePath });
 
-      const packageMatch = content.match(/package\s+([\w.]+);/);
-      const packageName = packageMatch ? packageMatch[1] : "unnamed";
+      const packageMatch = content.match(/package\s+([\w.]+);/); // get the package name
+      const packageName = packageMatch ? packageMatch[1] : "unnamed"; // if no package is found, package name will be 'unnamed'
       console.log(
         `Added node: ${fileName} (${role}) in package: ${packageName}`
       );
@@ -182,7 +123,6 @@ class PlotComponentDiagram extends PlottingAction {
       const safePackageName = packageName.replace(/\./g, "_");
       if (components.includes(safePackageName)) {
         return `Invalid structure: Subgraph "${packageName}" contains a component with the same name "${safePackageName}". Subgraph and component names must be unique to avoid cycles.`;
-        // return 'cycle found';
       }
     }
 
