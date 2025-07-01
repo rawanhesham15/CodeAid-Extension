@@ -1,5 +1,5 @@
 import DetectionAction from "./detectionAction.js";
-import FilePrepare from "../filesManagement/promptfilePrepare.js";
+import FilePrepare from "../filesManagement/filePrepare.js";
 import path from "path";
 import fileManager from "../filesManagement/fileManager.js";
 import dbManager from "../dbManager/dbManager.js";

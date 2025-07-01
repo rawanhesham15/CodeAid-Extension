@@ -1,5 +1,5 @@
 import RefactorAction from "./refactorAction.js";
-import FilePrepare from "../filesManagement/promptfilePrepare.js";
+import FilePrepare from "../filesManagement/filePrepare.js";
 import project from "../Models/ProjectModel.js";
 import { readFile } from "fs/promises";
 import path from "path";
