@@ -5,28 +5,24 @@ import complexityRateCalculator from "./complexityRateCalculator.js";
 
 class rateCalculator {
 
-  scanDirectory = (dirPath) => {
-    const calc = new complexityRateCalculator();
-    let complexityData = [];
-    const items = fs.readdirSync(dirPath, { withFileTypes: true });
+  async calculateComplexity(dirPath) {
+  const calc = new complexityRateCalculator();
+  const fm = new FileManager();
+  const allJavaFiles = await fm.getAllJavaFilePaths(dirPath);
+  const complexityData = [];
 
-    for (const item of items) {
-      const fullPath = path.join(dirPath, item.name);
-
-      if (item.isDirectory()) {
-        complexityData = complexityData.concat(scanDirectory(fullPath));
-      } else if (item.isFile() && item.name.endsWith(".java")) {
-        console.log(`Found Java file: ${fullPath}`);
-        const classes = calc.extractClassesAndComplexity(fullPath);
-        if (classes.length === 0) {
-          console.warn(`No complexity data for file: ${fullPath}`);
-        }
-        complexityData.push({ file: fullPath, classes });
-      }
+  for (const file of allJavaFiles) {
+    console.log(`Found Java file: ${file}`);
+    const classes = calc.extractClassesAndComplexity(file);
+    if (classes.length === 0) {
+      console.warn(`No complexity data for file: ${file}`);
     }
-
-    return complexityData;
+    complexityData.push({ file, classes });
   }
+
+  return complexityData;
+}
+
 }
 
 export default rateCalculator

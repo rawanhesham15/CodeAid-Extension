@@ -3,12 +3,13 @@ import FilePrepare from "../fileManager/filePrepare.js";
 import path from "path";
 import fileManager from "../fileManager/fileManager.js";
 import dbManager from "../dbManager/dbManager.js";
+import ProjectManager from "../fileManager/projectManager.js";
 
 
 
 class ProjectSOLIDViolationDetection extends DetectionAction {
 
-  // async getAllJavaFiles(rootDir) {
+  // async getAllJavaFilePaths(rootDir) {
   //   try {
   //     const files = await fg("**/*.java", {
   //       cwd: rootDir,
@@ -17,7 +18,7 @@ class ProjectSOLIDViolationDetection extends DetectionAction {
   //     });
   //     return files;
   //   } catch (error) {
-  //     console.error("Error in getAllJavaFiles:", error.message);
+  //     console.error("Error in getAllJavaFilePaths:", error.message);
   //     throw error;
   //   }
   // }
@@ -25,7 +26,8 @@ class ProjectSOLIDViolationDetection extends DetectionAction {
   async detectionMethod(req) {
     const db = new dbManager();
     const fm = new fileManager();
-        const fPrepare = new FilePrepare();
+    const projectManager = new ProjectManager();
+    const fPrepare = new FilePrepare();
 
     const projectPath = req?.body?.path;
     if (!projectPath || typeof projectPath !== "string") {
@@ -34,13 +36,13 @@ class ProjectSOLIDViolationDetection extends DetectionAction {
 
     console.log("Project path:", projectPath);
 
-    const projectId = await db.extractProjectId(projectPath);
+    const projectId = await projectManager.extractProjectId(projectPath);
 
     if (!projectId) {
       throw new Error("projectId not found in metadata.");
     }
 
-    const javaFiles = await fm.getAllJavaFiles(projectPath);
+    const javaFiles = await fm.getAllJavaFilePaths(projectPath);
     console.log("Found Java files:", javaFiles);
     const { isValid, errorMessage } = await fm.checkProjectJavaSyntax(
       javaFiles

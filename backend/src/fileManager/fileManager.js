@@ -2,9 +2,8 @@ import fs from "fs";
 import path from "path";
 import { readdir } from "fs/promises";
 import { exec } from "child_process";
+import ProjectManager from "./projectManager.js";
 import dbManager from "../dbManager/dbManager.js";
-
-
 class FileManager {
 
   createFile(dirPath, fileName) {
@@ -88,52 +87,19 @@ class FileManager {
       console.error(`Error deleting file: ${error.message}`);
     }
   }
-  
   // Recursively get all .java files from a directory
-  async getAllJavaFiles(dirPath) {
+  async getAllJavaFilePaths(dirPath) {
+    console.log("Getting all Java file paths from:", dirPath);
     const entries = await readdir(dirPath, { withFileTypes: true });
     const files = await Promise.all(
       entries.map((entry) => {
         const res = path.resolve(dirPath, entry.name);
-        return entry.isDirectory() ? this.getAllJavaFiles(res) : res;
+        console.log("Processing entry:", res);
+        return entry.isDirectory() ? this.getAllJavaFilePaths(res) : res;
       })
     );
     return files.flat().filter((file) => file.endsWith(".java"));
   }
-
-  async undo(path,projectPath) {
-    const db = new dbManager();
-    const lastState = await db.undo(path);
-    const paths = await this.getAllJavaFiles(projectPath)
-    for (const file of paths) {
-      if(!lastState.allFilePaths.includes(file)) {
-        try {
-          await vscode.workspace.fs.delete(vscode.Uri.file(file));
-        } catch (err) {
-          vscode.window.showWarningMessage(`Failed to delete file: ${file}`);
-          console.error(`Error deleting file ${file}`, err);
-        }
-      }
-    }
-    for (const file of lastState.filePathsLastState) {
-      const uri = vscode.Uri.file(file.filePath);
-      try {
-        // Ensure directory exists
-        const dirPath = vscode.Uri.file(require("path").dirname(file.filePath));
-        await vscode.workspace.fs.createDirectory(dirPath);
-
-        // Write new content directly
-        const encoder = new TextEncoder();
-        const contentBytes = encoder.encode(file.content);
-        await vscode.workspace.fs.writeFile(uri, contentBytes);
-
-      } catch (err) {
-        vscode.window.showWarningMessage(`Failed to write file: ${file.filePath}`);
-        console.error(`Error writing file ${file.filePath}`, err);
-      }
-    }
-  }
-
   async checkProjectJavaSyntax(allJavaFiles) {
   return new Promise((resolve) => {
     // Include the main file and all dependencies
@@ -153,5 +119,4 @@ class FileManager {
   });
   }
 }
-
 export default FileManager;

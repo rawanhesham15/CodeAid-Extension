@@ -86,7 +86,7 @@ extractClassesAndComplexity = (filePath) => {
 
       fileContent = fileContent.replace(regex, (match, indent, classLine) => {
         console.log(`Writing comment above class ${cls.name}`);
-        return fileContent.includes(comment) ? match : `${indent}${comment}\n${indent}${classLine}`;
+        return fileContent.includes(comment) ? match : `${indent}${comment}${indent}${classLine}`;
       });
     }
 

@@ -2,8 +2,7 @@ import DetectionAction from "./detectionAction.js";
 import path from "path";
 import FilePrepare from "./../fileManager/filePrepare.js";
 import dbManager from "../dbManager/dbManager.js";
-
-
+import ProjectManager  from "../fileManager/projectManager.js";
 
 class fileCOUPLINGViolationDetection extends DetectionAction {
   constructor(fileManager) {
@@ -13,6 +12,7 @@ class fileCOUPLINGViolationDetection extends DetectionAction {
 
     const fPrepare = new FilePrepare();
     const db = new dbManager
+    const projectManager = new ProjectManager();
     const filePath = req?.body?.path;
     if (!filePath || typeof filePath !== "string") {
       throw new Error("Invalid or missing project path.");
@@ -21,12 +21,12 @@ class fileCOUPLINGViolationDetection extends DetectionAction {
     console.log("Project path:", filePath);
 
     let rootDir = req?.body?.rootDir || path.dirname(filePath);
-    const projectId = await db.extractProjectId(rootDir);
+    const projectId = await projectManager.extractProjectId(rootDir);
     if (!projectId) {
       throw new Error("projectId not found in metadata.");
     }
 
-    const javaFiles = await this.fileManager.getAllJavaFiles(rootDir);
+    const javaFiles = await this.fileManager.getAllJavaFilePaths(rootDir);
     const { isValid, errorMessage } = await this.fileManager.checkProjectJavaSyntax(
       javaFiles
     );

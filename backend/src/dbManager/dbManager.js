@@ -4,63 +4,11 @@ import { stat } from "fs/promises";
 import fsSync from "fs"; 
 import project from "../Models/ProjectModel.js";
 import FileManager from "../fileManager/fileManager.js";
+import ProjectManager from "../fileManager/projectManager.js";
+
 
 class dbManager {
   constructor() { }
-
-  // Locate .codeaid-meta.json and extract the projectId
-  async extractProjectId(startPath) {
-    const metaPath = await this.findMetaPath(startPath);
-    console.log("metaPath", metaPath)
-    const metaContent = await fs.readFile(metaPath, "utf-8");
-    console.log("metaContent", metaContent)
-    const metaData = JSON.parse(metaContent);
-    console.log("metaData", metaData)
-
-    const projectId = metaData.projectId;
-    console.log("projectId", projectId)
-    if (!projectId) {
-      throw new Error("projectId not found in metadata.");
-    }
-    console.log("Extracted projectId:", projectId);
-    return projectId;
-  }
-
-  // Find the path of the .codeaid-meta.json file
-  async findMetaPath(startPath) {
-    let currentDir = path.normalize(startPath);
-    try {
-      const stats = await stat(currentDir);
-      if (stats.isFile()) {
-        currentDir = path.dirname(currentDir);
-      }
-    } catch (error) {
-      throw new Error(
-        `Invalid starting path: ${startPath}. Error: ${error.message}`
-      );
-    }
-
-    const maxDepth = 10;
-    let depth = 0;
-
-    while (depth < maxDepth) {
-      const metaPath = path.join(currentDir, ".codeaid-meta.json");
-      try {
-        await stat(metaPath); // file exists
-        return metaPath;
-      } catch (error) {
-        const parentDir = path.dirname(currentDir);
-        if (parentDir === currentDir) break;
-        currentDir = parentDir;
-        depth++;
-      }
-    }
-
-    throw new Error(
-      `.codeaid-meta.json not found within ${maxDepth} levels from ${startPath}`
-    );
-  }
-
   // Merge file states, keeping the latest version per filePath
   mergeLastState(existing, incoming) {
     const fileMap = new Map();
@@ -75,16 +23,16 @@ class dbManager {
 
     return Array.from(fileMap.values());
   }
-
   // Save {filePath, content} to the lastState of the corresponding project
   async save(filePath, content) {
     const fm = new FileManager();
+    const projectManager = new ProjectManager();
     try {
-      const projectId = await this.extractProjectId(filePath);
-      const metaPath = await this.findMetaPath(filePath);
+      const projectId = await projectManager.extractProjectId(filePath);
+      const metaPath = await projectManager.findMetaPath(filePath);
       const projectRoot = path.dirname(metaPath);
 
-      const allFiles = await fm.getAllJavaFiles(projectRoot);
+      const allFiles = await fm.getAllJavaFilePaths(projectRoot);
 
       const fileStates = await Promise.all(
         allFiles.map(async (file) => {
@@ -125,7 +73,6 @@ class dbManager {
       throw error;
     }
   }
-
   async clearLastState(projectId) {
     await project.updateOne(
       { _id: projectId },
@@ -138,63 +85,21 @@ class dbManager {
         },
       }
     );
+        console.log(`Cleared lastState for project with ID ${projectId}`);
+
   }
-
-  // Undo refactoring by restoring saved file states
-  async undo(filePath) {
-    const fm = new FileManager();
-    try {
-      const projectId = await this.extractProjectId(filePath);
-      const projectData = await project.findById(projectId);
-
-      if (!projectData) {
-        throw new Error(`Project with ID ${projectId} not found`);
-      }
-
-      const lastState = projectData.lastState;
-      const allSavedPaths = lastState?.allFilePaths || [];
-      const workspaceDir = path.dirname(filePath);
-
-      if (allSavedPaths.length === 0) {
-        console.log("No saved paths in lastState. Skipping file deletion.");
-      } else {
-        const filesInDir = await fm.getAllJavaFiles(workspaceDir);
-        for (const file of filesInDir) {
-          const normalizedPath = path.normalize(file);
-          const isSaved = allSavedPaths.some(
-            (savedPath) => path.normalize(savedPath) === normalizedPath
-          );
-          if (!isSaved) {
-            await fs.unlink(file);
-            console.log(`Deleted unsaved file: ${file}`);
-          }
-        }
-      }
-
-      for (const file of lastState.filePathsLastState || []) {
-        const uri = path.resolve(file.filePath);
-        const dir = path.dirname(uri);
-        try {
-          await fs.mkdir(dir, { recursive: true });
-          await fs.writeFile(uri, file.content, "utf-8");
-          console.log(`Restored file: ${uri}`);
-        } catch (error) {
-          console.error(`Failed to restore file: ${uri}`, error.message);
-        }
-      }
-
-      console.log("Last state before clearing:", lastState);
-
-      await this.clearLastState(projectId);
-      return lastState;
-    } catch (error) {
-      console.error("Error during undo:", error.message);
-      throw error;
+  async getLastState(projectId) {
+    const projectData = await project.findById(projectId);
+    if (!projectData) {
+      throw new Error(`Project with ID ${projectId} not found`);
     }
-  }
-
-  getAllowedPrinciples() {
-    return ["Single Responsibility", "Open-Closed"];
+    return {
+      projectId,
+      lastState: projectData.lastState || {
+        allFilePaths: [],
+        filePathsLastState: []
+      }
+    };
   }
   async saveSolidViolations(violations, projectId, dependencies) {
     if (!projectId || typeof projectId !== "string") {
@@ -205,7 +110,7 @@ class dbManager {
       throw new Error("Violations must be an array.");
     }
 
-    const allowedPrinciples = this.getAllowedPrinciples();
+    const allowedPrinciples = ["Single Responsibility", "Open-Closed"];;
     const formattedViolations = [];
 
     for (const v of violations) {
@@ -336,14 +241,13 @@ class dbManager {
       }
     }
   }
-
   async clearSolidViolationsForProject(projectId) {
+    console.log(`Clearing solid violations for project with ID ${projectId}`);
     await project.updateOne(
       { _id: projectId },
       { $set: { solidViolations: [] } }
     );
   }
-
   async clearCouplingViolationsForProject(projectId) {
     await project.updateOne(
       { _id: projectId },
@@ -357,18 +261,17 @@ class dbManager {
     }
     return projectDoc;
   }
-  
-// having the current filePath, get all Java files in the project and save them in db 
-  async storeAllBeforeRefactor(filePath) {
+// having the current filePath, get all Java files in the project and save them in db in lastState 
+  async setLastState(filePath) {
     const fm = new FileManager();
     const projectDir = path.dirname(filePath);
-    const allJavaFiles = await fm.getAllJavaFiles(projectDir);
+    const allJavaFiles = await fm.getAllJavaFilePaths(projectDir);
     for (const file of allJavaFiles) {
       const fileContent = await fs.readFile(file, "utf-8");
       await this.save(file, fileContent);
     }
+    console.log(`All Java files saved in lastState for project at ${projectDir}`);
   }
-
   async initProject(workspacePath) {
     if (!workspacePath) {
       throw new Error("workspacePath is required");
@@ -399,7 +302,5 @@ class dbManager {
       throw err;
     }
   }
-
 }
-
 export default dbManager;

@@ -4,7 +4,6 @@ import { parse } from "java-parser";
 import path from "path";
 import FileManager from './fileManager.js'
 
-
 class FilePrepare {
 
   // async findJavaFiles(root) {
@@ -30,6 +29,7 @@ class FilePrepare {
   // }
 
   // Extract type names using regex
+  
   extractSimpleNames(code) {
     const simpleNames = new Set();
     // Match class/interface declarations, type references, and generic types
@@ -96,7 +96,7 @@ class FilePrepare {
   async buildFqnMap(root) {
     const fManger = new FileManager();
     const fqnMap = {};
-    const files = await fManger.getAllJavaFiles(root);
+    const files = await fManger.getAllJavaFilePaths(root);
 
     for (const file of files) {
       try {

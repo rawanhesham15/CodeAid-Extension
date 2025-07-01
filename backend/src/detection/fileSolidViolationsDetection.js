@@ -1,9 +1,7 @@
 import FilePrepare from "./../fileManager/filePrepare.js";
 import DetectionAction from "./detectionAction.js";
 import dbManager from "../dbManager/dbManager.js";
-
-
-
+import ProjectManager from "../fileManager/projectManager.js";
 class FileSOLIDViolationDetection extends DetectionAction {
   constructor(fileManager) {
     super(fileManager);
@@ -11,8 +9,8 @@ class FileSOLIDViolationDetection extends DetectionAction {
 
   async detectionMethod(req) {
     const db = new dbManager();
-        const fPrepare = new FilePrepare();
-
+    const fPrepare = new FilePrepare();
+    const projectManager = new ProjectManager();
     const filePath = req?.body?.path;
     if (!filePath || typeof filePath !== "string") {
       throw new Error("Invalid or missing project path.");
@@ -22,7 +20,7 @@ class FileSOLIDViolationDetection extends DetectionAction {
     console.log("Root directory for Java files:", req?.body?.rootDir);
 
     // Read projectId from .codeaid-meta.json
-    const projectId = await db.extractProjectId(req?.body?.rootDir);
+    const projectId = await projectManager.extractProjectId(req?.body?.rootDir);
 
     if (!projectId) {
       throw new Error("projectId not found in metadata.");
@@ -30,7 +28,7 @@ class FileSOLIDViolationDetection extends DetectionAction {
 
     console.log("Extracted projectId:", projectId);
 
-    const javaFiles = await this.fileManager.getAllJavaFiles(req?.body?.rootDir);
+    const javaFiles = await this.fileManager.getAllJavaFilePaths(req?.body?.rootDir);
     const { isValid, errorMessage } = await this.fileManager.checkProjectJavaSyntax(
       javaFiles
     );

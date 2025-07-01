@@ -3,8 +3,7 @@ import refactorSolidViolationsAction from "../refactoring/refactorSolidViolation
 import FileRefactorCoupling from "../refactoring/refactorCouplingAction.js";
 import dbManager from "../dbManager/dbManager.js";
 import FileManager from '../fileManager/fileManager.js';
-
-
+import ProjectManager from "../fileManager/projectManager.js";
 
 const RefactorRouter = Router();
 
@@ -14,13 +13,12 @@ const db = new dbManager();
 const refactorSolid = new refactorSolidViolationsAction();
 const refactorCoupling = new FileRefactorCoupling();
 const fm = new FileManager();
-
-
+const projectManager = new ProjectManager();
 RefactorRouter.post("/solid", async (req, res) => {
   const { path: filePath, content } = req.body;
 
   try {
-    await db.storeAllBeforeRefactor(filePath);
+    await db.setLastState(filePath);
 
     const response = await refactorSolid.refactorMethod(req)
 
@@ -31,14 +29,15 @@ RefactorRouter.post("/solid", async (req, res) => {
 });
 
 RefactorRouter.post("/undo", async (req, res) => {
-  const { path, projectPath } = req.body;
+  const { path, project } = req.body;
   try {
     console.log("Undoing changes for path:", path);
     // You can return lastState if needed
-     await fm.undo(path,projectPath);
+     await projectManager.undo(path,project);
     res.json({ message: "Undo last state fetched" });
   } catch (error) {
     res.status(500).json({ error: error.message });
+    console.error("Error during undo operation:", error);
   }
 });
 

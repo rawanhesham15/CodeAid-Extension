@@ -4,20 +4,21 @@ import project from "../Models/ProjectModel.js";
 import { readFile } from "fs/promises";
 import path from "path";
 import dbManager from "../dbManager/dbManager.js";
-
+import ProjectManager from "../fileManager/projectManager.js";
 class refactorSolidViolationsAction extends RefactorAction {
 
   async refactorMethod(req) {
     const db = new dbManager();
-        const fPrepare = new FilePrepare();
-    
+    const fPrepare = new FilePrepare();
+    const projectManager = new ProjectManager();
     const filePath = req?.body?.path;
     const rootDir = req?.body?.rootDir;
     if (!filePath) {
       throw new Error("Missing filePath or projectPath in request.");
     }
 
-    const projectId = await db.extractProjectId(rootDir);
+    const projectId = await projectManager.extractProjectId(rootDir);
+    console.log("kbgfw;obgoeb:", projectId);
     if (!projectId) {
       throw new Error("projectId not found in metadata.");
     }

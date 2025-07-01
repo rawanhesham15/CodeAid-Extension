@@ -3,9 +3,9 @@ import path from "path";
 import FilePrepare from "../fileManager/filePrepare.js";
 import FileManager from "../fileManager/fileManager.js";
 import dbManager from "../dbManager/dbManager.js";
-
+import ProjectManager from "../fileManager/projectManager.js";
 class ProjectCOUPLINGViolationDetection extends DetectionAction {
-  // async getAllJavaFiles(rootDir) {
+  // async getAllJavaFilePaths(rootDir) {
   //   return await fg("**/*.java", {
   //     cwd: rootDir,
   //     absolute: true,
@@ -16,8 +16,8 @@ class ProjectCOUPLINGViolationDetection extends DetectionAction {
   async detectionMethod(req) {
     const db = new dbManager();
     const fm = new FileManager();
-        const fPrepare = new FilePrepare();
-
+    const fPrepare = new FilePrepare();
+    const projectManager = new ProjectManager();
     const projectPath = req?.body?.path;
     console.log(projectPath)
     if (!projectPath || typeof projectPath !== "string") {
@@ -26,14 +26,14 @@ class ProjectCOUPLINGViolationDetection extends DetectionAction {
 
     console.log("Project path:", projectPath);
 
-    const projectId = await db.extractProjectId(projectPath);
+    const projectId = await projectManager.extractProjectId(projectPath);
 
     if (!projectId) {
       throw new Error("projectId not found in metadata.");
     }
 
 
-    const javaFiles = await fm.getAllJavaFiles(projectPath);
+    const javaFiles = await fm.getAllJavaFilePaths(projectPath);
     console.log("Found Java files:", javaFiles);
 
     const { isValid, errorMessage } = await fm.checkProjectJavaSyntax(
