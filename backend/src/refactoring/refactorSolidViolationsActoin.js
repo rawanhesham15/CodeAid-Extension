@@ -23,7 +23,7 @@ class refactorSolidViolationsAction extends RefactorAction {
       throw new Error("projectId not found in metadata.");
     }
 
-    const reqData = await fPrepare.getFileWithDependenciesChunked(filePath, rootDir, projectId);
+    const reqData = await fPrepare.getFileWithDependentsChunked(filePath, rootDir, projectId);
 
     const projectDoc = await db.getProjectDocument(projectId);
 

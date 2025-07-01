@@ -285,38 +285,26 @@ class FilePrepare {
     promptChunks.push(chunk);
     return promptChunks;
   }
-    async resolveDependentsForFile(projectDir, targetFile) {
-    const normalizedTarget = path.normalize(targetFile);
-    console.log("NT", normalizedTarget);
-    const dependencyList = [];
-    const fileManager = new FileManager();
 
-    const allJavaFiles = await fileManager.getAllJavaFiles(projectDir);
+  async resolveDependentsForFile(projectDir, targetFilePath) {
+  const fileManager = new FileManager();
+  const allJavaFiles = await fileManager.getAllJavaFilePaths(projectDir);
 
-    // Step 2: Build dependency list using your resolveDepsForFile
-    for (const file of allJavaFiles) {
-      try {
-        const deps = await this.resolveDepsForFile(projectDir, file);
-        dependencyList.push({
-          main_file: path.normalize(file),
-          deps: deps.map((d) => path.normalize(d)),
-        });
-        console.log(dependencyList);
-      } catch (err) {
-        console.warn(`Skipping ${file} due to error: ${err.message}`);
-      }
+  const className = path.basename(targetFilePath, ".java"); // e.g. Customer
+  const dependents = [];
+
+  for (const file of allJavaFiles) {
+    if (file === targetFilePath) continue; // skip self
+
+    const content = await fs.readFile(file, "utf-8");
+    const regex = new RegExp(`\\b${className}\\b`);
+
+    if (regex.test(content)) {
+      dependents.push(file); // this file uses the class
     }
+  }
 
-    // Step 3: Invert to get dependents of `targetFile`
-    const dependents = [];
-    for (const { main_file, deps } of dependencyList) {
-      if (deps.includes(normalizedTarget)) {
-        dependents.push(main_file);
-      }
-    }
-    console.log("Dependents", dependents);
-
-    return dependents;
+  return dependents;
   }
 
   async getFileWithDependentsChunked(srcPath, projectRootDir, projectId) {
@@ -339,6 +327,7 @@ class FilePrepare {
       );
     });
 
+    console.log("Dependent Paths",dependentPaths)
     const mainFilePath = path.normalize(mainFile.filePath);
     const mainFileContent = this.escape_newlines(mainFile.content);
     const mainFileTokens = this.count_tokens(mainFileContent);

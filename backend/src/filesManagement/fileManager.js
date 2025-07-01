@@ -89,12 +89,12 @@ class FileManager {
   }
   // Recursively get all .java files from a directory
   async getAllJavaFilePaths(dirPath) {
-    console.log("Getting all Java file paths from:", dirPath);
+    // console.log("Getting all Java file paths from:", dirPath);
     const entries = await readdir(dirPath, { withFileTypes: true });
     const files = await Promise.all(
       entries.map((entry) => {
         const res = path.resolve(dirPath, entry.name);
-        console.log("Processing entry:", res);
+        // console.log("Processing entry:", res);
         return entry.isDirectory() ? this.getAllJavaFilePaths(res) : res;
       })
     );
