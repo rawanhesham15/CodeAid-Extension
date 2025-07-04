@@ -26,15 +26,15 @@ class fileCOUPLINGViolationDetection extends DetectionAction {
     }
 
     const javaFiles = await this.fileManager.getAllJavaFilePaths(rootDir);
-    // const { isValid, errorMessage } = await this.fileManager.checkProjectJavaSyntax(
-    //   javaFiles
-    // );
+    const { isValid, errorMessage } = await this.fileManager.checkProjectJavaSyntax(
+      javaFiles
+    );
 
-    // if (!isValid) {
-    //   console.error("❌ Java syntax error:\n", errorMessage);
-    //   // return a clean string instead of throwing
-    //   return "Java syntax error in the provided file";
-    // }
+    if (!isValid) {
+      console.error("❌ Java syntax error:\n", errorMessage);
+      // return a clean string instead of throwing
+      return "Java syntax error in the provided file";
+    }
 
     await db.clearCouplingViolationsForProject(projectId);
 
@@ -61,7 +61,7 @@ class fileCOUPLINGViolationDetection extends DetectionAction {
 
     let result;
     try {
-      const response = await fetch("http://localhost:8080/detect-coupling", {
+      const response = await fetch("http://localhost:8000/detect-coupling", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

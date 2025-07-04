@@ -67,7 +67,7 @@ class FileRefactorCoupling extends RefactorAction {
       ...inputData,
     };
 
-    const response = await fetch("http://localhost:8080/refactor-coupling", {
+    const response = await fetch("http://localhost:8000/refactor-coupling", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

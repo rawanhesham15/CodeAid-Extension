@@ -34,7 +34,7 @@ class refactorSolidViolationsAction extends RefactorAction {
       data: reqData,
       violations: projectDoc.solidViolations[0].violations,
     };
-    const response = await fetch("http://localhost:8080/refactor-solid", {
+    const response = await fetch("http://localhost:8000/refactor-solid", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

@@ -101,7 +101,7 @@ class ProjectSOLIDViolationDetection extends DetectionAction {
 
         let result;
         try {
-          const response = await fetch("http://localhost:8080/detect-solid", {
+          const response = await fetch("http://localhost:8000/detect-solid", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",

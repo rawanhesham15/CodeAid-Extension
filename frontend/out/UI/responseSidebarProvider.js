@@ -99,11 +99,16 @@ class ResponseSidebarProvider {
                 res.refactorState &&
                 (!res.content.includes("No SOLID Violations Found") &&
                     !res.content.includes("Java syntax error in the provided file"))) {
-                buttonHtml = `<button onclick="handleRefactor('${res.id}')"
-                style="cursor: ${res.buttonDisabled || this.isLoading ? "not-allowed" : "pointer"};"
+                if (res.content.includes("Single Responsibility") ||
+                    res.content.includes("Open-Closed")) {
+                    buttonHtml = `<button onclick="handleRefactor('${res.id}')"
+                style="cursor: ${res.buttonDisabled || this.isLoading
+                        ? "not-allowed"
+                        : "pointer"};"
                 ${res.buttonDisabled || this.isLoading ? "disabled" : ""}>
                 ${buttonLabel[res.refactorState]}
               </button>`;
+                }
             }
             else if (res.responseType === "Coupling Smells Detection for File" &&
                 !res.suggestionsVisible &&
