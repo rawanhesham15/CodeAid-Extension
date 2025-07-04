@@ -17,7 +17,6 @@ class refactorSolidViolationsAction extends RefactorAction {
     }
     await db.setLastState(filePath);
     const projectId = await projectManager.extractProjectId(rootDir);
-    console.log("kbgfw;obgoeb:", projectId);
     if (!projectId) {
       throw new Error("projectId not found in metadata.");
     }

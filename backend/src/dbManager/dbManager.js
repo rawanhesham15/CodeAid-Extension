@@ -9,29 +9,39 @@ import ProjectManager from "../filesManagement/projectManager.js";
 
 class dbManager {
   constructor() { }
-  // Merge file states, keeping the latest version per filePath
-  mergeLastState(existing, incoming) {
-    const fileMap = new Map();
 
-    for (const entry of existing) {
-      fileMap.set(path.normalize(entry.filePath), entry);
-    }
-
-    for (const entry of incoming) {
-      fileMap.set(path.normalize(entry.filePath), entry); // Overwrite or insert
-    }
-
-    return Array.from(fileMap.values());
-  }
-  // Save {filePath, content} to the lastState of the corresponding project
+// Save {filePath, content} to the lastState of the corresponding project
   async save(filePath, content) {
     const fm = new FileManager();
     const projectManager = new ProjectManager();
+
     try {
       const projectId = await projectManager.extractProjectId(filePath);
       const metaPath = await projectManager.findMetaPath(filePath);
       const projectRoot = path.dirname(metaPath);
 
+      const projectData = await project.findById(projectId);
+
+      if (!projectData) {
+        throw new Error(`Project with ID ${projectId} not found`);
+      }
+
+      // Step 1: Clear lastState if it exists
+      if (
+        projectData.lastState &&
+        (projectData.lastState.allFilePaths?.length > 0 ||
+          projectData.lastState.filePathsLastState?.length > 0)
+      ) {
+        await project.findByIdAndUpdate(projectId, {
+          $set: {
+            "lastState.allFilePaths": [],
+            "lastState.filePathsLastState": [],
+          },
+        });
+        console.log(`Cleared old lastState for project ${projectId}`);
+      }
+
+      // Step 2: Gather current state
       const allFiles = await fm.getAllJavaFilePaths(projectRoot);
 
       const fileStates = await Promise.all(
@@ -41,19 +51,11 @@ class dbManager {
         })
       );
 
-      const projectData = await project.findById(projectId);
-      const existingLastState =
-        projectData?.lastState?.filePathsLastState || [];
-
-      const mergedFileStates = this.mergeLastState(
-        existingLastState,
-        fileStates
-      );
-
+      // Save new lastState
       const update = {
         $set: {
           "lastState.allFilePaths": allFiles.map((f) => path.resolve(f)),
-          "lastState.filePathsLastState": mergedFileStates,
+          "lastState.filePathsLastState": fileStates,
         },
       };
 
@@ -62,17 +64,16 @@ class dbManager {
       });
 
       if (!result) {
-        throw new Error(`Project with ID ${projectId} not found`);
+        throw new Error(`Project with ID ${projectId} not found during update`);
       }
 
-      console.log(
-        `Saved entire project state. Total files: ${allFiles.length}`
-      );
+      console.log(`Saved new project state. Total files: ${allFiles.length}`);
     } catch (error) {
       console.error("Error saving to lastState:", error.message);
       throw error;
-    }
+    } 
   }
+
   async clearLastState(projectId) {
     await project.updateOne(
       { _id: projectId },
