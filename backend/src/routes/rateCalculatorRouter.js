@@ -1,11 +1,12 @@
 import { Router } from "express";
 import fs from "fs";
+import path from "path";
 import complexityRateCalculator from "../rateCalculator/complexityRateCalculator.js";
+import FileManager from "../filesManagement/fileManager.js";
 
 const RateCalculatorRouter = Router();
 
-RateCalculatorRouter.post("/complexity", (req, res) => {
-
+RateCalculatorRouter.post("/complexity", async (req, res) => {
   const filePath = req.body.path;
 
   if (!fs.existsSync(filePath) || !filePath.endsWith(".java")) {
@@ -13,6 +14,18 @@ RateCalculatorRouter.post("/complexity", (req, res) => {
   }
 
   try {
+    const projectDir = path.dirname(filePath);
+    const fileManager = new FileManager();
+
+    const javaFiles = await fileManager.getAllJavaFilePaths(projectDir);
+
+    const { isValid, errorMessage } = await fileManager.checkProjectJavaSyntax(javaFiles);
+
+    if (!isValid) {
+      console.error("❌ Java syntax error:\n", errorMessage);
+      return res.send("Java syntax error in the provided file");
+    }
+
     const calc = new complexityRateCalculator();
     const classes = calc.extractClassesAndComplexity(filePath);
 
@@ -35,6 +48,5 @@ RateCalculatorRouter.post("/complexity", (req, res) => {
     });
   }
 });
-
 
 export default RateCalculatorRouter;
