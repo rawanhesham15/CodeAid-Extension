@@ -50,9 +50,9 @@ extractClassesAndComplexity = (filePath) => {
 
     for (const violation of violations) {
       const description = violation.description;
+      console.log("description",description)
       const rawClassName = violation.class;
       const className = rawClassName && rawClassName !== "UnknownClass" ? rawClassName : null;
-
       const complexityMatch = description.match(/complexity of (\d+)/);
       if (complexityMatch) {
         const complexity = parseInt(complexityMatch[1]);
