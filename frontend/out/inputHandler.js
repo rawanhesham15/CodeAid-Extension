@@ -211,6 +211,12 @@ class InputHandler {
                 path: filePath,
             });
             const responseData = response.data;
+            if (typeof responseData === "string") {
+                return responseData;
+            }
+            if (!responseData || !Array.isArray(responseData.data)) {
+                return "Unexpected server response: missing complexity data.";
+            }
             const decorations = [];
             complexityDataMap.clear();
             // responseData.data.forEach((fileData: any) => {
@@ -260,7 +266,20 @@ class InputHandler {
         catch (error) {
             let errorMessage = "An error occurred while calculating the rates.";
             if (error.response) {
-                errorMessage += ` Server responded with: ${error.response.status} - ${error.response.data}`;
+                const errData = error.response.data;
+                // ✅ Handle server returning plain string
+                if (typeof errData === "string") {
+                    return errData;
+                }
+                // ✅ Handle server returning JSON error object
+                if (typeof errData === "object" && errData.message) {
+                    errorMessage = errData.message;
+                    if (errData.details)
+                        errorMessage += "\n" + errData.details;
+                    return errorMessage;
+                }
+                // errorMessage += ` Server responded with: ${error.response.status} - ${error.response.data}`;
+                errorMessage += ` Server responded with: ${error.response.status}`;
             }
             else if (error.request) {
                 errorMessage += " No response from the server. Is it running?";

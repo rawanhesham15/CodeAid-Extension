@@ -33,20 +33,20 @@ export function activate(context: vscode.ExtensionContext) {
           async (progress) => {
             const contextLabel = arg === "file" ? "File" : "Project";
             progress.report({ message: `${contextLabel} Scope` });
-    
+
             let res = await inputHandler.detectSOLID(arg);
             console.log(res)
             console.log(res.message)
             let title = "";
             let content = "";
-    
+
             if (contextLabel === "Project") {
               title = "Solid Detection for Project";
             } else {
               title = "Solid Detection for File";
             }
 
-            if (Array.isArray(res.message)){
+            if (Array.isArray(res.message)) {
               content = responseFormatter.formatSResponse(res.message);
             }
             else content = res.message;
@@ -56,7 +56,7 @@ export function activate(context: vscode.ExtensionContext) {
         );
       }
     ),
-    
+
     vscode.commands.registerCommand(
       "extension.detectCoupling",
       async (arg: string) => {
@@ -68,34 +68,34 @@ export function activate(context: vscode.ExtensionContext) {
           },
           async (progress) => {
             const contextLabel = arg === "file" ? "File" : "Project";
-            progress.report({message: `${contextLabel} Scope` });
-    
+            progress.report({ message: `${contextLabel} Scope` });
+
             let res = await inputHandler.detectCoupling(arg);
             console.log("res", res)
             let title = "";
             let content = "";
-    
+
             if (contextLabel === "Project") {
               title = "Coupling Smells Detection for Project";
             } else {
               title = "Coupling Smells Detection for File";
             }
 
-            if (Array.isArray(res)){
+            if (Array.isArray(res)) {
               content = responseFormatter.formatCResponse(res);
             }
             else content = res;
             // if (res[0].couplingSmells.length === 0) {
             //   content = "No coupling smells found";
             // } else content = responseFormatter.formatCResponse(res);
-    
+
             lastMainFileDetectionC = res;
             secProvider.updateContent(content, title);
           }
         );
       }
     ),
-    
+
     vscode.commands.registerCommand(
       "extension.plotDiagram",
       async (arg) => {
@@ -113,7 +113,7 @@ export function activate(context: vscode.ExtensionContext) {
         );
       }
     ),
-    
+
     vscode.commands.registerCommand(
       "extension.displayRate",
       async () => {
@@ -124,10 +124,11 @@ export function activate(context: vscode.ExtensionContext) {
             cancellable: false,
           },
           async (progress) => {
-            progress.report({message: "" });
+            progress.report({ message: "" });
             const res = await inputHandler.displayRate();
-    
+
             let title = "Complexity Check";
+
             if (
               res === "No active editor found." ||
               res === "The file is empty. Nothing to analyze." ||
@@ -141,7 +142,7 @@ export function activate(context: vscode.ExtensionContext) {
           }
         );
       }
-    ),    
+    ),
 
     vscode.commands.registerCommand(
       "extension.handleRefactorRequest",
@@ -187,4 +188,4 @@ export function activate(context: vscode.ExtensionContext) {
   );
 }
 
-export function deactivate() {}
+export function deactivate() { }
