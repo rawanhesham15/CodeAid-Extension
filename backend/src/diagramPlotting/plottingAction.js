@@ -9,6 +9,17 @@ class PlottingAction {
     }
   }
   async createDiagram(req){
+    const javaFiles = await this.fileManager.getAllJavaFilePaths(req.body.path);
+    const { isValid, errorMessage } = await this.fileManager.checkProjectJavaSyntax(
+      javaFiles
+    );
+
+    if (!isValid) {
+      console.error("❌ Java syntax error:\n");
+      // return a clean string instead of throwing
+      return "Java syntax error in the provided file";
+    
+  }
     var projectJSON = this.gatherCode(req.body.path);
     var parsedProject = this.parseProject(projectJSON);
     var returnedVal = await this.generateDiagram(parsedProject, req.body.path);

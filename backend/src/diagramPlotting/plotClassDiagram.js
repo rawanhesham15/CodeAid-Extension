@@ -9,8 +9,8 @@ class PlotClassDiagram extends PlottingAction {
     this.parser.setLanguage(Java);
     this.userDefinedClasses = new Set();
     this.enums = new Set();
-  }
 
+  }
   removeImports(code) {
     return typeof code === "string" ? code.replace(/^import.*;/gm, "") : "";
   }
