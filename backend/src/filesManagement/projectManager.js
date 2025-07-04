@@ -60,79 +60,56 @@ class ProjectManager {
     );
   }
   // Undo refactoring by restoring saved file states
-  async undoHelper(filePath) {
-    const fm = new FileManager();
-    const db = new dbManager();
-    //const projectManager = new ProjectManager();
-    try {
-      const projectId = await this.extractProjectId(filePath);
-      const projectData = await db.getProjectDocument(projectId);
-      if (!projectData) {
-        throw new Error(`Project with ID ${projectId} not found`);
-      }
-      const lastState = projectData.lastState;
-      const allSavedPaths = lastState?.allFilePaths || [];
-      const workspaceDir = path.dirname(filePath);
-      if (allSavedPaths.length === 0) {
-        console.log("No saved paths in lastState. Skipping file deletion.");
-      } else {
-        const filesInDir = await fm.getAllJavaFilePaths(workspaceDir);
-        for (const file of filesInDir) {
-          const normalizedPath = path.normalize(file);
-          const isSaved = allSavedPaths.some(
-            (savedPath) => path.normalize(savedPath) === normalizedPath
-          );
-          if (!isSaved) {
-            await fs.unlink(file);
-            console.log(`Deleted unsaved file: ${file}`);
-          }
-        }
-      }
-      for (const file of lastState.filePathsLastState || []) {
-        const uri = path.resolve(file.filePath);
-        const dir = path.dirname(uri);
-        try {
-          await fs.mkdir(dir, { recursive: true });
-          await fs.writeFile(uri, file.content, "utf-8");
-          console.log(`Restored file: ${uri}`);
-        } catch (error) {
-          console.error(`Failed to restore file: ${uri}`, error.message);
-        }
-      }
-      //console.log("Last state before clearing:", lastState);
-      await db.clearLastState(projectId);
-      return lastState;
-    } catch (error) {
-      console.error("Error during undo:", error.message);
-      throw error;
-    }
-  }
-  //
 async undo(filePath, projectPath) {
-  const db = new dbManager();
   const fm = new FileManager();
-  const lastState = await this.undoHelper(filePath);
-  const paths = await fm.getAllJavaFilePaths(projectPath);
-  for (const file of paths) {
-    if (!lastState.allFilePaths.includes(file)) {
-      try {
-        await fs.unlink(file);  // ✅ native delete
-        console.log(`Deleted new/unsaved file: ${file}`);
-      } catch (err) {
-        console.warn(`Failed to delete file: ${file}`, err.message);
+  const db = new dbManager();
+
+  try {
+    // Step 1: Load project and last state
+    const projectId = await this.extractProjectId(filePath);
+    const projectData = await db.getProjectDocument(projectId);
+    if (!projectData) {
+      throw new Error(`Project with ID ${projectId} not found`);
+    }
+    const lastState = projectData.lastState;
+    const allSavedPaths = lastState?.allFilePaths || [];
+
+    // Step 2: Delete newly created or unsaved files
+    const workspaceDir = path.dirname(filePath);
+    const currentJavaFiles = await fm.getAllJavaFilePaths(projectPath || workspaceDir);
+    for (const file of currentJavaFiles) {
+      const normalized = path.normalize(file);
+      const isSaved = allSavedPaths.some(p => path.normalize(p) === normalized);
+      if (!isSaved) {
+        try {
+          await fs.unlink(file);
+          console.log(`Deleted unsaved file: ${file}`);
+        } catch (err) {
+          console.warn(`Failed to delete file: ${file}`, err.message);
+        }
       }
     }
-  }
-  for (const file of lastState.filePathsLastState) {
-    const resolvedPath = path.resolve(file.filePath); // absolute path
-    const dirPath = path.dirname(resolvedPath);
-    try {
-      await fs.mkdir(dirPath, { recursive: true });  // ✅ create directory
-      await fs.writeFile(resolvedPath, file.content, 'utf-8');  // ✅ write file
-      console.log(`Restored file: ${resolvedPath}`);
-    } catch (err) {
-      console.warn(`Failed to write file: ${resolvedPath}`, err.message);
+
+    // Step 3: Restore old file contents
+    for (const file of lastState.filePathsLastState || []) {
+      const resolvedPath = path.resolve(file.filePath);
+      const dirPath = path.dirname(resolvedPath);
+      try {
+        await fs.mkdir(dirPath, { recursive: true });
+        await fs.writeFile(resolvedPath, file.content, "utf-8");
+        console.log(`Restored file: ${resolvedPath}`);
+      } catch (err) {
+        console.error(`Failed to restore file: ${resolvedPath}`, err.message);
+      }
     }
+
+    // Step 4: Clear saved state
+    await db.clearLastState(projectId);
+    return lastState;
+
+  } catch (error) {
+    console.error("Error during undo:", error.message);
+    throw error;
   }
 }
 }
