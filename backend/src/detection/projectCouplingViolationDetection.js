@@ -42,7 +42,7 @@ class ProjectCOUPLINGViolationDetection extends DetectionAction {
     if (!isValid) {
       console.error("❌ Java syntax error:\n", errorMessage);
       // return a clean string instead of throwing
-      return "Java syntax error in the provided file";
+      return "Java syntax error in the provided files";
     }
 
     let allViolations = [];

@@ -98,7 +98,7 @@ class ResponseSidebarProvider {
                 showRefactor &&
                 res.refactorState &&
                 (!res.content.includes("No SOLID Violations Found") &&
-                    !res.content.includes("Java syntax error in the provided file"))) {
+                    !res.content.includes("Java syntax error in the provided files"))) {
                 if (res.content.includes("Single Responsibility") ||
                     res.content.includes("Open-Closed")) {
                     buttonHtml = `<button onclick="handleRefactor('${res.id}')"
@@ -113,7 +113,7 @@ class ResponseSidebarProvider {
             else if (res.responseType === "Coupling Smells Detection for File" &&
                 !res.suggestionsVisible &&
                 res.isSuggestionEligible &&
-                (!res.content.includes("No Coupling Smells Found") && !res.content.includes("Java syntax error in the provided file"))) {
+                (!res.content.includes("No Coupling Smells Found") && !res.content.includes("Java syntax error in the provided files"))) {
                 buttonHtml = `<button onclick="handleSuggestion('${res.id}')"
                 style="cursor: pointer;">
                 Show Suggested Refactorings

@@ -17,7 +17,7 @@ class PlottingAction {
     if (!isValid) {
       console.error("❌ Java syntax error:\n");
       // return a clean string instead of throwing
-      return "Java syntax error in the provided file";
+      return "Java syntax error in the provided files";
     
   }
     var projectJSON = this.gatherCode(req.body.path);
