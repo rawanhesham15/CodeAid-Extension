@@ -28,17 +28,18 @@ class FileSOLIDViolationDetection extends DetectionAction {
 
     console.log("Extracted projectId:", projectId);
 
-    const javaFiles = await this.fileManager.getAllJavaFilePaths(req?.body?.rootDir);
-    const { isValid, errorMessage } = await this.fileManager.checkProjectJavaSyntax(
-      javaFiles
+    const javaFiles = await this.fileManager.getAllJavaFilePaths(
+      req?.body?.rootDir
     );
+    console.log("jF", javaFiles);
+    const { isValid, errorMessage } =
+      await this.fileManager.checkProjectJavaSyntax(javaFiles);
 
     if (!isValid) {
       console.error("❌ Java syntax error:\n", errorMessage);
       // return a clean string instead of throwing
       return "Java syntax error in the provided file";
     }
-
 
     await db.clearSolidViolationsForProject(projectId);
 
@@ -62,12 +63,11 @@ class FileSOLIDViolationDetection extends DetectionAction {
     console.log("Dependencies found:", dependencies);
     console.log("Request data for SOLID detection:", reqData);
 
-    
     const apiData = reqData;
     console.log("sent");
     let result;
     try {
-      const response = await fetch("http://localhost:8000/detect-solid", {
+      const response = await fetch("http://localhost:8080/detect-solid", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -101,9 +101,8 @@ class FileSOLIDViolationDetection extends DetectionAction {
     return this.extractMainFileViolations(violations);
   }
 
-
   extractMainFileViolations(violations) {
-    let filteredV = []
+    let filteredV = [];
     for (const v of violations) {
       const mainFilePath = v.mainFilePath || "unknown";
       const entries = v.violations || [];
@@ -123,13 +122,11 @@ class FileSOLIDViolationDetection extends DetectionAction {
 
       filteredV.push({
         file_path: mainFilePath,
-        violatedPrinciples: matchedEntry.violatedPrinciples
+        violatedPrinciples: matchedEntry.violatedPrinciples,
       });
     }
     return filteredV;
   }
-
-
 }
 
 export default FileSOLIDViolationDetection;

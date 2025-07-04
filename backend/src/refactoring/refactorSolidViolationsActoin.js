@@ -6,7 +6,6 @@ import path from "path";
 import dbManager from "../dbManager/dbManager.js";
 import ProjectManager from "../filesManagement/projectManager.js";
 class refactorSolidViolationsAction extends RefactorAction {
-
   async refactorMethod(req) {
     const db = new dbManager();
     const fPrepare = new FilePrepare();
@@ -23,15 +22,19 @@ class refactorSolidViolationsAction extends RefactorAction {
       throw new Error("projectId not found in metadata.");
     }
 
-    const reqData = await fPrepare.getFileWithDependentsChunked(filePath, rootDir, projectId);
+    const reqData = await fPrepare.getFileWithDependentsChunked(
+      filePath,
+      rootDir,
+      projectId
+    );
 
     const projectDoc = await db.getProjectDocument(projectId);
 
     let sentData = {
-      data: reqData, 
+      data: reqData,
       violations: projectDoc.solidViolations[0].violations,
     };
-    const response = await fetch("http://localhost:8000/refactor-solid", {
+    const response = await fetch("http://localhost:8080/refactor-solid", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -44,6 +47,7 @@ class refactorSolidViolationsAction extends RefactorAction {
     }
 
     const result = await response.json();
+    console.log("ref res", result);
     let formattedFiles = await this.codeFormatter.formatJavaWithGoogleFormat(
       result.refactored_files
     );

@@ -232,7 +232,10 @@ class ResponseSidebarProvider {
                 if (res.refactorState === "show") {
                     this.loadingMessage = "Preparing refactored files...";
                     this.updateWebview();
-                    vscode.commands.executeCommand("extension.handleRefactorRequest").then(() => {
+                    vscode.commands
+                        .executeCommand("extension.handleRefactorRequest")
+                        .then((files) => {
+                        // Now files is your refactored files
                         res.refactorState = "apply";
                         this.responses.forEach((r) => {
                             if (r.responseType === res.responseType) {
@@ -242,6 +245,16 @@ class ResponseSidebarProvider {
                         this.isLoading = false;
                         this.updateWebview();
                     });
+                    // vscode.commands.executeCommand("extension.handleRefactorRequest").then(() => {
+                    //   res.refactorState = "apply";
+                    //   this.responses.forEach((r) => {
+                    //     if (r.responseType === res.responseType) {
+                    //       r.buttonDisabled = r.id !== res.id;
+                    //     }
+                    //   });
+                    //   this.isLoading = false;
+                    //   this.updateWebview();
+                    // });
                 }
                 else if (res.refactorState === "apply") {
                     this.loadingMessage = "Applying refactoring...";

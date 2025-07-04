@@ -71,7 +71,7 @@ export function activate(context: vscode.ExtensionContext) {
             progress.report({message: `${contextLabel} Scope` });
     
             let res = await inputHandler.detectCoupling(arg);
-    
+            console.log("res", res)
             let title = "";
             let content = "";
     

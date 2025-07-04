@@ -10,22 +10,24 @@ class FileRefactorCoupling extends RefactorAction {
    * @returns {Promise<{coupling_smells: Array}>}
    */
   async buildCouplingSuggestionInFormat(couplingViolations) {
-    const result = {  
+    const result = {
       coupling_smells: [],
     };
 
     for (const violation of couplingViolations) {
-      const filePromises = violation.FilePaths.map(this.fileManager.getFileContent);
+      const filePromises = violation.FilePaths.map(
+        this.fileManager.getFileContent
+      );
       const fileContents = await Promise.all(filePromises);
 
       const validFiles = fileContents
-        .filter(f => f !== null)
-        .map(f => ({
+        .filter((f) => f !== null)
+        .map((f) => ({
           filePath: f.filePath,
           content: f.content,
         }));
 
-      const smells = violation.couplingSmells.map(smell => ({
+      const smells = violation.couplingSmells.map((smell) => ({
         smell: smell.smell,
         justification: smell.justification,
       }));
@@ -42,10 +44,10 @@ class FileRefactorCoupling extends RefactorAction {
   async refactorMethod(req) {
     const db = new dbManager();
     const projectManager = new ProjectManager();
-   // const filePath = req?.body?.filePath;
+    // const filePath = req?.body?.filePath;
     const rootDir = req?.body?.rootDir;
 
-    if ( !rootDir) {
+    if (!rootDir) {
       throw new Error("Missing filePath or projectPath in request.");
     }
     const projectId = await projectManager.extractProjectId(rootDir);
@@ -54,7 +56,6 @@ class FileRefactorCoupling extends RefactorAction {
     }
 
     const projectDoc = await db.getProjectDocument(projectId);
-
 
     console.log("project doc", projectDoc);
 
@@ -66,7 +67,7 @@ class FileRefactorCoupling extends RefactorAction {
       ...inputData,
     };
 
-    const response = await fetch("http://localhost:8000/refactor-coupling", {
+    const response = await fetch("http://localhost:8080/refactor-coupling", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

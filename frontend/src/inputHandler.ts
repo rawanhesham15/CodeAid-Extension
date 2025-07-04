@@ -3,6 +3,7 @@ import axios, { get } from "axios";
 import * as path from "path";
 import { pathToFileURL } from "url";
 import { read } from "fs";
+import os from "os";
 
 const scheme = "refactor";
 export const contentMap = new Map<string, string>();
@@ -37,9 +38,7 @@ class InputHandler {
     return [filePath, editor];
   }
 
-  async detectSOLID(
-    context: string
-  ): Promise<{ message: any; path: string }> {
+  async detectSOLID(context: string): Promise<{ message: any; path: string }> {
     let path: string = "";
     let rootDir: string = this.workspacePath;
 
@@ -272,7 +271,7 @@ class InputHandler {
   async refactorSOViolations(
     mainFilePath: string
   ): Promise<{ filePath: string; fileContent: string }[]> {
-    console.log("I am in")
+    console.log("I am in");
     if (!path) return [];
 
     try {
@@ -327,25 +326,23 @@ class InputHandler {
   }
 
   async undo(mainFilePath: string, projectPath: string): Promise<string> {
-  try {
-    const response = await axios.post("http://localhost:3000/refactor/undo", {
-      path: mainFilePath,
-      project: projectPath,
-    });
+    try {
+      const response = await axios.post("http://localhost:3000/refactor/undo", {
+        path: mainFilePath,
+        project: projectPath,
+      });
 
-    vscode.window.showInformationMessage("Undo completed for all files.");
-    return "Undo completed for all files.";
-  } catch (error) {
-    vscode.window.showErrorMessage(`Undo failed: ${error}`);
-    return `Undo failed: ${error instanceof Error ? error.message : error}`;
+      vscode.window.showInformationMessage("Undo completed for all files.");
+      return "Undo completed for all files.";
+    } catch (error) {
+      vscode.window.showErrorMessage(`Undo failed: ${error}`);
+      return `Undo failed: ${error instanceof Error ? error.message : error}`;
+    }
   }
-}
-
 
   async showRefactorDiffs(
     refactoredFiles: { filePath: string; fileContent: string }[]
   ) {
-    console.log("recieved", refactoredFiles)
     if (!providerRegistered) {
       const provider = new RefactorContentProvider();
       vscode.workspace.registerTextDocumentContentProvider(scheme, provider);
@@ -354,38 +351,69 @@ class InputHandler {
 
     let columnIndex = 2;
 
-    for (const { filePath, fileContent: newContent } of refactoredFiles) {
+    for (const { filePath, fileContent: rawNewContent } of refactoredFiles) {
       try {
-        const oldUri = vscode.Uri.file(filePath);
+        const fileUri = vscode.Uri.file(filePath);
 
+        // Read the original file content
         let oldContent: string;
         try {
-          const buffer = await vscode.workspace.fs.readFile(oldUri);
+          const buffer = await vscode.workspace.fs.readFile(fileUri);
           oldContent = buffer.toString();
         } catch (err: any) {
           if (err.code === "FileNotFound" || err.name === "FileNotFound") {
-            await vscode.workspace.fs.writeFile(oldUri, new Uint8Array());
             oldContent = "";
           } else {
             throw err;
           }
         }
 
-        // Skip diff if no change
-        if (oldContent === newContent) continue;
+        // 📝 Step 1: Write raw new content to a temporary file
+        const tmpFilePath = path.join(
+          os.tmpdir(),
+          `refactored-${Date.now()}.java`
+        );
+        const tmpUri = vscode.Uri.file(tmpFilePath);
+        await vscode.workspace.fs.writeFile(
+          tmpUri,
+          Buffer.from(rawNewContent, "utf8")
+        );
 
-        // Build custom scheme URIs
+        // 🧠 Step 2: Open & format the temporary file
+        const doc = await vscode.workspace.openTextDocument(tmpUri);
+        const editor = await vscode.window.showTextDocument(doc, {
+          preview: true,
+          viewColumn: vscode.ViewColumn.Beside,
+        });
+
+        await vscode.commands.executeCommand("editor.action.formatDocument");
+        await doc.save();
+
+        // Close the temp editor tab
+        await vscode.commands.executeCommand(
+          "workbench.action.closeActiveEditor"
+        );
+
+        // 🧾 Step 3: Read back the formatted content
+        const formattedBuffer = await vscode.workspace.fs.readFile(tmpUri);
+        const formattedContent = formattedBuffer.toString();
+
+        // 🧼 Optional: delete temp file after reading
+        await vscode.workspace.fs.delete(tmpUri);
+
+        // Skip if nothing changed
+        if (oldContent === formattedContent) continue;
+
+        // 📂 Step 4: Register and show diff
         const originalUri = vscode.Uri.parse(
           `${scheme}://${filePath}.original`
         );
-        const basePath = pathToFileURL(filePath).pathname;
         const refactoredUri = vscode.Uri.parse(
-          `${scheme}:${basePath}.refactored`
+          `${scheme}:${pathToFileURL(filePath).pathname}.refactored`
         );
 
-        // Register content
         contentMap.set(originalUri.toString(), oldContent);
-        contentMap.set(refactoredUri.toString(), newContent);
+        contentMap.set(refactoredUri.toString(), formattedContent);
 
         const diffTitle = `Refactor Diff: ${path.basename(filePath)}`;
         const viewColumn =

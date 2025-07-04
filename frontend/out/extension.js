@@ -95,6 +95,7 @@ function activate(context) {
             const contextLabel = arg === "file" ? "File" : "Project";
             progress.report({ message: `${contextLabel} Scope` });
             let res = await inputHandler.detectCoupling(arg);
+            console.log("res", res);
             let title = "";
             let content = "";
             if (contextLabel === "Project") {

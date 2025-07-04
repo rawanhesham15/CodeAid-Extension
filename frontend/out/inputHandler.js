@@ -41,6 +41,7 @@ const vscode = __importStar(require("vscode"));
 const axios_1 = __importDefault(require("axios"));
 const path = __importStar(require("path"));
 const url_1 = require("url");
+const os_1 = __importDefault(require("os"));
 const scheme = "refactor";
 exports.contentMap = new Map();
 let providerRegistered = false;
@@ -344,40 +345,56 @@ class InputHandler {
         }
     }
     async showRefactorDiffs(refactoredFiles) {
-        console.log("recieved", refactoredFiles);
         if (!providerRegistered) {
             const provider = new RefactorContentProvider();
             vscode.workspace.registerTextDocumentContentProvider(scheme, provider);
             providerRegistered = true;
         }
         let columnIndex = 2;
-        for (const { filePath, fileContent: newContent } of refactoredFiles) {
+        for (const { filePath, fileContent: rawNewContent } of refactoredFiles) {
             try {
-                const oldUri = vscode.Uri.file(filePath);
+                const fileUri = vscode.Uri.file(filePath);
+                // Read the original file content
                 let oldContent;
                 try {
-                    const buffer = await vscode.workspace.fs.readFile(oldUri);
+                    const buffer = await vscode.workspace.fs.readFile(fileUri);
                     oldContent = buffer.toString();
                 }
                 catch (err) {
                     if (err.code === "FileNotFound" || err.name === "FileNotFound") {
-                        await vscode.workspace.fs.writeFile(oldUri, new Uint8Array());
                         oldContent = "";
                     }
                     else {
                         throw err;
                     }
                 }
-                // Skip diff if no change
-                if (oldContent === newContent)
+                // 📝 Step 1: Write raw new content to a temporary file
+                const tmpFilePath = path.join(os_1.default.tmpdir(), `refactored-${Date.now()}.java`);
+                const tmpUri = vscode.Uri.file(tmpFilePath);
+                await vscode.workspace.fs.writeFile(tmpUri, Buffer.from(rawNewContent, "utf8"));
+                // 🧠 Step 2: Open & format the temporary file
+                const doc = await vscode.workspace.openTextDocument(tmpUri);
+                const editor = await vscode.window.showTextDocument(doc, {
+                    preview: true,
+                    viewColumn: vscode.ViewColumn.Beside,
+                });
+                await vscode.commands.executeCommand("editor.action.formatDocument");
+                await doc.save();
+                // Close the temp editor tab
+                await vscode.commands.executeCommand("workbench.action.closeActiveEditor");
+                // 🧾 Step 3: Read back the formatted content
+                const formattedBuffer = await vscode.workspace.fs.readFile(tmpUri);
+                const formattedContent = formattedBuffer.toString();
+                // 🧼 Optional: delete temp file after reading
+                await vscode.workspace.fs.delete(tmpUri);
+                // Skip if nothing changed
+                if (oldContent === formattedContent)
                     continue;
-                // Build custom scheme URIs
+                // 📂 Step 4: Register and show diff
                 const originalUri = vscode.Uri.parse(`${scheme}://${filePath}.original`);
-                const basePath = (0, url_1.pathToFileURL)(filePath).pathname;
-                const refactoredUri = vscode.Uri.parse(`${scheme}:${basePath}.refactored`);
-                // Register content
+                const refactoredUri = vscode.Uri.parse(`${scheme}:${(0, url_1.pathToFileURL)(filePath).pathname}.refactored`);
                 exports.contentMap.set(originalUri.toString(), oldContent);
-                exports.contentMap.set(refactoredUri.toString(), newContent);
+                exports.contentMap.set(refactoredUri.toString(), formattedContent);
                 const diffTitle = `Refactor Diff: ${path.basename(filePath)}`;
                 const viewColumn = columnIndex > 2 ? vscode.ViewColumn.Active : columnIndex;
                 await vscode.commands.executeCommand("vscode.diff", originalUri, refactoredUri, diffTitle, { viewColumn, preserveFocus: true, preview: false });

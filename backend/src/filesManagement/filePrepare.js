@@ -5,7 +5,6 @@ import path from "path";
 import FileManager from './fileManager.js'
 
 class FilePrepare {
-
   // async findJavaFiles(root) {
   //   try {
   //     const files = await fg("**/*.java", {
@@ -29,7 +28,7 @@ class FilePrepare {
   // }
 
   // Extract type names using regex
-  
+
   extractSimpleNames(code) {
     const simpleNames = new Set();
     // Match class/interface declarations, type references, and generic types
@@ -141,10 +140,8 @@ class FilePrepare {
         throw parseError;
       }
 
-      const { fqImports, wildcardPkgs, simpleNames } = await this.extractTypeNames(
-        cst,
-        code
-      );
+      const { fqImports, wildcardPkgs, simpleNames } =
+        await this.extractTypeNames(cst, code);
 
       const deps = new Set();
       const covered = new Set();
@@ -201,26 +198,42 @@ class FilePrepare {
       // console.log("Resolved dependencies:", Array.from(deps));
       return Array.from(deps).sort();
     } catch (error) {
-      console.error(`Error in resolveDepsForFile for ${srcFile}:`, error.message);
+      console.error(
+        `Error in resolveDepsForFile for ${srcFile}:`,
+        error.message
+      );
       throw error;
     }
   }
 
-  escape_newlines(str) {
-    return str.replace(/\n/g, "\\n");
+  cleanJavaCode(content) {
+    // Step 1: Remove multiline comments (/* ... */)
+    content = content.replace(/\/\*[\s\S]*?\*\//g, " ");
+
+    // Step 2: Remove single-line comments (//...)
+    content = content.replace(/\/\/.*$/gm, " ");
+
+    // Step 3: Remove any sequence of \ before n or r
+    content = content.replace(/(\\+)[nr]/g, " ");
+
+    // Step 4: Remove actual line breaks (flatten the code to one line)
+    content = content.replace(/[\r\n]+/g, " ");
+
+    // Step 5: Collapse multiple spaces into one
+    content = content.replace(/\s+/g, " ").trim();
+    content = content.replace(/\\/g, "\\\\");
+    //str.replace(/\\/g, "\\\\");
+
+    return content;
   }
 
   count_tokens(str) {
     return str.split(/\s+/).length;
   }
 
-  async getFileWithDependenciesChunked(
-    srcPath,
-    projectRootDir,
-    projectId
-  ) {
+  async getFileWithDependenciesChunked(srcPath, projectRootDir, projectId) {
     // MAX TOKENS LIMIT per chunk
-    const MAX_TOKENS = 5000;
+    const MAX_TOKENS = 4000;
     const fileManager = new FileManager();
     const mainFile = fileManager.getFileContent(srcPath);
     if (!mainFile) throw new Error(`Failed to read file: ${srcPath}`);
@@ -236,7 +249,7 @@ class FilePrepare {
     });
 
     const mainFilePath = path.normalize(mainFile.filePath);
-    const mainFileContent = this.escape_newlines(mainFile.content);
+    const mainFileContent = this.cleanJavaCode(mainFile.content);
     const mainFileTokens = this.count_tokens(mainFileContent);
 
     const promptChunks = [];
@@ -253,7 +266,9 @@ class FilePrepare {
     for (const depPath of depPaths) {
       try {
         await fs.access(depPath);
-        const depContent = this.escape_newlines(await fs.readFile(depPath, "utf8"));
+        const depContent = this.cleanJavaCode(
+          await fs.readFile(depPath, "utf8")
+        );
         const depTokens = this.count_tokens(depContent);
         const dependency = {
           depFilePath: path.normalize(depPath),
@@ -287,24 +302,24 @@ class FilePrepare {
   }
 
   async resolveDependentsForFile(projectDir, targetFilePath) {
-  const fileManager = new FileManager();
-  const allJavaFiles = await fileManager.getAllJavaFilePaths(projectDir);
+    const fileManager = new FileManager();
+    const allJavaFiles = await fileManager.getAllJavaFilePaths(projectDir);
 
-  const className = path.basename(targetFilePath, ".java"); // e.g. Customer
-  const dependents = [];
+    const className = path.basename(targetFilePath, ".java"); // e.g. Customer
+    const dependents = [];
 
-  for (const file of allJavaFiles) {
-    if (file === targetFilePath) continue; // skip self
+    for (const file of allJavaFiles) {
+      if (file === targetFilePath) continue; // skip self
 
-    const content = await fs.readFile(file, "utf-8");
-    const regex = new RegExp(`\\b${className}\\b`);
+      const content = await fs.readFile(file, "utf-8");
+      const regex = new RegExp(`\\b${className}\\b`);
 
-    if (regex.test(content)) {
-      dependents.push(file); // this file uses the class
+      if (regex.test(content)) {
+        dependents.push(file); // this file uses the class
+      }
     }
-  }
 
-  return dependents;
+    return dependents;
   }
 
   async getFileWithDependentsChunked(srcPath, projectRootDir, projectId) {
@@ -327,9 +342,9 @@ class FilePrepare {
       );
     });
 
-    console.log("Dependent Paths",dependentPaths)
+    console.log("Dependent Paths", dependentPaths);
     const mainFilePath = path.normalize(mainFile.filePath);
-    const mainFileContent = this.escape_newlines(mainFile.content);
+    const mainFileContent = this.cleanJavaCode(mainFile.content);
     const mainFileTokens = this.count_tokens(mainFileContent);
 
     const promptChunks = [];
@@ -346,7 +361,7 @@ class FilePrepare {
     for (const depPath of dependentPaths) {
       try {
         await fs.access(depPath);
-        const depContent = this.escape_newlines(
+        const depContent = this.cleanJavaCode(
           await fs.readFile(depPath, "utf8")
         );
         const depTokens = this.count_tokens(depContent);

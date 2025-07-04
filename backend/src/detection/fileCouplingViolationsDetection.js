@@ -2,16 +2,15 @@ import DetectionAction from "./detectionAction.js";
 import path from "path";
 import FilePrepare from "../filesManagement/filePrepare.js";
 import dbManager from "../dbManager/dbManager.js";
-import ProjectManager  from "../filesManagement/projectManager.js";
+import ProjectManager from "../filesManagement/projectManager.js";
 
 class fileCOUPLINGViolationDetection extends DetectionAction {
   constructor(fileManager) {
     super(fileManager);
   }
   async detectionMethod(req) {
-
     const fPrepare = new FilePrepare();
-    const db = new dbManager
+    const db = new dbManager();
     const projectManager = new ProjectManager();
     const filePath = req?.body?.path;
     if (!filePath || typeof filePath !== "string") {
@@ -27,16 +26,15 @@ class fileCOUPLINGViolationDetection extends DetectionAction {
     }
 
     const javaFiles = await this.fileManager.getAllJavaFilePaths(rootDir);
-    const { isValid, errorMessage } = await this.fileManager.checkProjectJavaSyntax(
-      javaFiles
-    );
+    // const { isValid, errorMessage } = await this.fileManager.checkProjectJavaSyntax(
+    //   javaFiles
+    // );
 
-    if (!isValid) {
-      console.error("❌ Java syntax error:\n", errorMessage);
-      // return a clean string instead of throwing
-      return "Java syntax error in the provided file";
-    }
-
+    // if (!isValid) {
+    //   console.error("❌ Java syntax error:\n", errorMessage);
+    //   // return a clean string instead of throwing
+    //   return "Java syntax error in the provided file";
+    // }
 
     await db.clearCouplingViolationsForProject(projectId);
 
@@ -63,14 +61,13 @@ class fileCOUPLINGViolationDetection extends DetectionAction {
 
     let result;
     try {
-      const response = await fetch("http://localhost:8000/detect-coupling", {
+      const response = await fetch("http://localhost:8080/detect-coupling", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify(apiData),
       });
-
 
       if (!response.ok) {
         throw new Error(`API call failed with status ${response.status}`);
@@ -85,10 +82,24 @@ class fileCOUPLINGViolationDetection extends DetectionAction {
 
     let parsed = result;
     console.log("parsed ", parsed);
+    // let final_result = [];
+    // for (let i in parsed) {
+    //   const item = parsed[i];
+    //   console.log("item", item);
+    //   for (let smell of item.couplingSmells) {
+    //     console.log("smell", smell);
+    //     if (smell.filesPaths.includes(filePath)) {
+    //       final_result.push({
+    //         couplingSmells: smell
+    //       });
+    //     }
+    //   }
+    // }
+    // console.log("fr", final_result);
+
     await db.saveCouplingViolations(parsed, projectId);
     return parsed;
   }
-
 }
 
 export default fileCOUPLINGViolationDetection;

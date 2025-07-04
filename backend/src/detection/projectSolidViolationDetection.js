@@ -5,10 +5,7 @@ import fileManager from "../filesManagement/fileManager.js";
 import dbManager from "../dbManager/dbManager.js";
 import ProjectManager from "../filesManagement/projectManager.js";
 
-
-
 class ProjectSOLIDViolationDetection extends DetectionAction {
-
   // async getAllJavaFilePaths(rootDir) {
   //   try {
   //     const files = await fg("**/*.java", {
@@ -65,7 +62,9 @@ class ProjectSOLIDViolationDetection extends DetectionAction {
         console.log("Request data for SOLID detection:", reqData);
 
         const normalizedFilePath = path.normalize(filePath);
-        const mainChunk = reqData.find(chunk => path.normalize(chunk.mainFilePath) === normalizedFilePath);
+        const mainChunk = reqData.find(
+          (chunk) => path.normalize(chunk.mainFilePath) === normalizedFilePath
+        );
 
         if (!mainChunk) {
           console.warn(`No mainChunk found for ${filePath}`);
@@ -75,10 +74,14 @@ class ProjectSOLIDViolationDetection extends DetectionAction {
         const mainContent = mainChunk.mainFileContent || "";
 
         // Remove comments and whitespace
-        const cleanedContent = mainContent.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, "").trim();
+        const cleanedContent = mainContent
+          .replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, "")
+          .trim();
 
         if (cleanedContent === "") {
-          console.log(`File is empty (ignoring comments/whitespace): ${filePath}`);
+          console.log(
+            `File is empty (ignoring comments/whitespace): ${filePath}`
+          );
           continue; // Skip API call
         }
 
@@ -98,7 +101,7 @@ class ProjectSOLIDViolationDetection extends DetectionAction {
 
         let result;
         try {
-          const response = await fetch("http://localhost:8000/detect-solid", {
+          const response = await fetch("http://localhost:8080/detect-solid", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -119,8 +122,8 @@ class ProjectSOLIDViolationDetection extends DetectionAction {
 
         const violations = result;
         // allViolations.push(...violations);
-        allViolations.push(...this.extractMainFileViolations(violations))
-        console.log("all violation", allViolations)
+        allViolations.push(...this.extractMainFileViolations(violations));
+        console.log("all violation", allViolations);
       } catch (error) {
         console.error(`Failed for ${filePath}:`, error.message);
         continue;
@@ -129,9 +132,8 @@ class ProjectSOLIDViolationDetection extends DetectionAction {
     return allViolations;
   }
 
-
   extractMainFileViolations(violations) {
-    let filteredV = []
+    let filteredV = [];
     for (const v of violations) {
       const mainFilePath = v.mainFilePath || "unknown";
       const entries = v.violations || [];
@@ -151,12 +153,11 @@ class ProjectSOLIDViolationDetection extends DetectionAction {
 
       filteredV.push({
         file_path: mainFilePath,
-        violatedPrinciples: matchedEntry.violatedPrinciples
+        violatedPrinciples: matchedEntry.violatedPrinciples,
       });
     }
     return filteredV;
   }
-
 }
 
 export default ProjectSOLIDViolationDetection;
