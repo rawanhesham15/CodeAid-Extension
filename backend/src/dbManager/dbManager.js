@@ -1,16 +1,15 @@
 import fs from "fs/promises";
 import path from "path";
 import { stat } from "fs/promises";
-import fsSync from "fs"; 
+import fsSync from "fs";
 import project from "../Models/ProjectModel.js";
 import FileManager from "../filesManagement/fileManager.js";
 import ProjectManager from "../filesManagement/projectManager.js";
 
-
 class dbManager {
-  constructor() { }
+  constructor() {}
 
-// Save {filePath, content} to the lastState of the corresponding project
+  // Save {filePath, content} to the lastState of the corresponding project
   async save(filePath, content) {
     const fm = new FileManager();
     const projectManager = new ProjectManager();
@@ -71,7 +70,7 @@ class dbManager {
     } catch (error) {
       console.error("Error saving to lastState:", error.message);
       throw error;
-    } 
+    }
   }
 
   async clearLastState(projectId) {
@@ -86,9 +85,8 @@ class dbManager {
         },
       }
     );
-        console.log(`Cleared lastState for project with ID ${projectId}`);
-
   }
+
   async getLastState(projectId) {
     const projectData = await project.findById(projectId);
     if (!projectData) {
@@ -98,10 +96,11 @@ class dbManager {
       projectId,
       lastState: projectData.lastState || {
         allFilePaths: [],
-        filePathsLastState: []
-      }
+        filePathsLastState: [],
+      },
     };
   }
+
   async saveSolidViolations(violations, projectId, dependencies) {
     if (!projectId || typeof projectId !== "string") {
       throw new Error("Invalid project ID");
@@ -111,7 +110,7 @@ class dbManager {
       throw new Error("Violations must be an array.");
     }
 
-    const allowedPrinciples = ["Single Responsibility", "Open-Closed"];;
+    const allowedPrinciples = ["Single Responsibility", "Open-Closed"];
     const formattedViolations = [];
 
     for (const v of violations) {
@@ -197,8 +196,6 @@ class dbManager {
     }
 
     for (const v of violations) {
-      // const filePaths = v.filesPaths || [];
-
       for (const smellGroup of v.couplingSmells || []) {
         const smellFilePaths = smellGroup.filesPaths || [];
         const smells = smellGroup.smells || [];
@@ -262,7 +259,7 @@ class dbManager {
     }
     return projectDoc;
   }
-// having the current filePath, get all Java files in the project and save them in db in lastState 
+  // having the current filePath, get all Java files in the project and save them in db in lastState
   async setLastState(filePath) {
     const fm = new FileManager();
     const projectDir = path.dirname(filePath);
@@ -271,7 +268,9 @@ class dbManager {
       const fileContent = await fs.readFile(file, "utf-8");
       await this.save(file, fileContent);
     }
-    console.log(`All Java files saved in lastState for project at ${projectDir}`);
+    console.log(
+      `All Java files saved in lastState for project at ${projectDir}`
+    );
   }
   async initProject(workspacePath) {
     if (!workspacePath) {
@@ -284,7 +283,9 @@ class dbManager {
       // Check if meta file exists
       if (fsSync.existsSync(metaFile)) {
         console.log("Meta file exists:", metaFile);
-        const { projectId } = JSON.parse(fsSync.readFileSync(metaFile, "utf-8"));
+        const { projectId } = JSON.parse(
+          fsSync.readFileSync(metaFile, "utf-8")
+        );
         const existingProject = await project.findById(projectId);
         if (existingProject) {
           return { project: existingProject, fromMeta: true };
@@ -295,7 +296,11 @@ class dbManager {
       await newProject.save();
 
       // Save meta file
-      fsSync.writeFileSync(metaFile, JSON.stringify({ projectId: newProject._id }), "utf-8");
+      fsSync.writeFileSync(
+        metaFile,
+        JSON.stringify({ projectId: newProject._id }),
+        "utf-8"
+      );
 
       return { project: newProject, created: true };
     } catch (err) {

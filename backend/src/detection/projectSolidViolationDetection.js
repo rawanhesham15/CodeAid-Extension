@@ -6,20 +6,6 @@ import dbManager from "../dbManager/dbManager.js";
 import ProjectManager from "../filesManagement/projectManager.js";
 
 class ProjectSOLIDViolationDetection extends DetectionAction {
-  // async getAllJavaFilePaths(rootDir) {
-  //   try {
-  //     const files = await fg("**/*.java", {
-  //       cwd: rootDir,
-  //       absolute: true,
-  //       ignore: ["**/build/**", "**/node_modules/**"],  // "**/out/**"
-  //     });
-  //     return files;
-  //   } catch (error) {
-  //     console.error("Error in getAllJavaFilePaths:", error.message);
-  //     throw error;
-  //   }
-  // }
-
   async detectionMethod(req) {
     const db = new dbManager();
     const fm = new fileManager();
@@ -96,7 +82,6 @@ class ProjectSOLIDViolationDetection extends DetectionAction {
 
         const apiData = reqData;
 
-        console.log("filePath", filePath);
         console.log("dependencies  ", dependencies);
 
         let result;
@@ -121,7 +106,6 @@ class ProjectSOLIDViolationDetection extends DetectionAction {
         }
 
         const violations = result;
-        // allViolations.push(...violations);
         allViolations.push(...this.extractMainFileViolations(violations));
         console.log("all violation", allViolations);
       } catch (error) {

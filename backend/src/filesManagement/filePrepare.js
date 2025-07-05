@@ -5,30 +5,7 @@ import path from "path";
 import FileManager from './fileManager.js'
 
 class FilePrepare {
-  // async findJavaFiles(root) {
-  //   try {
-  //     const files = await fg("**/*.java", {
-  //       cwd: root,
-  //       absolute: true,
-  //       // ignore: ["**/node_modules/**", "**/build/**", "**/out/**"],
-  //       ignore: [
-  //         "**/node_modules/**",
-  //         "**/build/**",
-  //         "**/System Volume Information/**",
-  //         "**/$RECYCLE.BIN/**",
-  //         "**/Recycler/**",
-  //       ],
-  //     });
-  //     // console.log("Found Java files:", files);
-  //     return files;
-  //   } catch (error) {
-  //     console.error(`Error in findJavaFiles for root ${root}:`, error.message);
-  //     throw error;
-  //   }
-  // }
-
   // Extract type names using regex
-
   extractSimpleNames(code) {
     const simpleNames = new Set();
     // Match class/interface declarations, type references, and generic types
@@ -113,14 +90,12 @@ class FilePrepare {
       }
     }
 
-    // console.log("FQN Map:", fqnMap);
     return fqnMap;
   }
 
   async resolveDepsForFile(rootDir, srcFile) {
     try {
       const fqnMap = await this.buildFqnMap(rootDir);
-      // console.log("FQN Map built:", fqnMap);
 
       if (
         !(await fs
@@ -195,7 +170,6 @@ class FilePrepare {
         }
       }
 
-      // console.log("Resolved dependencies:", Array.from(deps));
       return Array.from(deps).sort();
     } catch (error) {
       console.error(
@@ -222,7 +196,6 @@ class FilePrepare {
     // Step 5: Collapse multiple spaces into one
     content = content.replace(/\s+/g, " ").trim();
     content = content.replace(/\\/g, "\\\\");
-    //str.replace(/\\/g, "\\\\");
 
     return content;
   }
@@ -305,7 +278,7 @@ class FilePrepare {
     const fileManager = new FileManager();
     const allJavaFiles = await fileManager.getAllJavaFilePaths(projectDir);
 
-    const className = path.basename(targetFilePath, ".java"); // e.g. Customer
+    const className = path.basename(targetFilePath, ".java"); 
     const dependents = [];
 
     for (const file of allJavaFiles) {
@@ -355,7 +328,7 @@ class FilePrepare {
       chunk_id: chunk_id,
       mainFilePath: mainFilePath,
       mainFileContent: mainFileContent,
-      dependents: [], // rename to 'dependents'
+      dependents: [],
     };
 
     for (const depPath of dependentPaths) {

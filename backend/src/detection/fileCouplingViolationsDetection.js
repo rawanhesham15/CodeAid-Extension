@@ -17,8 +17,6 @@ class fileCOUPLINGViolationDetection extends DetectionAction {
       throw new Error("Invalid or missing project path.");
     }
 
-    console.log("Project path:", filePath);
-
     let rootDir = req?.body?.rootDir || path.dirname(filePath);
     const projectId = await projectManager.extractProjectId(rootDir);
     if (!projectId) {
@@ -55,7 +53,6 @@ class fileCOUPLINGViolationDetection extends DetectionAction {
     }
 
     console.log("Dependencies found:", dependencies);
-    // console.log("Request data for SOLID detection:", reqData);
 
     const apiData = reqData;
 
@@ -81,22 +78,7 @@ class fileCOUPLINGViolationDetection extends DetectionAction {
     }
 
     let parsed = result;
-    console.log("parsed ", parsed);
-    // let final_result = [];
-    // for (let i in parsed) {
-    //   const item = parsed[i];
-    //   console.log("item", item);
-    //   for (let smell of item.couplingSmells) {
-    //     console.log("smell", smell);
-    //     if (smell.filesPaths.includes(filePath)) {
-    //       final_result.push({
-    //         couplingSmells: smell
-    //       });
-    //     }
-    //   }
-    // }
-    // console.log("fr", final_result);
-
+    
     await db.saveCouplingViolations(parsed, projectId);
     return parsed;
   }

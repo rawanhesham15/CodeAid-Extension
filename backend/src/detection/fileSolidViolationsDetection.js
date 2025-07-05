@@ -49,7 +49,6 @@ class FileSOLIDViolationDetection extends DetectionAction {
       projectId
     ); // this is the file content with dependencies
 
-    console.log("Request data for SOLID detection:", reqData);
 
     let dependencies = [];
     for (const dep of reqData) {
@@ -61,10 +60,8 @@ class FileSOLIDViolationDetection extends DetectionAction {
     }
 
     console.log("Dependencies found:", dependencies);
-    console.log("Request data for SOLID detection:", reqData);
 
     const apiData = reqData;
-    console.log("sent");
     let result;
     try {
       const response = await fetch("http://localhost:8000/detect-solid", {
@@ -78,10 +75,8 @@ class FileSOLIDViolationDetection extends DetectionAction {
       if (!response.ok) {
         throw new Error(`API call failed with status ${response.status}`);
       }
-      console.log("received");
 
       result = await response.json();
-      console.log("SOLID Violations:", result);
     } catch (error) {
       console.error("Error calling detect-solid API:", error);
       throw error;
@@ -91,12 +86,9 @@ class FileSOLIDViolationDetection extends DetectionAction {
     const parsed = result;
 
     console.log("Parsed response:", parsed);
-    // const violations = parsed.violations;
     const violations = parsed;
 
     console.log("Extracted violations:", violations);
-    // console.log("violations-------- ", violations[0].violations);
-    console.log("DEP before save", dependencies);
     await db.saveSolidViolations(violations, projectId, dependencies);
     return this.extractMainFileViolations(violations);
   }

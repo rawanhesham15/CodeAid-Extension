@@ -5,14 +5,6 @@ import FileManager from "../filesManagement/fileManager.js";
 import dbManager from "../dbManager/dbManager.js";
 import ProjectManager from "../filesManagement/projectManager.js";
 class ProjectCOUPLINGViolationDetection extends DetectionAction {
-  // async getAllJavaFilePaths(rootDir) {
-  //   return await fg("**/*.java", {
-  //     cwd: rootDir,
-  //     absolute: true,
-  //     ignore: ["**/build/**", "**/node_modules/**"],  // "**/out/**"
-  //   });
-  // }
-
   async detectionMethod(req) {
     const db = new dbManager();
     const fm = new FileManager();
@@ -78,9 +70,6 @@ class ProjectCOUPLINGViolationDetection extends DetectionAction {
         }
 
         const apiData = reqData;
-
-        console.log("filePath", filePath);
-        // console.log("dependencies  ", dependencies);
 
         let result;
         try {

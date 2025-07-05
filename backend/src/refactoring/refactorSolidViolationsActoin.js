@@ -15,7 +15,9 @@ class refactorSolidViolationsAction extends RefactorAction {
     if (!filePath) {
       throw new Error("Missing filePath or projectPath in request.");
     }
+
     await db.setLastState(filePath);
+    
     const projectId = await projectManager.extractProjectId(rootDir);
     if (!projectId) {
       throw new Error("projectId not found in metadata.");

@@ -18,7 +18,6 @@ DetectRouter.post("/solid", async (req, res) => {
     res.json({ message: returnedVal, data: req.body });
   } 
   catch (error) {
-    // res.json({ message: "Java syntax error in the provided files" });
     res.status(500).json({ error: error.message });
   }
 });
@@ -27,7 +26,6 @@ DetectRouter.post("/couplingsmells", async (req, res) => {
   try {
     let context = req.body.context;
     let couplingDetector;
-    console.log(context);
     if (context === "file") {
       couplingDetector = new FileCOUPLINGViolationDetection();
     } else {
@@ -37,8 +35,6 @@ DetectRouter.post("/couplingsmells", async (req, res) => {
     res.json({ message: returnedVal, data: req.body });
   } catch (error) {
     res.status(500).json({ error: error.message });
-    // res.json({ message: "Java syntax error in the provided files" });
-
   }
 });
 

@@ -9,39 +9,11 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 class CodeFormatter {
   async formatJavaWithGoogleFormat(files) {
-    // console.log("in");
     const jarPath = path.join(
       __dirname,
       "../../libs/google-java-format-1.27.0-all-deps.jar"
     );
 
-    // const formattedFiles = [];
-
-    // for (const file of files) {
-    //   const tmpFile = path.join(os.tmpdir(), `temp-${Date.now()}.java`);
-    //   const decodedContent = this._decodeEscapes(file.fileContent);
-    //   console.log("dec", decodedContent)
-    //   fs.writeFileSync(tmpFile, decodedContent);
-
-    //   const cmd = `java -jar "${jarPath}" "${tmpFile}"`;
-
-    //   const formattedContent = await new Promise((resolve, reject) => {
-    //     exec(cmd, (error, stdout, stderr) => {
-    //       fs.unlinkSync(tmpFile);
-    //       if (error) {
-    //         console.error("Formatting error:", stderr);
-    //         return reject(new Error(`Formatting failed for ${file.filePath}`));
-    //       }
-    //       resolve(stdout);
-    //     });
-    //   });
-
-    //   formattedFiles.push({
-    //     filePath: file.filePath,
-    //     fileContent: formattedContent,
-    //   });
-    // }
-    // console.log(formattedFiles);
     const formattedFiles = [];
 
     for (const file of files) {
@@ -50,7 +22,7 @@ class CodeFormatter {
       fs.writeFileSync(tmpFile, decodedContent);
 
       const cmd = `java -jar "${jarPath}" "${tmpFile}"`;
-      console.log(cmd)
+      console.log(cmd);
       const formattedContent = await new Promise((resolve) => {
         exec(cmd, (error, stdout, stderr) => {
           fs.unlinkSync(tmpFile);
@@ -70,8 +42,6 @@ class CodeFormatter {
     }
 
     return formattedFiles;
-    
-    // return formattedFiles;
   }
 
   _decodeEscapes(str) {

@@ -196,9 +196,6 @@ class InputHandler {
       const decorations: vscode.DecorationOptions[] = [];
 
       complexityDataMap.clear();
-      // responseData.data.forEach((fileData: any) => {
-      //   complexityDataMap.set(fileData.file, fileData.classes);
-      // });
 
       let hasComplexity = false;
 
@@ -255,12 +252,12 @@ class InputHandler {
 
         const errData = error.response.data;
 
-        // ✅ Handle server returning plain string
+        // Handle server returning plain string
         if (typeof errData === "string") {
           return errData;
         }
 
-        // ✅ Handle server returning JSON error object
+        // Handle server returning JSON error object
         if (typeof errData === "object" && errData.message) {
           errorMessage = errData.message;
           if (errData.details) errorMessage += "\n" + errData.details;
@@ -393,7 +390,7 @@ class InputHandler {
           }
         }
 
-        // 📝 Step 1: Write raw new content to a temporary file
+        // Step 1: Write raw new content to a temporary file
         const tmpFilePath = path.join(
           os.tmpdir(),
           `refactored-${Date.now()}.java`
@@ -404,7 +401,7 @@ class InputHandler {
           Buffer.from(rawNewContent, "utf8")
         );
 
-        // 🧠 Step 2: Open & format the temporary file
+        // Step 2: Open & format the temporary file
         const doc = await vscode.workspace.openTextDocument(tmpUri);
         const editor = await vscode.window.showTextDocument(doc, {
           preview: true,
@@ -419,17 +416,17 @@ class InputHandler {
           "workbench.action.closeActiveEditor"
         );
 
-        // 🧾 Step 3: Read back the formatted content
+        // Step 3: Read back the formatted content
         const formattedBuffer = await vscode.workspace.fs.readFile(tmpUri);
         const formattedContent = formattedBuffer.toString();
 
-        // 🧼 Optional: delete temp file after reading
+        // Optional: delete temp file after reading
         await vscode.workspace.fs.delete(tmpUri);
 
         // Skip if nothing changed
         if (oldContent === formattedContent) continue;
 
-        // 📂 Step 4: Register and show diff
+        // Step 4: Register and show diff
         const originalUri = vscode.Uri.parse(
           `${scheme}://${filePath}.original`
         );

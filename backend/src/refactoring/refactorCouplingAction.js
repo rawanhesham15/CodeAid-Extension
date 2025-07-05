@@ -44,7 +44,6 @@ class FileRefactorCoupling extends RefactorAction {
   async refactorMethod(req) {
     const db = new dbManager();
     const projectManager = new ProjectManager();
-    // const filePath = req?.body?.filePath;
     const rootDir = req?.body?.rootDir;
 
     if (!rootDir) {
@@ -57,12 +56,10 @@ class FileRefactorCoupling extends RefactorAction {
 
     const projectDoc = await db.getProjectDocument(projectId);
 
-    console.log("project doc", projectDoc);
-
     const inputData = await this.buildCouplingSuggestionInFormat(
       projectDoc.couplingViolations || []
     );
-    console.log("Input data for refactoring:", inputData);
+
     const sentData = {
       ...inputData,
     };

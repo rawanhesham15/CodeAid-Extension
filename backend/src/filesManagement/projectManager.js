@@ -14,12 +14,9 @@ class ProjectManager {
     const metaPath = await this.findMetaPath(startPath);
     console.log("metaPath", metaPath);
     const metaContent = await fs.readFile(metaPath, "utf-8");
-    console.log("metaContent", metaContent);
     const metaData = JSON.parse(metaContent);
-    console.log("metaData", metaData);
 
     const projectId = metaData.projectId;
-    console.log("projectId", projectId);
     if (!projectId) {
       throw new Error("projectId not found in metadata.");
     }
