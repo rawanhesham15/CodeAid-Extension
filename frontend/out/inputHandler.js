@@ -209,6 +209,7 @@ class InputHandler {
         try {
             const response = await axios_1.default.post("http://localhost:3000/rateCalc/complexity", {
                 path: filePath,
+                projectDir: this.getWorkSpacePath()
             });
             const responseData = response.data;
             if (typeof responseData === "string") {
@@ -219,9 +220,6 @@ class InputHandler {
             }
             const decorations = [];
             complexityDataMap.clear();
-            // responseData.data.forEach((fileData: any) => {
-            //   complexityDataMap.set(fileData.file, fileData.classes);
-            // });
             let hasComplexity = false;
             responseData.data.forEach((fileData) => {
                 complexityDataMap.set(fileData.file, fileData.classes);
@@ -267,11 +265,11 @@ class InputHandler {
             let errorMessage = "An error occurred while calculating the rates.";
             if (error.response) {
                 const errData = error.response.data;
-                // ✅ Handle server returning plain string
+                // Handle server returning plain string
                 if (typeof errData === "string") {
                     return errData;
                 }
-                // ✅ Handle server returning JSON error object
+                // Handle server returning JSON error object
                 if (typeof errData === "object" && errData.message) {
                     errorMessage = errData.message;
                     if (errData.details)
@@ -387,11 +385,11 @@ class InputHandler {
                         throw err;
                     }
                 }
-                // 📝 Step 1: Write raw new content to a temporary file
+                // Step 1: Write raw new content to a temporary file
                 const tmpFilePath = path.join(os_1.default.tmpdir(), `refactored-${Date.now()}.java`);
                 const tmpUri = vscode.Uri.file(tmpFilePath);
                 await vscode.workspace.fs.writeFile(tmpUri, Buffer.from(rawNewContent, "utf8"));
-                // 🧠 Step 2: Open & format the temporary file
+                // Step 2: Open & format the temporary file
                 const doc = await vscode.workspace.openTextDocument(tmpUri);
                 const editor = await vscode.window.showTextDocument(doc, {
                     preview: true,
@@ -401,15 +399,15 @@ class InputHandler {
                 await doc.save();
                 // Close the temp editor tab
                 await vscode.commands.executeCommand("workbench.action.closeActiveEditor");
-                // 🧾 Step 3: Read back the formatted content
+                // Step 3: Read back the formatted content
                 const formattedBuffer = await vscode.workspace.fs.readFile(tmpUri);
                 const formattedContent = formattedBuffer.toString();
-                // 🧼 Optional: delete temp file after reading
+                // Optional: delete temp file after reading
                 await vscode.workspace.fs.delete(tmpUri);
                 // Skip if nothing changed
                 if (oldContent === formattedContent)
                     continue;
-                // 📂 Step 4: Register and show diff
+                // Step 4: Register and show diff
                 const originalUri = vscode.Uri.parse(`${scheme}://${filePath}.original`);
                 const refactoredUri = vscode.Uri.parse(`${scheme}:${(0, url_1.pathToFileURL)(filePath).pathname}.refactored`);
                 exports.contentMap.set(originalUri.toString(), oldContent);

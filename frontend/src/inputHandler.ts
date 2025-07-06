@@ -180,6 +180,7 @@ class InputHandler {
         "http://localhost:3000/rateCalc/complexity",
         {
           path: filePath,
+          projectDir: this.getWorkSpacePath()
         }
       );
 

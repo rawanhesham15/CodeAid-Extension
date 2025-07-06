@@ -8,16 +8,18 @@ const RateCalculatorRouter = Router();
 
 RateCalculatorRouter.post("/complexity", async (req, res) => {
   const filePath = req.body.path;
+  const projectDir = req.body.projectDir
 
   if (!fs.existsSync(filePath) || !filePath.endsWith(".java")) {
     return res.status(400).json({ message: "Invalid Java file path" });
   }
 
   try {
-    const projectDir = path.dirname(filePath);
+    // const projectDir = path.dirname(filePath);
     const fileManager = new FileManager();
 
     const javaFiles = await fileManager.getAllJavaFilePaths(projectDir);
+    console.log(javaFiles)
 
     const { isValid, errorMessage } = await fileManager.checkProjectJavaSyntax(javaFiles);
 
